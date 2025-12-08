@@ -1,0 +1,79 @@
+.leaderboard {
+  padding: 40px 20px;
+}
+
+.leaderboard h1 {
+  color: #ffffff;
+  margin-bottom: 30px;
+  font-size: 32px;
+}
+
+.leaderboard-table {
+  background-color: #2a2a2a;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.leaderboard-header {
+  display: grid;
+  grid-template-columns: 80px 1fr 200px;
+  padding: 16px 20px;
+  background-color: #1a1a1a;
+  font-weight: 600;
+  color: #b0b0b0;
+  font-size: 14px;
+  text-transform: uppercase;
+}
+
+.leaderboard-row {
+  display: grid;
+  grid-template-columns: 80px 1fr 200px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #3a3a3a;
+  transition: background-color 0.2s;
+}
+
+.leaderboard-row:hover {
+  background-color: #333333;
+}
+
+.leaderboard-row:last-child {
+  border-bottom: none;
+}
+
+.rank-col {
+  display: flex;
+  align-items: center;
+}
+
+.rank {
+  font-weight: 600;
+  font-size: 18px;
+}
+
+.rank-1 {
+  color: #ffd700;
+}
+
+.rank-2 {
+  color: #c0c0c0;
+}
+
+.rank-3 {
+  color: #cd7f32;
+}
+
+.username-col {
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+}
+
+.cash-col {
+  color: #00ff88;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+}
+

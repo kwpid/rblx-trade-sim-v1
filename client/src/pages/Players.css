@@ -1,0 +1,53 @@
+.players {
+  padding: 40px 20px;
+}
+
+.players h1 {
+  color: #ffffff;
+  margin-bottom: 30px;
+  font-size: 32px;
+}
+
+.players-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.player-card {
+  background-color: #2a2a2a;
+  border-radius: 8px;
+  padding: 20px;
+  text-decoration: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s;
+}
+
+.player-card:hover {
+  transform: translateY(-4px);
+}
+
+.player-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.player-username {
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.player-cash {
+  color: #00ff88;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.player-joined {
+  color: #b0b0b0;
+  font-size: 12px;
+}
+

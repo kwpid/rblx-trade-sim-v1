@@ -1,0 +1,49 @@
+.settings {
+  padding: 40px 20px;
+}
+
+.settings h1 {
+  color: #ffffff;
+  margin-bottom: 30px;
+  font-size: 32px;
+}
+
+.settings-content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.settings-content h2 {
+  color: #ffffff;
+  margin-bottom: 20px;
+  font-size: 20px;
+}
+
+.settings-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 16px 0;
+  border-bottom: 1px solid #3a3a3a;
+}
+
+.settings-item:last-child {
+  border-bottom: none;
+}
+
+.settings-label {
+  color: #b0b0b0;
+  font-size: 14px;
+}
+
+.settings-value {
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.settings-content p {
+  color: #b0b0b0;
+  margin-bottom: 8px;
+}
+

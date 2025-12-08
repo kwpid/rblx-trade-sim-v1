@@ -1,0 +1,159 @@
+.notification-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 350px;
+}
+
+.notification {
+  background-color: #393939;
+  border-left: 4px solid #00a2ff;
+  border-radius: 3px;
+  padding: 12px 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  animation: slideIn 0.3s ease-out;
+  position: relative;
+  border: 1px solid #4a4a4a;
+}
+
+.notification.item_limited {
+  border-left-color: #ffaa00;
+}
+
+.notification.trade_offer {
+  border-left-color: #00a2ff;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(400px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.notification-content {
+  flex: 1;
+}
+
+.notification-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #00a2ff;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.notification-message {
+  font-size: 13px;
+  color: #ffffff;
+}
+
+.notification-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: none;
+  border: none;
+  color: #b0b0b0;
+  font-size: 20px;
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.notification-close:hover {
+  background-color: #3a3a3a;
+  color: #ffffff;
+}
+
+.popup-container {
+  position: fixed;
+  top: 70px;
+  right: 20px;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 350px;
+}
+
+.popup {
+  background-color: #393939;
+  border: 1px solid #4a4a4a;
+  border-radius: 3px;
+  padding: 12px 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  animation: slideDown 0.3s ease-out;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.popup-success {
+  border-left: 4px solid #00ff88;
+}
+
+.popup-error {
+  border-left: 4px solid #d32f2f;
+}
+
+.popup-info {
+  border-left: 4px solid #00a2ff;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.popup-message {
+  flex: 1;
+  color: #ffffff;
+  font-size: 14px;
+}
+
+.popup-close {
+  background: none;
+  border: none;
+  color: #b0b0b0;
+  font-size: 20px;
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+  flex-shrink: 0;
+}
+
+.popup-close:hover {
+  background-color: #4a4a4a;
+  color: #ffffff;
+}
+
