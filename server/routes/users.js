@@ -62,6 +62,27 @@ router.get('/me/profile', authenticate, async (req, res) => {
   }
 });
 
+// Get current user inventory
+router.get('/me/inventory', authenticate, async (req, res) => {
+  try {
+    const { data: items, error } = await supabase
+      .from('user_items')
+      .select(`
+        *,
+        items:item_id (*)
+      `)
+      .eq('user_id', req.user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    res.json(items);
+  } catch (error) {
+    console.error('Error fetching inventory:', error);
+    res.status(500).json({ error: 'Failed to fetch inventory' });
+  }
+});
+
 // Get leaderboard
 router.get('/leaderboard', async (req, res) => {
   try {

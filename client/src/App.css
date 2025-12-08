@@ -5,7 +5,7 @@
 
 .main-content {
   padding-top: 48px;
-  min-height: calc(100vh - 48px);
+  min-height: calc(100vh - 56px);
   background-color: var(--roblox-bg-primary);
 }
 

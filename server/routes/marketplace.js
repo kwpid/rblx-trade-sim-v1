@@ -161,10 +161,7 @@ router.post('/purchase-from-player', authenticate, async (req, res) => {
       return res.status(404).json({ error: 'Item not available' });
     }
 
-    // Check if trying to buy own item
-    if (userItem.user_id === req.user.id) {
-      return res.status(400).json({ error: 'Cannot purchase your own item' });
-    }
+    // Allow purchasing own items (for reselling purposes)
 
     // Check user cash
     const { data: user } = await supabase

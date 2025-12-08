@@ -1,7 +1,8 @@
 .item-detail {
   padding: 24px;
   background-color: var(--roblox-bg-primary);
-  min-height: calc(100vh - 48px);
+  min-height: calc(100vh - 56px);
+  margin-top: 56px;
 }
 
 .item-detail .container {
@@ -144,12 +145,21 @@
   font-size: 16px;
   font-weight: 700;
   cursor: pointer;
-  transition: background-color 0.15s;
+  transition: all 0.15s;
   width: 100%;
+  box-shadow: 0 4px 12px rgba(0, 176, 111, 0.3);
 }
 
 .buy-btn:hover {
   background-color: var(--roblox-green-hover);
+  box-shadow: 0 6px 16px rgba(0, 176, 111, 0.4);
+  transform: translateY(-1px);
+}
+
+.buy-btn-large {
+  font-size: 18px;
+  padding: 16px 32px;
+  box-shadow: 0 6px 20px rgba(0, 176, 111, 0.4);
 }
 
 .buy-btn:disabled {
@@ -277,6 +287,12 @@
   font-size: 14px;
 }
 
+.reseller-serial {
+  color: var(--roblox-text-muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+
 .reseller-price {
   color: var(--roblox-text-secondary);
   font-size: 16px;
@@ -332,4 +348,159 @@
   font-size: 24px;
   margin-bottom: 8px;
   color: var(--roblox-text-secondary);
+}
+
+.owners-section {
+  background-color: var(--roblox-bg-secondary);
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 32px;
+}
+
+.owners-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--roblox-text-primary);
+  margin-bottom: 16px;
+}
+
+.owners-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.owner-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background-color: var(--roblox-bg-primary);
+  border-radius: 6px;
+  border: 1px solid var(--roblox-border);
+}
+
+.owner-username {
+  color: var(--roblox-text-primary);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.owner-count {
+  color: var(--roblox-text-muted);
+  font-size: 12px;
+}
+
+.owner-more {
+  color: var(--roblox-text-muted);
+  font-size: 14px;
+  font-style: italic;
+  padding: 8px 12px;
+}
+
+.chart-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--roblox-text-primary);
+  margin-bottom: 16px;
+}
+
+.confirm-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+}
+
+.confirm-dialog {
+  background-color: var(--roblox-bg-secondary);
+  border-radius: 8px;
+  padding: 24px;
+  max-width: 400px;
+  width: 90%;
+  border: 1px solid var(--roblox-border);
+}
+
+.confirm-dialog h3 {
+  color: var(--roblox-text-primary);
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.confirm-dialog p {
+  color: var(--roblox-text-secondary);
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+
+.confirm-dialog .form-group {
+  margin-bottom: 16px;
+}
+
+.confirm-dialog label {
+  display: block;
+  color: var(--roblox-text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.confirm-dialog .input {
+  width: 100%;
+  padding: 10px 12px;
+  background-color: var(--roblox-bg-primary);
+  border: 1px solid var(--roblox-border);
+  border-radius: 6px;
+  color: var(--roblox-text-primary);
+  font-size: 14px;
+}
+
+.confirm-dialog .input:focus {
+  outline: none;
+  border-color: var(--roblox-green);
+}
+
+.confirm-dialog-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.confirm-btn {
+  background-color: var(--roblox-green);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.confirm-btn:hover {
+  background-color: var(--roblox-green-hover);
+}
+
+.cancel-btn {
+  background-color: transparent;
+  color: var(--roblox-text-primary);
+  border: 1px solid var(--roblox-border);
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.cancel-btn:hover {
+  background-color: var(--roblox-bg-hover);
 }

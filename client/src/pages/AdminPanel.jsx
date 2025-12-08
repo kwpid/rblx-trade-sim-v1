@@ -4,6 +4,37 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { useNotifications } from '../contexts/NotificationContext'
 import './AdminPanel.css'
 
+const AdminItemEditForm = ({ item, onUpdate }) => {
+  const [value, setValue] = useState(item.value || item.current_price || 0)
+  const isOutOfStock = item.is_off_sale || (item.sale_type === 'stock' && item.remaining_stock <= 0)
+  
+  return (
+    <div className="admin-edit-form">
+      <h3>Edit Item</h3>
+      <div className="form-group">
+        <label>Value {isOutOfStock ? '' : '(Only editable when out of stock)'}</label>
+        <input
+          type="number"
+          className="input"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          disabled={!isOutOfStock}
+          min="0"
+          step="1"
+        />
+        {isOutOfStock && (
+          <button 
+            className="btn btn-small" 
+            onClick={() => onUpdate({ value: parseFloat(value) })}
+          >
+            Update Value
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 const AdminPanel = () => {
   const [items, setItems] = useState([])
   const [showUploadForm, setShowUploadForm] = useState(false)
@@ -247,7 +278,7 @@ const AdminPanel = () => {
             </div>
             {items.map(item => (
               <div key={item.id} className="table-row">
-                <div><img src={item.image_url} alt={item.name} className="item-thumb" /></div>
+                <div><img src={`https://www.roblox.com/asset-thumbnail/image?assetId=${item.roblox_item_id}&width=420&height=420&format=png`} alt={item.name} className="item-thumb" /></div>
                 <div>{item.name}</div>
                 <div>R${item.current_price?.toLocaleString()}</div>
                 <div>{item.sale_type}</div>
@@ -256,9 +287,25 @@ const AdminPanel = () => {
                   {item.is_off_sale && <span className="badge off-sale">Off-Sale</span>}
                   {!item.is_limited && !item.is_off_sale && <span className="badge active">Active</span>}
                 </div>
-                <div>
+                <div className="admin-actions">
                   <button className="btn btn-secondary" onClick={() => handleViewDetails(item)}>
                     View Details
+                  </button>
+                  <button 
+                    className="btn btn-danger" 
+                    onClick={async () => {
+                      if (window.confirm(`Are you sure you want to delete "${item.name}"?`)) {
+                        try {
+                          await axios.delete(`/api/admin/items/${item.id}`)
+                          showPopup('Item deleted successfully', 'success')
+                          fetchItems()
+                        } catch (error) {
+                          showPopup(error.response?.data?.error || 'Failed to delete item', 'error')
+                        }
+                      }
+                    }}
+                  >
+                    Delete
                   </button>
                 </div>
               </div>
@@ -270,9 +317,22 @@ const AdminPanel = () => {
           <div className="modal-overlay" onClick={() => setSelectedItem(null)}>
             <div className="modal large-modal" onClick={(e) => e.stopPropagation()}>
               <h2>{selectedItem.name}</h2>
+              <AdminItemEditForm 
+                item={selectedItem} 
+                onUpdate={async (updates) => {
+                  try {
+                    await axios.put(`/api/admin/items/${selectedItem.id}`, updates)
+                    showPopup('Item updated successfully', 'success')
+                    fetchItems()
+                    setSelectedItem(null)
+                  } catch (error) {
+                    showPopup(error.response?.data?.error || 'Failed to update item', 'error')
+                  }
+                }}
+              />
               <div className="item-details-grid">
                 <div>
-                  <img src={selectedItem.image_url} alt={selectedItem.name} className="detail-image" />
+                  <img src={`https://www.roblox.com/asset-thumbnail/image?assetId=${selectedItem.roblox_item_id}&width=420&height=420&format=png`} alt={selectedItem.name} className="detail-image" />
                 </div>
                 <div>
                   <h3>RAP History</h3>

@@ -1,7 +1,8 @@
 .catalog {
   padding: 24px;
   background-color: var(--roblox-bg-primary);
-  min-height: calc(100vh - 48px);
+  min-height: calc(100vh - 56px);
+  margin-top: 56px;
 }
 
 .catalog-header {
@@ -154,6 +155,21 @@
 
 .limited-only {
   border-radius: 3px;
+}
+
+.new-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background-color: var(--roblox-green);
+  color: white;
+  padding: 3px 8px;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-radius: 3px;
+  z-index: 2;
 }
 
 .item-details {

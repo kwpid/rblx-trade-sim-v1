@@ -6,6 +6,7 @@ import './Catalog.css'
 
 const Catalog = () => {
   const [items, setItems] = useState([])
+  const [resellerPrices, setResellerPrices] = useState({})
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [sortBy, setSortBy] = useState('relevance')
@@ -19,7 +20,32 @@ const Catalog = () => {
   const fetchItems = async () => {
     try {
       const response = await axios.get('/api/items')
-      setItems(response.data)
+      const itemsData = response.data
+      setItems(itemsData)
+      
+      // Fetch reseller prices for limited items and out-of-stock items
+      const itemsNeedingResellers = itemsData.filter(item => 
+        item.is_limited || item.is_off_sale || (item.sale_type === 'stock' && item.remaining_stock <= 0)
+      )
+      
+      const pricePromises = itemsNeedingResellers.map(async (item) => {
+        try {
+          const res = await axios.get(`/api/items/${item.id}/resellers`)
+          if (res.data && res.data.length > 0) {
+            return { itemId: item.id, price: res.data[0].sale_price }
+          }
+          return { itemId: item.id, price: null }
+        } catch (e) {
+          return { itemId: item.id, price: null }
+        }
+      })
+      
+      const prices = await Promise.all(pricePromises)
+      const priceMap = {}
+      prices.forEach(({ itemId, price }) => {
+        priceMap[itemId] = price
+      })
+      setResellerPrices(priceMap)
     } catch (error) {
       console.error('Error fetching items:', error)
     } finally {
@@ -52,15 +78,28 @@ const Catalog = () => {
 
   const getItemPrice = (item) => {
     if (item.is_limited) {
-      if (item.best_price && item.best_price > 0) {
-        return `$${item.best_price.toLocaleString()}`
+      const resellerPrice = resellerPrices[item.id]
+      if (resellerPrice && resellerPrice > 0) {
+        return `$${resellerPrice.toLocaleString()}`
       }
       return null
     }
-    if (item.is_off_sale) {
+    if (item.is_off_sale || (item.sale_type === 'stock' && item.remaining_stock <= 0)) {
+      const resellerPrice = resellerPrices[item.id]
+      if (resellerPrice && resellerPrice > 0) {
+        return `$${resellerPrice.toLocaleString()}`
+      }
       return null
     }
     return `$${(item.current_price || 0).toLocaleString()}`
+  }
+  
+  const hasNoResellers = (item) => {
+    if (item.is_limited || item.is_off_sale || (item.sale_type === 'stock' && item.remaining_stock <= 0)) {
+      const resellerPrice = resellerPrices[item.id]
+      return !resellerPrice || resellerPrice <= 0
+    }
+    return false
   }
 
   if (loading) {
@@ -105,17 +144,17 @@ const Catalog = () => {
           <div className="catalog-grid">
             {paginatedItems.map(item => {
               const price = getItemPrice(item)
-              const hasNoResellers = item.is_limited && !price
+              const noResellers = hasNoResellers(item)
+              
+              const imageUrl = `https://www.roblox.com/asset-thumbnail/image?assetId=${item.roblox_item_id}&width=420&height=420&format=png`
+              const isInStock = !item.is_limited && !item.is_off_sale && item.sale_type === 'stock' && item.remaining_stock > 0
               
               return (
                 <Link key={item.id} to={`/catalog/${item.id}`} className="catalog-item-card">
                   <div className="item-image-wrapper">
                     <img 
-                      src={item.image_url || `https://www.roblox.com/asset-thumbnail/image?assetId=${item.roblox_item_id}&width=420&height=420&format=png`} 
+                      src={imageUrl}
                       alt={item.name}
-                      onError={(e) => {
-                        e.target.src = `https://www.roblox.com/asset-thumbnail/image?assetId=${item.roblox_item_id}&width=420&height=420&format=png`
-                      }}
                     />
                     {item.is_limited && (
                       <div className="limited-badge-overlay">
@@ -123,10 +162,13 @@ const Catalog = () => {
                         <span className="limited-u-tag">U</span>
                       </div>
                     )}
+                    {isInStock && (
+                      <div className="new-badge">NEW</div>
+                    )}
                   </div>
                   <div className="item-details">
                     <h3>{item.name}</h3>
-                    {hasNoResellers ? (
+                    {noResellers ? (
                       <div className="item-price no-resellers">No Resellers</div>
                     ) : price ? (
                       <div className="item-price">{price}</div>

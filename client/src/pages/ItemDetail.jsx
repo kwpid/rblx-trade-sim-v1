@@ -13,8 +13,14 @@ const ItemDetail = () => {
   const [item, setItem] = useState(null)
   const [rapHistory, setRapHistory] = useState([])
   const [resellers, setResellers] = useState([])
+  const [ownerCount, setOwnerCount] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [ownedCount, setOwnedCount] = useState(0)
+  const [ownedItems, setOwnedItems] = useState([])
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+  const [confirmAction, setConfirmAction] = useState(null)
+  const [showSellDialog, setShowSellDialog] = useState(false)
+  const [selectedSerialForSale, setSelectedSerialForSale] = useState(null)
+  const [salePrice, setSalePrice] = useState('')
   const { showPopup } = useNotifications()
 
   useEffect(() => {
@@ -23,10 +29,11 @@ const ItemDetail = () => {
 
   const fetchItemDetails = async () => {
     try {
-      const [itemResponse, rapResponse, resellersResponse] = await Promise.all([
+      const [itemResponse, rapResponse, resellersResponse, ownersResponse] = await Promise.all([
         axios.get(`/api/items/${id}`),
         axios.get(`/api/items/${id}/rap-history`),
-        axios.get(`/api/items/${id}/resellers`)
+        axios.get(`/api/items/${id}/resellers`),
+        axios.get(`/api/items/${id}/owners`)
       ])
       setItem(itemResponse.data)
       setRapHistory(rapResponse.data)
@@ -34,12 +41,13 @@ const ItemDetail = () => {
         (a.sale_price || 0) - (b.sale_price || 0)
       )
       setResellers(sortedResellers)
+      setOwnerCount(ownersResponse.data.count || 0)
       
       if (user) {
         try {
           const inventoryResponse = await axios.get('/api/users/me/inventory')
-          const owned = inventoryResponse.data.filter(i => i.item_id === parseInt(id))
-          setOwnedCount(owned.length)
+          const owned = inventoryResponse.data.filter(i => i.item_id === id)
+          setOwnedItems(owned)
         } catch (e) {
           console.error('Error fetching inventory:', e)
         }
@@ -52,6 +60,7 @@ const ItemDetail = () => {
   }
 
   const handlePurchase = async () => {
+    setShowConfirmDialog(false)
     try {
       await axios.post('/api/marketplace/purchase', { item_id: id })
       showPopup('Item purchased successfully!', 'success')
@@ -63,6 +72,7 @@ const ItemDetail = () => {
   }
 
   const handlePurchaseFromPlayer = async (userItemId) => {
+    setShowConfirmDialog(false)
     try {
       await axios.post('/api/marketplace/purchase-from-player', {
         user_item_id: userItemId
@@ -73,6 +83,11 @@ const ItemDetail = () => {
     } catch (error) {
       showPopup(error.response?.data?.error || 'Failed to purchase item', 'error')
     }
+  }
+
+  const confirmPurchase = (isFromPlayer, userItemId) => {
+    setConfirmAction(() => () => isFromPlayer ? handlePurchaseFromPlayer(userItemId) : handlePurchase())
+    setShowConfirmDialog(true)
   }
 
   if (loading) {
@@ -93,7 +108,45 @@ const ItemDetail = () => {
 
   const bestPrice = resellers.length > 0 ? resellers[0].sale_price : null
   const hasResellers = resellers.length > 0
-  const canPurchase = item.is_limited ? hasResellers : !item.is_off_sale
+  const isOutOfStock = item.is_off_sale || (item.sale_type === 'stock' && item.remaining_stock <= 0)
+  const canPurchase = item.is_limited ? hasResellers : !isOutOfStock || hasResellers
+  
+  // Get RAP (most recent from history or current price)
+  const currentRAP = rapHistory.length > 0 ? rapHistory[rapHistory.length - 1].rap_value : (item.current_price || 0)
+  const itemValue = item.value || item.current_price || 0
+  
+  const displayPrice = () => {
+    if (item.is_limited) {
+      return hasResellers ? `$${bestPrice?.toLocaleString()}` : 'No Resellers'
+    }
+    if (isOutOfStock) {
+      return hasResellers ? `$${bestPrice?.toLocaleString()}` : 'No Resellers'
+    }
+    return `$${item.current_price?.toLocaleString()}`
+  }
+  
+  const handleSell = async () => {
+    if (!selectedSerialForSale || !salePrice || salePrice <= 0) {
+      showPopup('Please select a serial and enter a valid price', 'error')
+      return
+    }
+    
+    try {
+      await axios.post('/api/marketplace/list', {
+        user_item_id: selectedSerialForSale,
+        sale_price: parseFloat(salePrice)
+      })
+      showPopup('Item listed for sale!', 'success')
+      setShowSellDialog(false)
+      setSelectedSerialForSale(null)
+      setSalePrice('')
+      fetchItemDetails()
+    } catch (error) {
+      showPopup(error.response?.data?.error || 'Failed to list item', 'error')
+    }
+  }
+  
+  const imageUrl = `https://www.roblox.com/asset-thumbnail/image?assetId=${item.roblox_item_id}&width=420&height=420&format=png`
 
   const chartData = rapHistory.map(h => ({
     date: new Date(h.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
@@ -121,7 +174,10 @@ const ItemDetail = () => {
         
         <div className="item-main-section">
           <div className="item-image-container">
-            <img src={item.image_url} alt={item.name} />
+            <img 
+              src={imageUrl} 
+              alt={item.name}
+            />
             {item.is_limited && (
               <div className="item-limited-badge">
                 <span className="item-limited-tag">LIMITED</span>
@@ -135,18 +191,24 @@ const ItemDetail = () => {
               <div className="item-info-left">
                 <h1 className="item-title">{item.name}</h1>
                 <div className="item-creator">By Roblox</div>
-                {ownedCount > 0 && (
-                  <div className="item-owned-count">Item Owned ({ownedCount})</div>
+                {ownedItems.length > 0 && (
+                  <div className="item-owned-count">Item Owned ({ownedItems.length})</div>
                 )}
                 
                 <div className="item-stats-grid">
                   <span className="stat-label">Best Price</span>
                   <span className="stat-value price">
-                    {item.is_limited 
-                      ? (hasResellers ? `$${bestPrice?.toLocaleString()}` : 'No Resellers')
-                      : `$${item.current_price?.toLocaleString()}`
-                    }
+                    {displayPrice()}
                   </span>
+                  
+                  <span className="stat-label">RAP</span>
+                  <span className="stat-value">${currentRAP.toLocaleString()}</span>
+                  
+                  <span className="stat-label">Value</span>
+                  <span className="stat-value">${itemValue.toLocaleString()}</span>
+                  
+                  <span className="stat-label">Owners</span>
+                  <span className="stat-value">{ownerCount}</span>
                   
                   {item.is_limited && (
                     <>
@@ -172,16 +234,24 @@ const ItemDetail = () => {
               <div className="item-actions">
                 {canPurchase ? (
                   <button 
-                    className="buy-btn" 
-                    onClick={item.is_limited && hasResellers ? () => handlePurchaseFromPlayer(resellers[0].id) : handlePurchase}
+                    className="buy-btn buy-btn-large" 
+                    onClick={() => {
+                      if (item.is_limited && hasResellers) {
+                        confirmPurchase(true, resellers[0].id)
+                      } else if (isOutOfStock && hasResellers) {
+                        confirmPurchase(true, resellers[0].id)
+                      } else {
+                        confirmPurchase(false, null)
+                      }
+                    }}
                   >
-                    Buy
+                    Buy {bestPrice ? `$${bestPrice.toLocaleString()}` : `$${item.current_price?.toLocaleString()}`}
                   </button>
                 ) : (
                   <div className="no-resellers-text">No Resellers</div>
                 )}
-                {item.is_limited && ownedCount > 0 && (
-                  <button className="sell-btn" onClick={() => navigate('/profile')}>
+                {ownedItems.length > 0 && (
+                  <button className="sell-btn" onClick={() => setShowSellDialog(true)}>
                     Sell
                   </button>
                 )}
@@ -190,16 +260,14 @@ const ItemDetail = () => {
           </div>
         </div>
 
-        {item.is_limited && chartData.length > 0 && (
+
+        {chartData.length > 0 && (
           <div className="chart-section">
+            <h2 className="chart-title">RAP History</h2>
             <div className="chart-legend">
               <div className="legend-item">
                 <span className="legend-dot price"></span>
                 <span>Avg Price</span>
-              </div>
-              <div className="legend-item">
-                <span className="legend-dot volume"></span>
-                <span>Volume</span>
               </div>
             </div>
             <ResponsiveContainer width="100%" height={200}>
@@ -243,31 +311,96 @@ const ItemDetail = () => {
           </div>
         )}
 
-        {item.is_limited && (
-          <div className="resellers-section">
-            <h2 className="resellers-title">Resellers</h2>
-            {resellers.length === 0 ? (
-              <div className="no-resellers-message">No resellers available</div>
-            ) : (
-              <div className="resellers-list">
-                {resellers.map(reseller => (
-                  <div key={reseller.id} className="reseller-item">
-                    <div className="reseller-info">
-                      <div className="reseller-username">{reseller.users?.username || 'Unknown'}</div>
-                      <div className="reseller-price">${reseller.sale_price?.toLocaleString()}</div>
-                    </div>
-                    {reseller.user_id !== user?.id && (
-                      <button
-                        className="reseller-buy-btn"
-                        onClick={() => handlePurchaseFromPlayer(reseller.id)}
-                      >
-                        Buy
-                      </button>
-                    )}
+        <div className="resellers-section">
+          <h2 className="resellers-title">Resellers</h2>
+          {resellers.length === 0 ? (
+            <div className="no-resellers-message">No resellers available</div>
+          ) : (
+            <div className="resellers-list">
+              {resellers.map(reseller => (
+                <div key={reseller.id} className="reseller-item">
+                  <div className="reseller-info">
+                    <div className="reseller-username">{reseller.users?.username || 'Unknown'}</div>
+                    <div className="reseller-serial">Serial #{reseller.serial_number || 'N/A'}</div>
+                    <div className="reseller-price">${reseller.sale_price?.toLocaleString()}</div>
                   </div>
-                ))}
+                  <button
+                    className="reseller-buy-btn"
+                    onClick={() => confirmPurchase(true, reseller.id)}
+                  >
+                    Buy
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {showConfirmDialog && (
+          <div className="confirm-dialog-overlay" onClick={() => setShowConfirmDialog(false)}>
+            <div className="confirm-dialog" onClick={(e) => e.stopPropagation()}>
+              <h3>Confirm Purchase</h3>
+              <p>Are you sure you want to purchase this item?</p>
+              <div className="confirm-dialog-actions">
+                <button className="confirm-btn" onClick={() => confirmAction && confirmAction()}>
+                  Confirm
+                </button>
+                <button className="cancel-btn" onClick={() => setShowConfirmDialog(false)}>
+                  Cancel
+                </button>
               </div>
-            )}
+            </div>
+          </div>
+        )}
+
+        {showSellDialog && (
+          <div className="confirm-dialog-overlay" onClick={() => setShowSellDialog(false)}>
+            <div className="confirm-dialog" onClick={(e) => e.stopPropagation()}>
+              <h3>List Item for Sale</h3>
+              <div className="form-group">
+                <label>Select Serial</label>
+                <select
+                  className="input"
+                  value={selectedSerialForSale || ''}
+                  onChange={(e) => setSelectedSerialForSale(e.target.value)}
+                >
+                  <option value="">Select a serial...</option>
+                  {ownedItems.map((ownedItem, index) => {
+                    // Get serial number based on creation order
+                    const serialNumber = index + 1
+                    return (
+                      <option key={ownedItem.id} value={ownedItem.id}>
+                        Serial #{serialNumber} {ownedItem.is_for_sale ? '(Already Listed)' : ''}
+                      </option>
+                    )
+                  })}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Sale Price (R$)</label>
+                <input
+                  type="number"
+                  className="input"
+                  value={salePrice}
+                  onChange={(e) => setSalePrice(e.target.value)}
+                  min="1"
+                  step="1"
+                  placeholder="Enter price"
+                />
+              </div>
+              <div className="confirm-dialog-actions">
+                <button className="confirm-btn" onClick={handleSell}>
+                  List for Sale
+                </button>
+                <button className="cancel-btn" onClick={() => {
+                  setShowSellDialog(false)
+                  setSelectedSerialForSale(null)
+                  setSalePrice('')
+                }}>
+                  Cancel
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

@@ -89,6 +89,27 @@ router.get('/items', async (req, res) => {
 // Update item
 router.put('/items/:id', async (req, res) => {
   try {
+    // Get current item
+    const { data: currentItem, error: fetchError } = await supabase
+      .from('items')
+      .select('*')
+      .eq('id', req.params.id)
+      .single();
+
+    if (fetchError || !currentItem) {
+      return res.status(404).json({ error: 'Item not found' });
+    }
+
+    // Check if trying to update value when item is not out of stock
+    if (req.body.value !== undefined) {
+      const isOutOfStock = currentItem.is_off_sale || 
+        (currentItem.sale_type === 'stock' && currentItem.remaining_stock <= 0);
+      
+      if (!isOutOfStock) {
+        return res.status(400).json({ error: 'Value can only be updated when item is out of stock' });
+      }
+    }
+
     const { data: item, error } = await supabase
       .from('items')
       .update(req.body)

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useParams } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import axios from 'axios'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
@@ -6,25 +7,66 @@ import { useNotifications } from '../contexts/NotificationContext'
 import './Profile.css'
 
 const Profile = () => {
+  const { id } = useParams()
   const { user } = useAuth()
+  const [profileUser, setProfileUser] = useState(null)
   const [inventory, setInventory] = useState([])
+  const [resellerPrices, setResellerPrices] = useState({})
   const [loading, setLoading] = useState(true)
-  const [selectedItem, setSelectedItem] = useState(null)
-  const [salePrice, setSalePrice] = useState('')
   const [portfolioData, setPortfolioData] = useState([])
   const { showPopup } = useNotifications()
 
+  const userId = id || user?.id
+
   useEffect(() => {
-    if (user) {
+    if (userId) {
+      fetchUserProfile()
       fetchInventory()
       fetchPortfolioData()
     }
-  }, [user])
+  }, [userId])
+
+  const fetchUserProfile = async () => {
+    try {
+      const response = await axios.get(`/api/users/${userId}`)
+      setProfileUser(response.data)
+    } catch (error) {
+      console.error('Error fetching user profile:', error)
+    }
+  }
 
   const fetchInventory = async () => {
     try {
-      const response = await axios.get(`/api/users/${user.id}/inventory`)
-      setInventory(response.data)
+      const response = await axios.get(`/api/users/${userId}/inventory`)
+      const items = response.data
+      setInventory(items)
+      
+      // Fetch reseller prices for out-of-stock items
+      const itemsNeedingResellers = items.filter(item => {
+        const itemData = item.items
+        if (!itemData) return false
+        return itemData.is_limited || itemData.is_off_sale || 
+          (itemData.sale_type === 'stock' && itemData.remaining_stock <= 0)
+      })
+      
+      const pricePromises = itemsNeedingResellers.map(async (userItem) => {
+        try {
+          const res = await axios.get(`/api/items/${userItem.item_id}/resellers`)
+          if (res.data && res.data.length > 0) {
+            return { itemId: userItem.item_id, price: res.data[0].sale_price }
+          }
+          return { itemId: userItem.item_id, price: null }
+        } catch (e) {
+          return { itemId: userItem.item_id, price: null }
+        }
+      })
+      
+      const prices = await Promise.all(pricePromises)
+      const priceMap = {}
+      prices.forEach(({ itemId, price }) => {
+        priceMap[itemId] = price
+      })
+      setResellerPrices(priceMap)
     } catch (error) {
       console.error('Error fetching inventory:', error)
     } finally {
@@ -34,59 +76,79 @@ const Profile = () => {
 
   const fetchPortfolioData = async () => {
     try {
-      const response = await axios.get(`/api/users/${user.id}/inventory`)
+      const response = await axios.get(`/api/users/${userId}/inventory`)
       const items = response.data
       
-      // Calculate portfolio value over time (simplified - using purchase prices)
-      const totalValue = items.reduce((sum, item) => sum + (item.purchase_price || 0), 0)
-      const totalRAP = items.reduce((sum, item) => {
-        const itemRAP = item.items?.current_price || item.purchase_price || 0
-        return sum + itemRAP
-      }, 0)
+      // Get all unique item IDs
+      const itemIds = [...new Set(items.map(item => item.item_id))]
       
-      // Create mock historical data (in real app, this would come from database)
-      const data = []
-      const now = new Date()
-      for (let i = 29; i >= 0; i--) {
-        const date = new Date(now)
-        date.setDate(date.getDate() - i)
-        data.push({
-          date: date.toLocaleDateString(),
-          value: totalValue + (Math.random() * 100000 - 50000),
-          rap: totalRAP + (Math.random() * 100000 - 50000)
+      // Fetch RAP history for all items
+      const rapPromises = itemIds.map(itemId => 
+        axios.get(`/api/items/${itemId}/rap-history`).catch(() => ({ data: [] }))
+      )
+      const rapResponses = await Promise.all(rapPromises)
+      
+      // Create a map of item_id to RAP history
+      const rapMap = new Map()
+      itemIds.forEach((itemId, index) => {
+        rapMap.set(itemId, rapResponses[index].data || [])
+      })
+      
+      // Group RAP history by date and calculate portfolio value
+      const dateMap = new Map()
+      
+      items.forEach(userItem => {
+        const itemId = userItem.item_id
+        const rapHistory = rapMap.get(itemId) || []
+        const itemValue = userItem.items?.value || userItem.items?.current_price || userItem.purchase_price || 0
+        
+        rapHistory.forEach(rap => {
+          const date = new Date(rap.timestamp).toLocaleDateString()
+          if (!dateMap.has(date)) {
+            dateMap.set(date, { value: 0, rap: 0 })
+          }
+          const dayData = dateMap.get(date)
+          dayData.value += itemValue
+          dayData.rap += rap.rap_value
         })
-      }
+      })
+      
+      // Convert to array and sort by date
+      const data = Array.from(dateMap.entries())
+        .map(([date, values]) => ({ date, ...values }))
+        .sort((a, b) => new Date(a.date) - new Date(b.date))
+      
       setPortfolioData(data)
     } catch (error) {
       console.error('Error fetching portfolio data:', error)
     }
   }
 
-  const handleListForSale = async (userItemId) => {
-    if (!salePrice || salePrice <= 0) {
-      showPopup('Please enter a valid sale price', 'error')
-      return
-    }
-
-    try {
-      await axios.post('/api/marketplace/list', {
-        user_item_id: userItemId,
-        sale_price: parseFloat(salePrice)
-      })
-      showPopup('Item listed for sale!', 'success')
-      setSelectedItem(null)
-      setSalePrice('')
-      fetchInventory()
-    } catch (error) {
-      showPopup(error.response?.data?.error || 'Failed to list item', 'error')
-    }
-  }
 
   if (loading) {
     return <div className="loading"><div className="spinner"></div></div>
   }
 
-  const totalValue = inventory.reduce((sum, item) => sum + (item.purchase_price || 0), 0)
+  // Calculate total value using item.value, reseller price, or current_price
+  const totalValue = inventory.reduce((sum, item) => {
+    const itemData = item.items
+    if (!itemData) return sum
+    
+    // Check if item is out of stock or limited
+    const isOutOfStock = itemData.is_off_sale || 
+      (itemData.sale_type === 'stock' && itemData.remaining_stock <= 0)
+    
+    let itemValue = itemData.value || itemData.current_price || item.purchase_price || 0
+    
+    // If out of stock or limited, use reseller price if available
+    if ((itemData.is_limited || isOutOfStock) && resellerPrices[item.item_id]) {
+      itemValue = resellerPrices[item.item_id]
+    }
+    
+    return sum + itemValue
+  }, 0)
+  
+  // Calculate total RAP from most recent RAP history
   const totalRAP = inventory.reduce((sum, item) => {
     const itemRAP = item.items?.current_price || item.purchase_price || 0
     return sum + itemRAP
@@ -98,11 +160,11 @@ const Profile = () => {
         {/* User Info Section */}
         <div className="profile-header">
           <div className="profile-user-info">
-            <h1>{user?.username}</h1>
+            <h1>{profileUser?.username || user?.username}</h1>
             <div className="profile-stats">
               <div className="stat-item">
                 <span className="stat-label">Cash:</span>
-                <span className="stat-value">${user?.cash?.toLocaleString()}</span>
+                <span className="stat-value">${(profileUser?.cash || user?.cash || 0)?.toLocaleString()}</span>
               </div>
               <div className="stat-item">
                 <span className="stat-label">Portfolio Value:</span>
@@ -149,88 +211,67 @@ const Profile = () => {
             <div className="empty-inventory">No items in inventory</div>
           ) : (
             <div className="inventory-grid">
-              {inventory.map((userItem, index) => (
-                <div key={userItem.id} className="inventory-item">
-                  <div className="inventory-item-serial">#{index + 1}</div>
-                  <div className="inventory-item-image">
-                    <img 
-                      src={userItem.items?.image_url || `https://www.roblox.com/asset-thumbnail/image?assetId=${userItem.items?.roblox_item_id}&width=420&height=420&format=png`} 
-                      alt={userItem.items?.name}
-                      onError={(e) => {
-                        e.target.src = `https://www.roblox.com/asset-thumbnail/image?assetId=${userItem.items?.roblox_item_id}&width=420&height=420&format=png`
-                      }}
-                    />
-                    {userItem.items?.is_limited && <span className="limited-badge-inv">LIMITED U</span>}
-                  </div>
-                  <div className="inventory-item-name">{userItem.items?.name}</div>
-                  <div className="inventory-item-price">${userItem.purchase_price?.toLocaleString()}</div>
-                  {userItem.is_for_sale ? (
-                    <button
-                      className="btn btn-secondary btn-small"
-                      onClick={async () => {
-                        try {
-                          await axios.post('/api/marketplace/list', {
-                            user_item_id: userItem.id,
-                            sale_price: null
-                          })
-                                fetchInventory()
-                                showPopup('Item unlisted', 'success')
-                              } catch (error) {
-                                showPopup('Failed to unlist item', 'error')
-                              }
-                      }}
-                    >
-                      Unlist
-                    </button>
-                  ) : (
-                    <button
-                      className="btn btn-small"
-                      onClick={() => setSelectedItem(userItem.id)}
-                    >
-                      List for Sale
-                    </button>
-                  )}
-                </div>
-              ))}
+              {inventory
+                .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+                .map((userItem, index) => {
+                  // Calculate serial number based on creation order for this item
+                  const sameItemInventory = inventory
+                    .filter(item => item.item_id === userItem.item_id)
+                    .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+                  const serialNumber = sameItemInventory.findIndex(item => item.id === userItem.id) + 1
+                  
+                  // Calculate item value - check if out of stock and use reseller price
+                  const itemData = userItem.items
+                  let itemValue = itemData?.value || itemData?.current_price || userItem.purchase_price || 0
+                  
+                  if (itemData) {
+                    const isOutOfStock = itemData.is_off_sale || 
+                      (itemData.sale_type === 'stock' && itemData.remaining_stock <= 0)
+                    
+                    // If out of stock or limited, use reseller price if available
+                    if ((itemData.is_limited || isOutOfStock) && resellerPrices[userItem.item_id]) {
+                      itemValue = resellerPrices[userItem.item_id]
+                    }
+                  }
+                  
+                  return (
+                    <div key={userItem.id} className="inventory-item">
+                      <div className="inventory-item-serial">Serial #{serialNumber}</div>
+                      <div className="inventory-item-image">
+                        <img 
+                          src={`https://www.roblox.com/asset-thumbnail/image?assetId=${userItem.items?.roblox_item_id}&width=420&height=420&format=png`}
+                          alt={userItem.items?.name}
+                        />
+                        {userItem.items?.is_limited && <span className="limited-badge-inv">LIMITED U</span>}
+                      </div>
+                      <div className="inventory-item-name">{userItem.items?.name}</div>
+                      <div className="inventory-item-price">${itemValue.toLocaleString()}</div>
+                      {!id && userItem.is_for_sale && (
+                        <button
+                          className="btn btn-secondary btn-small"
+                          onClick={async () => {
+                            try {
+                              await axios.post('/api/marketplace/list', {
+                                user_item_id: userItem.id,
+                                sale_price: null
+                              })
+                              fetchInventory()
+                              showPopup('Item unlisted', 'success')
+                            } catch (error) {
+                              showPopup('Failed to unlist item', 'error')
+                            }
+                          }}
+                        >
+                          Unlist
+                        </button>
+                      )}
+                    </div>
+                  )
+                })}
             </div>
           )}
         </div>
       </div>
-      {selectedItem && (
-        <div className="modal-overlay" onClick={() => setSelectedItem(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2>List Item for Sale</h2>
-            <div className="form-group">
-              <label>Sale Price (R$)</label>
-              <input
-                type="number"
-                value={salePrice}
-                onChange={(e) => setSalePrice(e.target.value)}
-                className="input"
-                min="1"
-                step="1"
-              />
-            </div>
-            <div className="modal-actions">
-              <button
-                className="btn"
-                onClick={() => handleListForSale(selectedItem)}
-              >
-                List Item
-              </button>
-              <button
-                className="btn btn-secondary"
-                onClick={() => {
-                  setSelectedItem(null)
-                  setSalePrice('')
-                }}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

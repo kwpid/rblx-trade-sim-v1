@@ -40,6 +40,7 @@ function App() {
                         <Route path="/catalog/:id" element={<ItemDetail />} />
                         <Route path="/profile" element={<Profile />} />
                         <Route path="/players" element={<Players />} />
+                        <Route path="/players/:id" element={<Profile />} />
                         <Route path="/trade" element={<Trade />} />
                         <Route path="/deals" element={<Deals />} />
                         <Route path="/leaderboard" element={<Leaderboard />} />
