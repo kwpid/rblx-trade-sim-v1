@@ -1,53 +1,55 @@
 .players {
-  padding: 40px 20px;
+  padding: 24px;
+  min-height: calc(100vh - 48px);
 }
 
 .players h1 {
-  color: #ffffff;
-  margin-bottom: 30px;
-  font-size: 32px;
+  color: var(--roblox-text-primary);
+  margin-bottom: 24px;
+  font-size: 28px;
+  font-weight: 700;
 }
 
 .players-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
 }
 
 .player-card {
-  background-color: #2a2a2a;
+  background-color: var(--roblox-bg-secondary);
   border-radius: 8px;
   padding: 20px;
   text-decoration: none;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  transition: transform 0.2s;
+  border: 1px solid var(--roblox-border);
+  transition: border-color 0.15s;
 }
 
 .player-card:hover {
-  transform: translateY(-4px);
+  border-color: var(--roblox-border-light);
+  text-decoration: none;
 }
 
 .player-info {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .player-username {
-  color: #ffffff;
-  font-size: 18px;
-  font-weight: 600;
-}
-
-.player-cash {
-  color: #00ff88;
+  color: var(--roblox-text-primary);
   font-size: 16px;
   font-weight: 600;
 }
 
-.player-joined {
-  color: #b0b0b0;
-  font-size: 12px;
+.player-cash {
+  color: var(--roblox-green);
+  font-size: 14px;
+  font-weight: 600;
 }
 
+.player-joined {
+  color: var(--roblox-text-muted);
+  font-size: 12px;
+}

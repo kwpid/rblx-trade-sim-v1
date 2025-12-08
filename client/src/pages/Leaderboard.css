@@ -1,41 +1,44 @@
 .leaderboard {
-  padding: 40px 20px;
+  padding: 24px;
+  min-height: calc(100vh - 48px);
 }
 
 .leaderboard h1 {
-  color: #ffffff;
-  margin-bottom: 30px;
-  font-size: 32px;
+  color: var(--roblox-text-primary);
+  margin-bottom: 24px;
+  font-size: 28px;
+  font-weight: 700;
 }
 
 .leaderboard-table {
-  background-color: #2a2a2a;
+  background-color: var(--roblox-bg-secondary);
   border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--roblox-border);
 }
 
 .leaderboard-header {
   display: grid;
   grid-template-columns: 80px 1fr 200px;
   padding: 16px 20px;
-  background-color: #1a1a1a;
+  background-color: var(--roblox-bg-tertiary);
   font-weight: 600;
-  color: #b0b0b0;
-  font-size: 14px;
+  color: var(--roblox-text-muted);
+  font-size: 12px;
   text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .leaderboard-row {
   display: grid;
   grid-template-columns: 80px 1fr 200px;
   padding: 16px 20px;
-  border-bottom: 1px solid #3a3a3a;
-  transition: background-color 0.2s;
+  border-bottom: 1px solid var(--roblox-border);
+  transition: background-color 0.15s;
 }
 
 .leaderboard-row:hover {
-  background-color: #333333;
+  background-color: var(--roblox-bg-hover);
 }
 
 .leaderboard-row:last-child {
@@ -48,8 +51,9 @@
 }
 
 .rank {
-  font-weight: 600;
-  font-size: 18px;
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--roblox-text-secondary);
 }
 
 .rank-1 {
@@ -65,15 +69,23 @@
 }
 
 .username-col {
-  color: #ffffff;
+  color: var(--roblox-text-primary);
   display: flex;
   align-items: center;
+  font-weight: 500;
 }
 
 .cash-col {
-  color: #00ff88;
+  color: var(--roblox-green);
   font-weight: 600;
   display: flex;
   align-items: center;
 }
 
+@media (max-width: 600px) {
+  .leaderboard-header,
+  .leaderboard-row {
+    grid-template-columns: 60px 1fr 120px;
+    padding: 12px 16px;
+  }
+}

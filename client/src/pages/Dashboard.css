@@ -1,35 +1,33 @@
 .dashboard {
-  padding: 40px 20px;
-}
-
-.container {
-  max-width: 1400px;
-  margin: 0 auto;
+  padding: 24px;
+  min-height: calc(100vh - 48px);
 }
 
 .dashboard h1 {
-  color: #ffffff;
-  margin-bottom: 30px;
-  font-size: 32px;
+  color: var(--roblox-text-primary);
+  margin-bottom: 32px;
+  font-size: 28px;
+  font-weight: 700;
 }
 
 .dashboard-grid {
   display: grid;
   grid-template-columns: 2fr 1fr;
-  gap: 20px;
+  gap: 24px;
 }
 
 .dashboard-card {
-  background-color: #2a2a2a;
+  background-color: var(--roblox-bg-secondary);
   border-radius: 8px;
   padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--roblox-border);
 }
 
 .dashboard-card h2 {
-  color: #ffffff;
+  color: var(--roblox-text-primary);
   margin-bottom: 20px;
-  font-size: 20px;
+  font-size: 18px;
+  font-weight: 600;
 }
 
 .items-grid {
@@ -39,21 +37,25 @@
 }
 
 .item-card-small {
-  background-color: #1a1a1a;
-  border-radius: 6px;
+  background-color: var(--roblox-bg-primary);
+  border-radius: 8px;
   overflow: hidden;
   text-decoration: none;
-  transition: transform 0.2s;
+  transition: transform 0.15s;
+  border: 1px solid var(--roblox-border);
 }
 
 .item-card-small:hover {
-  transform: translateY(-4px);
+  transform: translateY(-2px);
+  text-decoration: none;
 }
 
 .item-card-small img {
   width: 100%;
-  height: 120px;
-  object-fit: cover;
+  height: 100px;
+  object-fit: contain;
+  background-color: var(--roblox-bg-tertiary);
+  padding: 8px;
 }
 
 .item-info {
@@ -61,18 +63,19 @@
 }
 
 .item-name {
-  color: #ffffff;
-  font-size: 14px;
+  color: var(--roblox-text-primary);
+  font-size: 13px;
   margin-bottom: 4px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-weight: 500;
 }
 
 .item-price {
-  color: #00ff88;
-  font-size: 16px;
-  font-weight: 600;
+  color: var(--roblox-text-secondary);
+  font-size: 14px;
+  font-weight: 500;
 }
 
 .quick-links {
@@ -82,17 +85,21 @@
 }
 
 .quick-link {
-  background-color: #1a1a1a;
-  color: #ffffff;
+  background-color: var(--roblox-bg-primary);
+  color: var(--roblox-text-primary);
   padding: 16px;
-  border-radius: 6px;
+  border-radius: 8px;
   text-decoration: none;
   text-align: center;
-  transition: background-color 0.2s;
+  transition: background-color 0.15s;
+  border: 1px solid var(--roblox-border);
+  font-weight: 500;
 }
 
 .quick-link:hover {
-  background-color: #00a2ff;
+  background-color: var(--roblox-green);
+  border-color: var(--roblox-green);
+  text-decoration: none;
 }
 
 @media (max-width: 968px) {
@@ -104,4 +111,3 @@
     grid-template-columns: repeat(2, 1fr);
   }
 }
-

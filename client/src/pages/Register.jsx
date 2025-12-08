@@ -43,7 +43,8 @@ const Register = () => {
   return (
     <div className="auth-container">
       <div className="auth-card">
-        <h1>Register</h1>
+        <h1>Create Account</h1>
+        <p className="auth-subtitle">Join the trading community</p>
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label>Username</label>
@@ -52,6 +53,7 @@ const Register = () => {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               className="input"
+              placeholder="Choose a username"
               required
             />
           </div>
@@ -62,6 +64,7 @@ const Register = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="input"
+              placeholder="Enter your email"
               required
             />
           </div>
@@ -72,6 +75,7 @@ const Register = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="input"
+              placeholder="Create a password"
               required
             />
           </div>
@@ -82,16 +86,17 @@ const Register = () => {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               className="input"
+              placeholder="Confirm your password"
               required
             />
           </div>
           {error && <div className="error-message">{error}</div>}
           <button type="submit" className="btn" disabled={loading}>
-            {loading ? 'Registering...' : 'Register'}
+            {loading ? 'Creating account...' : 'Sign Up'}
           </button>
         </form>
         <p className="auth-link">
-          Already have an account? <Link to="/login">Login</Link>
+          Already have an account? <Link to="/login">Log In</Link>
         </p>
       </div>
     </div>
@@ -99,4 +104,3 @@ const Register = () => {
 }
 
 export default Register
-

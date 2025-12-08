@@ -30,7 +30,8 @@ const Login = () => {
   return (
     <div className="auth-container">
       <div className="auth-card">
-        <h1>Login</h1>
+        <h1>Welcome Back</h1>
+        <p className="auth-subtitle">Sign in to continue trading</p>
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label>Username or Email</label>
@@ -39,6 +40,7 @@ const Login = () => {
               value={usernameOrEmail}
               onChange={(e) => setUsernameOrEmail(e.target.value)}
               className="input"
+              placeholder="Enter your username or email"
               required
             />
           </div>
@@ -49,16 +51,17 @@ const Login = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="input"
+              placeholder="Enter your password"
               required
             />
           </div>
           {error && <div className="error-message">{error}</div>}
           <button type="submit" className="btn" disabled={loading}>
-            {loading ? 'Logging in...' : 'Login'}
+            {loading ? 'Signing in...' : 'Log In'}
           </button>
         </form>
         <p className="auth-link">
-          Don't have an account? <Link to="/register">Register</Link>
+          Don't have an account? <Link to="/register">Sign Up</Link>
         </p>
       </div>
     </div>
@@ -66,4 +69,3 @@ const Login = () => {
 }
 
 export default Login
-

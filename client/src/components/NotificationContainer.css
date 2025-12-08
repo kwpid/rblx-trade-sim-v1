@@ -10,23 +10,23 @@
 }
 
 .notification {
-  background-color: #393939;
-  border-left: 4px solid #00a2ff;
-  border-radius: 3px;
-  padding: 12px 16px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  background-color: var(--roblox-bg-secondary);
+  border-left: 4px solid var(--roblox-green);
+  border-radius: 8px;
+  padding: 14px 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
   cursor: pointer;
   animation: slideIn 0.3s ease-out;
   position: relative;
-  border: 1px solid #4a4a4a;
+  border: 1px solid var(--roblox-border);
 }
 
 .notification.item_limited {
-  border-left-color: #ffaa00;
+  border-left-color: var(--roblox-limited-orange);
 }
 
 .notification.trade_offer {
-  border-left-color: #00a2ff;
+  border-left-color: var(--roblox-link);
 }
 
 @keyframes slideIn {
@@ -47,7 +47,7 @@
 .notification-title {
   font-size: 11px;
   font-weight: 600;
-  color: #00a2ff;
+  color: var(--roblox-green);
   margin-bottom: 4px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -55,7 +55,7 @@
 
 .notification-message {
   font-size: 13px;
-  color: #ffffff;
+  color: var(--roblox-text-primary);
 }
 
 .notification-close {
@@ -64,7 +64,7 @@
   right: 8px;
   background: none;
   border: none;
-  color: #b0b0b0;
+  color: var(--roblox-text-muted);
   font-size: 20px;
   cursor: pointer;
   width: 24px;
@@ -73,12 +73,12 @@
   align-items: center;
   justify-content: center;
   border-radius: 4px;
-  transition: background-color 0.2s;
+  transition: background-color 0.15s;
 }
 
 .notification-close:hover {
-  background-color: #3a3a3a;
-  color: #ffffff;
+  background-color: var(--roblox-bg-tertiary);
+  color: var(--roblox-text-primary);
 }
 
 .popup-container {
@@ -93,11 +93,11 @@
 }
 
 .popup {
-  background-color: #393939;
-  border: 1px solid #4a4a4a;
-  border-radius: 3px;
-  padding: 12px 16px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  background-color: var(--roblox-bg-secondary);
+  border: 1px solid var(--roblox-border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
   cursor: pointer;
   animation: slideDown 0.3s ease-out;
   position: relative;
@@ -108,15 +108,15 @@
 }
 
 .popup-success {
-  border-left: 4px solid #00ff88;
+  border-left: 4px solid var(--roblox-green);
 }
 
 .popup-error {
-  border-left: 4px solid #d32f2f;
+  border-left: 4px solid var(--roblox-error);
 }
 
 .popup-info {
-  border-left: 4px solid #00a2ff;
+  border-left: 4px solid var(--roblox-link);
 }
 
 @keyframes slideDown {
@@ -132,14 +132,14 @@
 
 .popup-message {
   flex: 1;
-  color: #ffffff;
+  color: var(--roblox-text-primary);
   font-size: 14px;
 }
 
 .popup-close {
   background: none;
   border: none;
-  color: #b0b0b0;
+  color: var(--roblox-text-muted);
   font-size: 20px;
   cursor: pointer;
   width: 24px;
@@ -147,13 +147,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
-  transition: background-color 0.2s;
+  border-radius: 8px;
+  transition: background-color 0.15s;
   flex-shrink: 0;
 }
 
 .popup-close:hover {
-  background-color: #4a4a4a;
-  color: #ffffff;
+  background-color: var(--roblox-bg-tertiary);
+  color: var(--roblox-text-primary);
 }
-

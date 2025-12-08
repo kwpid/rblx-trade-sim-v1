@@ -1,3 +1,25 @@
+:root {
+  --roblox-bg-primary: #191919;
+  --roblox-bg-secondary: #232527;
+  --roblox-bg-tertiary: #393b3d;
+  --roblox-bg-card: #232527;
+  --roblox-bg-hover: #2d2f31;
+  --roblox-bg-input: #393b3d;
+  --roblox-border: #3d3f41;
+  --roblox-border-light: #4a4c4e;
+  --roblox-text-primary: #f5f5f5;
+  --roblox-text-secondary: #bdbebe;
+  --roblox-text-muted: #8c8c8c;
+  --roblox-green: #00b06f;
+  --roblox-green-hover: #00a366;
+  --roblox-green-dark: #00934f;
+  --roblox-limited-orange: #f68802;
+  --roblox-limited-u: #a855f7;
+  --roblox-robux: #bdbebe;
+  --roblox-error: #ff4d4d;
+  --roblox-link: #00b0ff;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -5,31 +27,49 @@
 }
 
 body {
-  font-family: 'Gotham', 'Gotham SSm A', 'Gotham SSm B', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background-color: #2c2c2c;
-  color: #ffffff;
+  font-family: 'Builder Sans', 'Gotham SSm A', 'Gotham SSm B', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background-color: var(--roblox-bg-primary);
+  color: var(--roblox-text-primary);
   overflow-x: hidden;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 #root {
   min-height: 100vh;
 }
 
-/* Roblox-style scrollbar */
 ::-webkit-scrollbar {
-  width: 12px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #2a2a2a;
+  background: var(--roblox-bg-secondary);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #3a3a3a;
-  border-radius: 6px;
+  background: var(--roblox-bg-tertiary);
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #4a4a4a;
+  background: var(--roblox-border-light);
 }
 
+a {
+  color: var(--roblox-link);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+button {
+  font-family: inherit;
+}
+
+input, select, textarea {
+  font-family: inherit;
+}
