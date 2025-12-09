@@ -179,19 +179,25 @@ const ItemDetail = () => {
     )
   }
 
-  // Filter out user's own items from resellers for price calculation
+  // For best price display, include all resellers (including own listings)
+  // But for purchasing, filter out own items
+  const bestPrice = resellers.length > 0 ? resellers[0].sale_price : null
+  const hasResellers = resellers.length > 0
+  
+  // Filter out user's own items from resellers for purchasing
   const availableResellers = user ? resellers.filter(r => 
     !ownedItems.some(owned => owned.id === r.id)
   ) : resellers
   
-  const bestPrice = availableResellers.length > 0 ? availableResellers[0].sale_price : null
-  const hasResellers = availableResellers.length > 0
+  const hasAvailableResellers = availableResellers.length > 0
   const isOutOfStock = item.is_off_sale || (item.sale_type === 'stock' && item.remaining_stock <= 0)
-  const canPurchase = item.is_limited ? hasResellers : !isOutOfStock || hasResellers
+  // Users can buy from resellers even if they own a copy (buy limit only applies to original price purchases)
+  const canPurchase = item.is_limited ? hasAvailableResellers : !isOutOfStock || hasAvailableResellers
   
   // Get RAP (most recent from history or current price)
   const currentRAP = rapHistory.length > 0 ? rapHistory[rapHistory.length - 1].rap_value : (item.current_price || 0)
-  const itemValue = item.value || item.current_price || 0
+  // Only use item.value if it's explicitly set (not null/undefined), otherwise use 0
+  const itemValue = (item.value !== null && item.value !== undefined) ? item.value : 0
   
   const displayPrice = () => {
     if (item.is_limited) {
@@ -333,9 +339,6 @@ const ItemDetail = () => {
                   
                   {item.is_limited && (
                     <>
-                      <span className="stat-label">Value</span>
-                      <span className="stat-value">{item.value?.toLocaleString() || 'N/A'}</span>
-                      
                       <span className="stat-label">Demand</span>
                       <span className="stat-value">{getDemandLevel(item)}</span>
                       
@@ -353,7 +356,7 @@ const ItemDetail = () => {
               </div>
               
               <div className="item-actions">
-                {canPurchase && ownedItems.length === 0 ? (
+                {canPurchase ? (
                   <button 
                     className="buy-btn buy-btn-large" 
                     onClick={() => {
@@ -368,9 +371,9 @@ const ItemDetail = () => {
                   >
                     Buy {bestPrice ? `$${bestPrice.toLocaleString()}` : `$${item.current_price?.toLocaleString()}`}
                   </button>
-                ) : ownedItems.length === 0 ? (
+                ) : (
                   <div className="no-resellers-text">No Resellers</div>
-                ) : null}
+                )}
                 {ownedItems.length > 0 && item?.is_limited && (
                   <button className="sell-btn" onClick={() => setShowSellDialog(true)}>
                     Sell

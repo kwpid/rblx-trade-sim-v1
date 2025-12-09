@@ -1,10 +1,10 @@
 const cron = require('node-cron');
 const supabase = require('../config/supabase');
 
-// Run daily at midnight to create player value/rap snapshots
-cron.schedule('0 0 * * *', async () => {
+// Helper function to calculate and save snapshots
+const calculateAndSaveSnapshots = async (isNewDay = false) => {
   try {
-    console.log('Starting daily player snapshot job...');
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
     
     // Get all users
     const { data: users, error: usersError } = await supabase
@@ -21,7 +21,6 @@ cron.schedule('0 0 * * *', async () => {
       return;
     }
 
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
     const snapshots = [];
 
     // Calculate value and RAP for each user
@@ -101,7 +100,8 @@ cron.schedule('0 0 * * *', async () => {
             const isOutOfStock = itemData.is_off_sale || 
               (itemData.sale_type === 'stock' && itemData.remaining_stock <= 0);
             
-            let itemValue = itemData.value || itemData.current_price || userItem.purchase_price || 0;
+            // Only use item.value if it's explicitly set (not null/undefined), otherwise start with 0
+            let itemValue = (itemData.value !== null && itemData.value !== undefined) ? itemData.value : 0;
             
             // If out of stock or limited, use reseller price if available
             if ((itemData.is_limited || isOutOfStock) && resellerPriceMap.has(userItem.item_id)) {
@@ -127,7 +127,7 @@ cron.schedule('0 0 * * *', async () => {
       }
     }
 
-    // Insert all snapshots (using upsert to handle duplicates)
+    // Upsert all snapshots (will create new or update existing for today)
     if (snapshots.length > 0) {
       const { error: insertError } = await supabase
         .from('player_snapshots')
@@ -137,14 +137,27 @@ cron.schedule('0 0 * * *', async () => {
         });
 
       if (insertError) {
-        console.error('Error inserting snapshots:', insertError);
+        console.error('Error upserting snapshots:', insertError);
       } else {
-        console.log(`Successfully created ${snapshots.length} player snapshots for ${today}`);
+        const action = isNewDay ? 'created' : 'updated';
+        console.log(`Successfully ${action} ${snapshots.length} player snapshots for ${today}`);
       }
     }
   } catch (error) {
-    console.error('Error in player snapshot job:', error);
+    console.error('Error in snapshot calculation:', error);
   }
+};
+
+// Run daily at midnight to create a new snapshot for the new day
+cron.schedule('0 0 * * *', async () => {
+  console.log('Starting daily player snapshot creation (midnight)...');
+  await calculateAndSaveSnapshots(true);
+});
+
+// Run every 5 minutes to update today's snapshot
+cron.schedule('*/5 * * * *', async () => {
+  console.log('Updating today\'s player snapshots...');
+  await calculateAndSaveSnapshots(false);
 });
 
 module.exports = {};

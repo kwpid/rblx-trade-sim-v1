@@ -1,6 +1,34 @@
 const jwt = require('jsonwebtoken');
 const supabase = require('../config/supabase');
 
+// Track online users (in-memory, could be Redis in production)
+const onlineUsers = new Map();
+
+// Update user's online status
+const updateOnlineStatus = (userId) => {
+  if (!userId) return;
+  onlineUsers.set(userId, Date.now());
+  // Consider user offline if they haven't been active in 5 minutes
+  setTimeout(() => {
+    const lastSeen = onlineUsers.get(userId);
+    if (lastSeen && Date.now() - lastSeen > 5 * 60 * 1000) {
+      onlineUsers.delete(userId);
+    }
+  }, 5 * 60 * 1000);
+};
+
+// Export function to get online users
+const getOnlineUsers = () => {
+  // Clean up old entries
+  const now = Date.now();
+  for (const [userId, lastSeen] of onlineUsers.entries()) {
+    if (now - lastSeen > 5 * 60 * 1000) {
+      onlineUsers.delete(userId);
+    }
+  }
+  return Array.from(onlineUsers.keys());
+};
+
 const authenticate = async (req, res, next) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
@@ -21,6 +49,9 @@ const authenticate = async (req, res, next) => {
       return res.status(401).json({ error: 'User not found' });
     }
 
+    // Update online status
+    updateOnlineStatus(user.id);
+
     req.user = user;
     next();
   } catch (error) {
@@ -35,5 +66,5 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
-module.exports = { authenticate, requireAdmin };
+module.exports = { authenticate, requireAdmin, getOnlineUsers };
 

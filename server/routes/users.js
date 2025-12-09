@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const supabase = require('../config/supabase');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, getOnlineUsers } = require('../middleware/auth');
 
 // Get user profile
 router.get('/:id', async (req, res) => {
@@ -229,7 +229,8 @@ router.get('/leaderboard/value', async (req, res) => {
             const isOutOfStock = itemData.is_off_sale || 
               (itemData.sale_type === 'stock' && itemData.remaining_stock <= 0);
             
-            let itemValue = itemData.value || itemData.current_price || userItem.purchase_price || 0;
+            // Only use item.value if it's explicitly set (not null/undefined), otherwise start with 0
+            let itemValue = (itemData.value !== null && itemData.value !== undefined) ? itemData.value : 0;
             
             if ((itemData.is_limited || isOutOfStock) && resellerPriceMap.has(userItem.item_id)) {
               itemValue = resellerPriceMap.get(userItem.item_id);
@@ -342,20 +343,125 @@ router.get('/leaderboard/rap', async (req, res) => {
   }
 });
 
+// Track online users (in-memory for now, could be moved to Redis in production)
+const onlineUsers = new Map();
+
+// Update user's online status
+const updateOnlineStatus = async (userId) => {
+  onlineUsers.set(userId, Date.now());
+  // Consider user offline if they haven't been active in 5 minutes
+  setTimeout(() => {
+    const lastSeen = onlineUsers.get(userId);
+    if (lastSeen && Date.now() - lastSeen > 5 * 60 * 1000) {
+      onlineUsers.delete(userId);
+    }
+  }, 5 * 60 * 1000);
+};
+
+// Middleware to update online status
+router.use((req, res, next) => {
+  if (req.user && req.user.id) {
+    updateOnlineStatus(req.user.id);
+  }
+  next();
+});
+
 // Get all players
 router.get('/', async (req, res) => {
   try {
-    const { limit = 50, offset = 0 } = req.query;
+    const { limit = 50, offset = 0, search = '', online_only = 'true' } = req.query;
+    const limitNum = parseInt(limit);
+    const offsetNum = parseInt(offset);
     
-    const { data: users, error } = await supabase
+    let query = supabase
       .from('users')
-      .select('id, username, cash, created_at')
+      .select('id, username, cash, is_admin, created_at');
+    
+    // Filter by search query
+    if (search && search.trim() !== '') {
+      query = query.ilike('username', `%${search.trim()}%`);
+    }
+    
+    // Filter by online status
+    if (online_only === 'true') {
+      const onlineUserIds = getOnlineUsers();
+      if (onlineUserIds.length > 0) {
+        query = query.in('id', onlineUserIds);
+      } else {
+        // No online users, return empty array
+        return res.json([]);
+      }
+    }
+    
+    const { data: users, error } = await query
       .order('cash', { ascending: false })
-      .range(offset, offset + limit - 1);
+      .range(offsetNum, offsetNum + limitNum - 1);
 
     if (error) throw error;
 
-    res.json(users);
+    // Calculate inventory value for each user
+    const usersWithValue = await Promise.all(users.map(async (user) => {
+      try {
+        // Get user's inventory
+        const { data: inventory, error: inventoryError } = await supabase
+          .from('user_items')
+          .select(`
+            *,
+            items:item_id (*)
+          `)
+          .eq('user_id', user.id);
+
+        if (inventoryError || !inventory || inventory.length === 0) {
+          return { ...user, inventory_value: 0 };
+        }
+
+        // Get reseller prices for items that are limited or out of stock
+        const itemIds = inventory.map(item => item.item_id);
+        const { data: resellers } = await supabase
+          .from('user_items')
+          .select('item_id, sale_price')
+          .in('item_id', itemIds)
+          .eq('is_for_sale', true)
+          .order('sale_price', { ascending: true });
+
+        const resellerPriceMap = new Map();
+        if (resellers) {
+          resellers.forEach(reseller => {
+            if (!resellerPriceMap.has(reseller.item_id) || 
+                resellerPriceMap.get(reseller.item_id) > reseller.sale_price) {
+              resellerPriceMap.set(reseller.item_id, reseller.sale_price);
+            }
+          });
+        }
+
+        let totalValue = 0;
+        inventory.forEach(userItem => {
+          const itemData = userItem.items;
+          if (!itemData) return;
+
+          const isOutOfStock = itemData.is_off_sale || 
+            (itemData.sale_type === 'stock' && itemData.remaining_stock <= 0);
+          
+          let itemValue = (itemData.value !== null && itemData.value !== undefined) ? itemData.value : 0;
+          
+          if ((itemData.is_limited || isOutOfStock) && resellerPriceMap.has(userItem.item_id)) {
+            itemValue = resellerPriceMap.get(userItem.item_id);
+          }
+          
+          totalValue += itemValue;
+        });
+
+        return { ...user, inventory_value: totalValue };
+      } catch (error) {
+        console.error(`Error calculating value for user ${user.id}:`, error);
+        return { ...user, inventory_value: 0 };
+      }
+    }));
+
+    // Sort by inventory value
+    usersWithValue.sort((a, b) => b.inventory_value - a.inventory_value);
+
+    res.json(usersWithValue);
   } catch (error) {
     console.error('Error fetching users:', error);
     res.status(500).json({ error: 'Failed to fetch users' });

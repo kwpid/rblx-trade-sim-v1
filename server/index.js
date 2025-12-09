@@ -11,6 +11,12 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Track online users for authenticated requests
+app.use((req, res, next) => {
+  // This will be handled by the users route middleware
+  next();
+});
+
 // Initialize jobs
 require('./jobs/paycheck');
 require('./jobs/playerSnapshots');

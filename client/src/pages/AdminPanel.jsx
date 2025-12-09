@@ -416,6 +416,21 @@ const AdminPanel = () => {
                     Off-Sale (not visible in marketplace)
                   </label>
                 </div>
+                <div className="form-group">
+                  <label>Buy Limit (Optional - how many copies a user can buy at original price)</label>
+                  <input
+                    type="number"
+                    value={formData.buy_limit}
+                    onChange={(e) => setFormData({ ...formData, buy_limit: e.target.value })}
+                    className="input"
+                    min="1"
+                    step="1"
+                    placeholder="Leave empty for unlimited"
+                  />
+                  <small style={{ color: 'var(--roblox-text-muted)', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                    Limits how many copies a user can purchase at the original price. Does not apply to reseller purchases.
+                  </small>
+                </div>
                 <div className="modal-actions">
                   <button type="submit" className="btn">
                     Create Item

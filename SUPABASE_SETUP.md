@@ -109,6 +109,30 @@ CREATE INDEX idx_notifications_user ON notifications(user_id, is_read);
 CREATE INDEX idx_rap_history_item ON item_rap_history(item_id);
 ```
 
+## Step 4: Create Player Snapshots Table (Required for Value/RAP Charts)
+
+Go to **SQL Editor** in your Supabase dashboard and run the following SQL from `player_snapshots_migration.sql`:
+
+```sql
+-- Create player snapshots table for daily value/rap tracking
+CREATE TABLE IF NOT EXISTS player_snapshots (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  total_value BIGINT NOT NULL DEFAULT 0,
+  total_rap BIGINT NOT NULL DEFAULT 0,
+  snapshot_date DATE NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(user_id, snapshot_date)
+);
+
+-- Create indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_player_snapshots_user ON player_snapshots(user_id);
+CREATE INDEX IF NOT EXISTS idx_player_snapshots_date ON player_snapshots(snapshot_date DESC);
+CREATE INDEX IF NOT EXISTS idx_player_snapshots_user_date ON player_snapshots(user_id, snapshot_date DESC);
+```
+
+**Note:** This table is required for the player value/RAP charts feature. Without it, you'll see errors when viewing player profiles.
+
 ## Step 4: Set Up Row Level Security (RLS)
 
 Run this SQL in the SQL Editor:

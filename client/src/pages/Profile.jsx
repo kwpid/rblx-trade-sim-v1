@@ -15,6 +15,7 @@ const Profile = () => {
   const [rapValues, setRapValues] = useState({})
   const [loading, setLoading] = useState(true)
   const [portfolioData, setPortfolioData] = useState([])
+  const [portfolioLoading, setPortfolioLoading] = useState(true)
   const { showPopup } = useNotifications()
 
   const userId = id || user?.id
@@ -99,6 +100,7 @@ const Profile = () => {
   }
 
   const fetchPortfolioData = async () => {
+    setPortfolioLoading(true)
     try {
       // Try to fetch snapshots first
       try {
@@ -114,6 +116,7 @@ const Profile = () => {
           }))
           
           setPortfolioData(data)
+          setPortfolioLoading(false)
           return
         }
       } catch (snapshotError) {
@@ -182,7 +185,8 @@ const Profile = () => {
         const isOutOfStock = itemData.is_off_sale || 
           (itemData.sale_type === 'stock' && itemData.remaining_stock <= 0)
         
-        let itemValue = itemData.value || itemData.current_price || userItem.purchase_price || 0
+        // Only use item.value if it's explicitly set (not null/undefined), otherwise start with 0
+        let itemValue = (itemData.value !== null && itemData.value !== undefined) ? itemData.value : 0
         
         // If out of stock or limited, use reseller price if available
         if ((itemData.is_limited || isOutOfStock) && resellerPriceMap.has(userItem.item_id)) {
@@ -201,6 +205,8 @@ const Profile = () => {
       setPortfolioData([{ date: today, value: currentValue, rap: currentRAP }])
     } catch (error) {
       console.error('Error fetching portfolio data:', error)
+    } finally {
+      setPortfolioLoading(false)
     }
   }
 
@@ -218,7 +224,8 @@ const Profile = () => {
     const isOutOfStock = itemData.is_off_sale || 
       (itemData.sale_type === 'stock' && itemData.remaining_stock <= 0)
     
-    let itemValue = itemData.value || itemData.current_price || item.purchase_price || 0
+    // Only use item.value if it's explicitly set (not null/undefined), otherwise start with 0
+    let itemValue = (itemData.value !== null && itemData.value !== undefined) ? itemData.value : 0
     
     // If out of stock or limited, use reseller price if available
     if ((itemData.is_limited || isOutOfStock) && resellerPrices[item.item_id]) {
@@ -259,8 +266,12 @@ const Profile = () => {
         </div>
 
         {/* RAP/Value Graph */}
-        {portfolioData.length > 0 && (
-          <div className="portfolio-graph card">
+        <div className="portfolio-graph card">
+          {portfolioLoading ? (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '300px' }}>
+              <div className="spinner"></div>
+            </div>
+          ) : portfolioData.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={portfolioData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#4a4a4a" />
@@ -286,8 +297,8 @@ const Profile = () => {
                 <Line type="monotone" dataKey="rap" stroke="#00ff88" name="RAP" dot={false} />
               </LineChart>
             </ResponsiveContainer>
-          </div>
-        )}
+          ) : null}
+        </div>
 
         {/* Inventory Section */}
         <div className="inventory-section">
@@ -312,7 +323,8 @@ const Profile = () => {
                   
                   // Calculate item value - check if out of stock and use reseller price
                   const itemData = userItem.items
-                  let itemValue = itemData?.value || itemData?.current_price || userItem.purchase_price || 0
+                  // Only use item.value if it's explicitly set (not null/undefined), otherwise start with 0
+                  let itemValue = (itemData?.value !== null && itemData?.value !== undefined) ? itemData.value : 0
                   
                   if (itemData) {
                     const isOutOfStock = itemData.is_off_sale || 
