@@ -106,15 +106,13 @@ const AdminItemEditForm = ({ item, onUpdate }) => {
 }
 
 const AdminPanel = () => {
-  const [activeTab, setActiveTab] = useState('items') // 'items', 'values', or 'changes'
+  const [activeTab, setActiveTab] = useState('items') // 'items' or 'values'
   const [items, setItems] = useState([])
   const [showUploadForm, setShowUploadForm] = useState(false)
   const [selectedItem, setSelectedItem] = useState(null)
   const [rapHistory, setRapHistory] = useState([])
   const [resellers, setResellers] = useState([])
   const [loading, setLoading] = useState(true)
-  const [valueChangeHistory, setValueChangeHistory] = useState([])
-  const [loadingHistory, setLoadingHistory] = useState(false)
   const [valueUpdateForm, setValueUpdateForm] = useState({
     item_id: '',
     value: '',
@@ -130,6 +128,7 @@ const AdminPanel = () => {
     sale_type: 'stock',
     stock_count: '',
     timer_duration: '',
+    timer_unit: 'hours',
     is_off_sale: false,
     image_url: '',
     buy_limit: ''
@@ -142,11 +141,6 @@ const AdminPanel = () => {
     fetchItems()
   }, [])
 
-  useEffect(() => {
-    if (activeTab === 'changes') {
-      fetchValueChangeHistory()
-    }
-  }, [activeTab])
 
   const fetchItems = async () => {
     try {
@@ -159,17 +153,6 @@ const AdminPanel = () => {
     }
   }
 
-  const fetchValueChangeHistory = async () => {
-    setLoadingHistory(true)
-    try {
-      const response = await axios.get('/api/admin/value-changes')
-      setValueChangeHistory(response.data)
-    } catch (error) {
-      console.error('Error fetching value change history:', error)
-    } finally {
-      setLoadingHistory(false)
-    }
-  }
 
   const fetchItemPreview = async (itemId) => {
     if (!itemId || itemId.length < 1) {
@@ -225,6 +208,7 @@ const AdminPanel = () => {
         sale_type: 'stock',
         stock_count: '',
         timer_duration: '',
+        timer_unit: 'hours',
         is_off_sale: false,
         image_url: '',
         buy_limit: ''
@@ -397,16 +381,29 @@ const AdminPanel = () => {
                 )}
                 {formData.sale_type === 'timer' && (
                   <div className="form-group">
-                    <label>Timer Duration (minutes)</label>
-                    <input
-                      type="number"
-                      value={formData.timer_duration}
-                      onChange={(e) => setFormData({ ...formData, timer_duration: e.target.value })}
-                      className="input"
-                      min="1"
-                      step="1"
-                      required
-                    />
+                    <label>Timer Duration</label>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <input
+                        type="number"
+                        value={formData.timer_duration}
+                        onChange={(e) => setFormData({ ...formData, timer_duration: e.target.value })}
+                        className="input"
+                        min="1"
+                        step="1"
+                        required
+                        style={{ flex: 1 }}
+                      />
+                      <select
+                        value={formData.timer_unit}
+                        onChange={(e) => setFormData({ ...formData, timer_unit: e.target.value })}
+                        className="input"
+                        style={{ width: '120px' }}
+                      >
+                        <option value="hours">Hours</option>
+                        <option value="days">Days</option>
+                        <option value="weeks">Weeks</option>
+                      </select>
+                    </div>
                   </div>
                 )}
                 <div className="form-group">
@@ -713,9 +710,6 @@ const AdminPanel = () => {
                           demand: 'unknown'
                         })
                         fetchItems()
-                        if (activeTab === 'changes') {
-                          fetchValueChangeHistory()
-                        }
                       } catch (error) {
                         showPopup(error.response?.data?.error || 'Failed to update value', 'error')
                       }

@@ -41,6 +41,11 @@
   font-weight: 600;
 }
 
+.stat-value.price-value {
+  color: #00a366;
+  font-weight: 700;
+}
+
 .portfolio-graph {
   margin-bottom: 24px;
   padding: 24px;
@@ -159,21 +164,22 @@
   left: 6px;
   display: flex;
   gap: 0;
+  align-items: center;
 }
 
-.limited-badge-inv::before {
-  content: 'LIMITED';
-  background-color: var(--roblox-limited-orange);
-  color: #000;
+.limited-tag-inv {
+  background-color: var(--roblox-green);
+  color: white;
   padding: 2px 4px;
   font-size: 8px;
   font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
   border-radius: 3px 0 0 3px;
 }
 
-.limited-badge-inv::after {
-  content: 'U';
-  background-color: var(--roblox-limited-u);
+.limited-u-tag-inv {
+  background-color: #ffd700;
   color: white;
   padding: 2px 4px;
   font-size: 8px;
@@ -191,9 +197,9 @@
 }
 
 .inventory-item-price {
-  color: var(--roblox-text-secondary);
+  color: #00a366;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 700;
 }
 
 .btn-small {

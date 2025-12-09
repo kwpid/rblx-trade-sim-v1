@@ -49,8 +49,8 @@
 }
 
 .item-limited-tag {
-  background-color: var(--roblox-limited-orange);
-  color: #000;
+  background-color: var(--roblox-green);
+  color: white;
   padding: 4px 10px;
   font-size: 12px;
   font-weight: 800;
@@ -60,7 +60,7 @@
 }
 
 .item-limited-u-tag {
-  background-color: var(--roblox-limited-u);
+  background-color: #ffd700;
   color: white;
   padding: 4px 10px;
   font-size: 12px;
@@ -72,12 +72,15 @@
   position: absolute;
   top: 16px;
   left: 16px;
-  background-color: rgba(0, 0, 0, 0.7);
+  background-color: rgba(0, 0, 0, 0.8);
   color: white;
-  padding: 8px 10px;
-  font-size: 16px;
-  border-radius: 4px;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 6px;
   z-index: 2;
+  font-family: 'Courier New', monospace;
+  letter-spacing: 0.5px;
 }
 
 .item-info-panel {
@@ -123,8 +126,21 @@
   font-weight: 500;
 }
 
+.stat-value.price,
+.stat-value:has-text("$"),
+.stat-value:has-text("R$") {
+  color: #00a366;
+  font-weight: 700;
+}
+
 .stat-value.price {
   font-size: 20px;
+  color: #00a366;
+  font-weight: 700;
+}
+
+.stat-value.price-value {
+  color: #00a366;
   font-weight: 700;
 }
 
@@ -306,9 +322,9 @@
 }
 
 .reseller-price {
-  color: var(--roblox-text-secondary);
+  color: #00a366;
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .reseller-buy-btn {

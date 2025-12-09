@@ -97,6 +97,43 @@
   overflow-y: auto;
 }
 
+/* Improved modal styling for forms - override default modal styles */
+.modal {
+  max-width: 600px;
+  max-height: 85vh;
+  overflow-y: auto;
+  position: relative;
+}
+
+.modal form {
+  max-height: calc(85vh - 100px);
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+/* Scrollbar styling for modal */
+.modal::-webkit-scrollbar,
+.modal form::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modal::-webkit-scrollbar-track,
+.modal form::-webkit-scrollbar-track {
+  background: var(--roblox-bg-primary);
+  border-radius: 4px;
+}
+
+.modal::-webkit-scrollbar-thumb,
+.modal form::-webkit-scrollbar-thumb {
+  background: var(--roblox-bg-tertiary);
+  border-radius: 4px;
+}
+
+.modal::-webkit-scrollbar-thumb:hover,
+.modal form::-webkit-scrollbar-thumb:hover {
+  background: var(--roblox-border-light);
+}
+
 .item-details-grid {
   display: grid;
   grid-template-columns: 1fr 2fr;
@@ -250,6 +287,8 @@
   padding: 24px;
   border: 1px solid var(--roblox-border);
   max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
 }
 
 .value-update-history {
@@ -287,11 +326,11 @@
 }
 
 .value-changes-table .table-header {
-  grid-template-columns: 2fr 180px 150px 150px 2fr 120px 150px;
+  grid-template-columns: 2fr 120px 120px 100px 100px 2fr 120px 150px;
 }
 
 .value-changes-table .table-row {
-  grid-template-columns: 2fr 180px 150px 150px 2fr 120px 150px;
+  grid-template-columns: 2fr 120px 120px 100px 100px 2fr 120px 150px;
 }
 
 @media (max-width: 1200px) {

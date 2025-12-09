@@ -98,6 +98,31 @@ router.get('/:id/resellers', async (req, res) => {
   }
 });
 
+// Get value change history (public endpoint for all users)
+router.get('/value-changes', async (req, res) => {
+  try {
+    const { data: history, error } = await supabase
+      .from('value_change_history')
+      .select(`
+        *,
+        items:item_id (id, name, image_url, roblox_item_id),
+        users:changed_by (id, username)
+      `)
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    if (error) {
+      console.error('Supabase error:', error);
+      throw error;
+    }
+
+    res.json(history || []);
+  } catch (error) {
+    console.error('Error fetching value change history:', error);
+    res.status(500).json({ error: 'Failed to fetch value change history', details: error.message });
+  }
+});
+
 // Get item owners (must come before /:id)
 router.get('/:id/owners', async (req, res) => {
   try {

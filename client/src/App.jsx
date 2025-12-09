@@ -13,6 +13,7 @@ import Trade from './pages/Trade'
 import Deals from './pages/Deals'
 import Leaderboard from './pages/Leaderboard'
 import Settings from './pages/Settings'
+import ValueChanges from './pages/ValueChanges'
 import AdminPanel from './pages/AdminPanel'
 import PrivateRoute from './components/PrivateRoute'
 import TopBar from './components/TopBar'
@@ -44,6 +45,7 @@ function App() {
                         <Route path="/players/:id" element={<Profile />} />
                         <Route path="/trade" element={<Trade />} />
                         <Route path="/deals" element={<Deals />} />
+                        <Route path="/value-changes" element={<ValueChanges />} />
                         <Route path="/leaderboard" element={<Leaderboard />} />
                         <Route path="/settings" element={<Settings />} />
                         <Route path="/admin" element={<AdminPanel />} />

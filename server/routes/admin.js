@@ -11,7 +11,7 @@ router.use(requireAdmin);
 // Upload new item
 router.post('/items', async (req, res) => {
   try {
-    const { roblox_item_id, item_name, item_description, initial_price, sale_type, stock_count, timer_duration, is_off_sale, image_url, buy_limit } = req.body;
+    const { roblox_item_id, item_name, item_description, initial_price, sale_type, stock_count, timer_duration, timer_unit, is_off_sale, image_url, buy_limit } = req.body;
 
     if (!roblox_item_id || !initial_price) {
       return res.status(400).json({ error: 'Roblox item ID and initial price are required' });
@@ -27,7 +27,23 @@ router.post('/items', async (req, res) => {
     // Calculate end time if timer
     let sale_end_time = null;
     if (sale_type === 'timer' && timer_duration) {
-      sale_end_time = new Date(Date.now() + timer_duration * 60 * 1000); // timer_duration in minutes
+      const duration = parseFloat(timer_duration);
+      let milliseconds = 0;
+      
+      switch (timer_unit) {
+        case 'weeks':
+          milliseconds = duration * 7 * 24 * 60 * 60 * 1000;
+          break;
+        case 'days':
+          milliseconds = duration * 24 * 60 * 60 * 1000;
+          break;
+        case 'hours':
+        default:
+          milliseconds = duration * 60 * 60 * 1000;
+          break;
+      }
+      
+      sale_end_time = new Date(Date.now() + milliseconds);
     }
 
     // Use custom name if provided, otherwise use Roblox name

@@ -21,11 +21,80 @@ const ItemDetail = () => {
   const [showSellDialog, setShowSellDialog] = useState(false)
   const [selectedSerialForSale, setSelectedSerialForSale] = useState(null)
   const [salePrice, setSalePrice] = useState('')
+  const [timeRemaining, setTimeRemaining] = useState(null)
   const { showPopup } = useNotifications()
+
 
   useEffect(() => {
     fetchItemDetails()
   }, [id])
+
+  useEffect(() => {
+    // Fetch owned items separately when user or id changes
+    // Also refetch when item changes (in case item loads after user check)
+    const fetchOwned = async () => {
+      if (!user || !id) {
+        setOwnedItems([])
+        return
+      }
+      try {
+        const inventoryResponse = await axios.get('/api/users/me/inventory')
+        
+        // Show all owned items (including ones already for sale) - user can resell limited items
+        // Use String() to ensure proper comparison in case of UUID format differences
+        // Also try comparing with item.id from the nested items object
+        const owned = inventoryResponse.data.filter(i => {
+          const itemIdMatch = String(i.item_id) === String(id)
+          const nestedIdMatch = i.items && String(i.items.id) === String(id)
+          return itemIdMatch || nestedIdMatch
+        })
+        setOwnedItems(owned)
+      } catch (e) {
+        console.error('Error fetching inventory:', e)
+        setOwnedItems([])
+      }
+    }
+    fetchOwned()
+  }, [user, id, item])
+
+  // Timer countdown for timer items
+  useEffect(() => {
+    if (!item || item.is_limited || item.is_off_sale || item.sale_type !== 'timer' || !item.sale_end_time) {
+      setTimeRemaining(null)
+      return
+    }
+
+    const updateTimer = () => {
+      const now = new Date()
+      const endTime = new Date(item.sale_end_time)
+      const diff = endTime - now
+
+      if (diff <= 0) {
+        setTimeRemaining(null)
+        return
+      }
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000)
+
+      if (days > 0) {
+        setTimeRemaining(`${days}d ${hours}h ${minutes}m`)
+      } else if (hours > 0) {
+        setTimeRemaining(`${hours}h ${minutes}m ${seconds}s`)
+      } else if (minutes > 0) {
+        setTimeRemaining(`${minutes}m ${seconds}s`)
+      } else {
+        setTimeRemaining(`${seconds}s`)
+      }
+    }
+
+    updateTimer()
+    const interval = setInterval(updateTimer, 1000)
+
+    return () => clearInterval(interval)
+  }, [item])
 
   const fetchItemDetails = async () => {
     try {
@@ -42,16 +111,6 @@ const ItemDetail = () => {
       )
       setResellers(sortedResellers)
       setOwnerCount(ownersResponse.data.count || 0)
-      
-      if (user) {
-        try {
-          const inventoryResponse = await axios.get('/api/users/me/inventory')
-          const owned = inventoryResponse.data.filter(i => i.item_id === id)
-          setOwnedItems(owned)
-        } catch (e) {
-          console.error('Error fetching inventory:', e)
-        }
-      }
     } catch (error) {
       console.error('Error fetching item details:', error)
     } finally {
@@ -188,7 +247,9 @@ const ItemDetail = () => {
               </div>
             )}
             {!item.is_limited && !item.is_off_sale && item.sale_type === 'timer' && new Date(item.sale_end_time) > new Date() && (
-              <div className="item-timer-badge">🕐</div>
+              <div className="item-timer-badge">
+                {timeRemaining || 'Calculating...'}
+              </div>
             )}
           </div>
           
@@ -208,13 +269,27 @@ const ItemDetail = () => {
                   </span>
                   
                   <span className="stat-label">RAP</span>
-                  <span className="stat-value">${currentRAP.toLocaleString()}</span>
+                  <span className="stat-value price-value">${currentRAP.toLocaleString()}</span>
                   
                   <span className="stat-label">Value</span>
-                  <span className="stat-value">${itemValue.toLocaleString()}</span>
+                  <span className="stat-value price-value">${itemValue.toLocaleString()}</span>
                   
                   <span className="stat-label">Owners</span>
                   <span className="stat-value">{ownerCount}</span>
+                  
+                  {!item.is_limited && !item.is_off_sale && item.sale_type === 'stock' && (
+                    <>
+                      <span className="stat-label">Stock</span>
+                      <span className="stat-value">{item.remaining_stock || 0} / {item.stock_count || 0}</span>
+                    </>
+                  )}
+                  
+                  {!item.is_limited && !item.is_off_sale && item.sale_type === 'timer' && timeRemaining && (
+                    <>
+                      <span className="stat-label">Time Remaining</span>
+                      <span className="stat-value">{timeRemaining}</span>
+                    </>
+                  )}
                   
                   {item.is_limited && (
                     <>
@@ -294,7 +369,11 @@ const ItemDetail = () => {
                   axisLine={false} 
                   tickLine={false} 
                   tick={{ fill: '#8c8c8c', fontSize: 12 }}
-                  tickFormatter={(value) => value.toLocaleString()}
+                  tickFormatter={(value) => {
+                    if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`
+                    if (value >= 1000) return `$${(value / 1000).toFixed(1)}K`
+                    return `$${value.toLocaleString()}`
+                  }}
                 />
                 <Tooltip 
                   contentStyle={{ 
@@ -303,7 +382,7 @@ const ItemDetail = () => {
                     borderRadius: '8px',
                     color: '#f5f5f5'
                   }}
-                  formatter={(value) => [`$${value.toLocaleString()}`, 'RAP']}
+                  formatter={(value) => [`$${typeof value === 'number' ? value.toLocaleString() : value}`, 'RAP']}
                 />
                 <Area 
                   type="monotone" 
@@ -371,15 +450,18 @@ const ItemDetail = () => {
                   onChange={(e) => setSelectedSerialForSale(e.target.value)}
                 >
                   <option value="">Select a serial...</option>
-                  {ownedItems.map((ownedItem, index) => {
-                    // Get serial number based on creation order
-                    const serialNumber = index + 1
-                    return (
-                      <option key={ownedItem.id} value={ownedItem.id}>
-                        Serial #{serialNumber} {ownedItem.is_for_sale ? '(Already Listed)' : ''}
-                      </option>
-                    )
-                  })}
+                  {ownedItems
+                    .filter(item => !item.is_for_sale) // Only show items not already listed
+                    .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+                    .map((ownedItem, index) => {
+                      // Get serial number based on creation order (all items of this type, not just owned)
+                      const serialNumber = index + 1
+                      return (
+                        <option key={ownedItem.id} value={ownedItem.id}>
+                          Serial #{serialNumber}
+                        </option>
+                      )
+                    })}
                 </select>
               </div>
               <div className="form-group">

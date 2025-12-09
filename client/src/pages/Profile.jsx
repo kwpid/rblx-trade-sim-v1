@@ -121,10 +121,19 @@ const Profile = () => {
       // Group RAP history by date and calculate portfolio value
       const dateMap = new Map()
       
+      // Calculate current portfolio totals
+      let currentValue = 0
+      let currentRAP = 0
+      
       items.forEach(userItem => {
         const itemId = userItem.item_id
         const rapHistory = rapMap.get(itemId) || []
-        const itemValue = userItem.items?.value || userItem.items?.current_price || userItem.purchase_price || 0
+        const itemData = userItem.items
+        const itemValue = itemData?.value || itemData?.current_price || userItem.purchase_price || 0
+        const itemRAP = itemData?.current_price || userItem.purchase_price || 0
+        
+        currentValue += itemValue
+        currentRAP += itemRAP
         
         rapHistory.forEach(rap => {
           const date = new Date(rap.timestamp).toLocaleDateString()
@@ -138,9 +147,15 @@ const Profile = () => {
       })
       
       // Convert to array and sort by date
-      const data = Array.from(dateMap.entries())
+      let data = Array.from(dateMap.entries())
         .map(([date, values]) => ({ date, ...values }))
         .sort((a, b) => new Date(a.date) - new Date(b.date))
+      
+      // If no RAP history, add current values as a single data point
+      if (data.length === 0 && items.length > 0) {
+        const today = new Date().toLocaleDateString()
+        data = [{ date: today, value: currentValue, rap: currentRAP }]
+      }
       
       setPortfolioData(data)
     } catch (error) {
@@ -188,15 +203,15 @@ const Profile = () => {
             <div className="profile-stats">
               <div className="stat-item">
                 <span className="stat-label">Cash:</span>
-                <span className="stat-value">${(profileUser?.cash || user?.cash || 0)?.toLocaleString()}</span>
+                <span className="stat-value price-value">${(profileUser?.cash || user?.cash || 0)?.toLocaleString()}</span>
               </div>
               <div className="stat-item">
                 <span className="stat-label">Portfolio Value:</span>
-                <span className="stat-value">${totalValue.toLocaleString()}</span>
+                <span className="stat-value price-value">${totalValue.toLocaleString()}</span>
               </div>
               <div className="stat-item">
                 <span className="stat-label">RAP:</span>
-                <span className="stat-value">${totalRAP.toLocaleString()}</span>
+                <span className="stat-value price-value">${totalRAP.toLocaleString()}</span>
               </div>
             </div>
           </div>
@@ -209,10 +224,21 @@ const Profile = () => {
               <LineChart data={portfolioData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#4a4a4a" />
                 <XAxis dataKey="date" stroke="#b0b0b0" />
-                <YAxis stroke="#b0b0b0" />
+                <YAxis 
+                  stroke="#b0b0b0"
+                  tickFormatter={(value) => {
+                    if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`
+                    if (value >= 1000) return `$${(value / 1000).toFixed(1)}K`
+                    return `$${value.toLocaleString()}`
+                  }}
+                />
                 <Tooltip 
                   contentStyle={{ backgroundColor: '#393939', border: '1px solid #4a4a4a', borderRadius: '4px' }}
                   labelStyle={{ color: '#ffffff' }}
+                  formatter={(value, name) => {
+                    const formatted = typeof value === 'number' ? `$${value.toLocaleString()}` : value
+                    return [formatted, name]
+                  }}
                 />
                 <Legend />
                 <Line type="monotone" dataKey="value" stroke="#00a2ff" name="Value" dot={false} />
@@ -292,9 +318,10 @@ const Profile = () => {
                           alt={userItem.items?.name}
                         />
                         {userItem.items?.is_limited && (
-                          <span className="limited-badge-inv">
-                            LIMITED{userItem.items?.sale_type === 'stock' ? ' U' : ''}
-                          </span>
+                          <div className="limited-badge-inv">
+                            <span className="limited-tag-inv">LIMITED</span>
+                            {userItem.items?.sale_type === 'stock' && <span className="limited-u-tag-inv">U</span>}
+                          </div>
                         )}
                       </div>
                       <div className="inventory-item-name">{userItem.items?.name}</div>

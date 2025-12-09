@@ -134,8 +134,8 @@
 }
 
 .limited-tag {
-  background-color: var(--roblox-limited-orange);
-  color: #000;
+  background-color: var(--roblox-green);
+  color: white;
   padding: 2px 6px;
   font-size: 9px;
   font-weight: 800;
@@ -145,7 +145,7 @@
 }
 
 .limited-u-tag {
-  background-color: var(--roblox-limited-u);
+  background-color: #ffd700;
   color: white;
   padding: 2px 6px;
   font-size: 9px;
@@ -205,8 +205,9 @@
 }
 
 .item-price {
-  color: var(--roblox-text-secondary);
+  color: #00a366;
   font-size: 13px;
+  font-weight: 700;
   font-weight: 400;
   display: flex;
   align-items: center;

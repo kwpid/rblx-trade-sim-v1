@@ -35,6 +35,7 @@ const TopBar = () => {
     { path: '/players', label: 'Players' },
     { path: '/trade', label: 'Trade' },
     { path: '/deals', label: 'Deals' },
+    { path: '/value-changes', label: 'Value Changes' },
     { path: '/leaderboard', label: 'Leaderboard' },
     { path: '/settings', label: 'Settings' }
   ]

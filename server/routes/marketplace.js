@@ -100,9 +100,17 @@ router.post('/purchase', authenticate, async (req, res) => {
 
     // Update stock
     if (item.sale_type === 'stock') {
+      const newStock = item.remaining_stock - 1;
+      const updateData = { remaining_stock: newStock };
+      
+      // If stock runs out, mark as limited
+      if (newStock <= 0) {
+        updateData.is_limited = true;
+      }
+      
       await supabase
         .from('items')
-        .update({ remaining_stock: item.remaining_stock - 1 })
+        .update(updateData)
         .eq('id', item_id);
     }
 
