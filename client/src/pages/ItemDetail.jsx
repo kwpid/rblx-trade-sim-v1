@@ -24,38 +24,52 @@ const ItemDetail = () => {
   const [timeRemaining, setTimeRemaining] = useState(null)
   const { showPopup } = useNotifications()
 
+  // Calculate fee breakdown
+  const calculateFees = (price) => {
+    if (!price || isNaN(price) || price <= 0) {
+      return { sellerAmount: 0, adminFee: 0, total: 0 }
+    }
+    const numPrice = Math.floor(parseFloat(price))
+    const sellerAmount = Math.floor(numPrice * 0.8) // 80% to seller
+    const adminFee = numPrice - sellerAmount // 20% to admin
+    return { sellerAmount, adminFee, total: numPrice }
+  }
+
 
   useEffect(() => {
     fetchItemDetails()
   }, [id])
 
   useEffect(() => {
-    // Fetch owned items separately when user or id changes
-    // Also refetch when item changes (in case item loads after user check)
+    // Fetch owned items for this specific item only (more efficient)
     const fetchOwned = async () => {
       if (!user || !id) {
         setOwnedItems([])
         return
       }
       try {
-        const inventoryResponse = await axios.get('/api/users/me/inventory')
-        
-        // Show all owned items (including ones already for sale) - user can resell limited items
-        // Use String() to ensure proper comparison in case of UUID format differences
-        // Also try comparing with item.id from the nested items object
-        const owned = inventoryResponse.data.filter(i => {
-          const itemIdMatch = String(i.item_id) === String(id)
-          const nestedIdMatch = i.items && String(i.items.id) === String(id)
-          return itemIdMatch || nestedIdMatch
+        // Use the more efficient endpoint that only checks this specific item
+        const response = await axios.get(`/api/users/me/owns/${id}`, {
+          validateStatus: (status) => status < 500 // Don't throw on 401/403
         })
-        setOwnedItems(owned)
+        
+        // Check if response is successful
+        if (response.status === 200 && response.data) {
+          setOwnedItems(response.data || [])
+        } else {
+          // If not authenticated or other client error, just set empty array
+          setOwnedItems([])
+        }
       } catch (e) {
-        console.error('Error fetching inventory:', e)
+        // Only log if it's a server error (500), not auth errors
+        if (e.response?.status >= 500) {
+          console.error('Error checking ownership:', e)
+        }
         setOwnedItems([])
       }
     }
     fetchOwned()
-  }, [user, id, item])
+  }, [user, id])
 
   // Timer countdown for timer items
   useEffect(() => {
@@ -165,8 +179,13 @@ const ItemDetail = () => {
     )
   }
 
-  const bestPrice = resellers.length > 0 ? resellers[0].sale_price : null
-  const hasResellers = resellers.length > 0
+  // Filter out user's own items from resellers for price calculation
+  const availableResellers = user ? resellers.filter(r => 
+    !ownedItems.some(owned => owned.id === r.id)
+  ) : resellers
+  
+  const bestPrice = availableResellers.length > 0 ? availableResellers[0].sale_price : null
+  const hasResellers = availableResellers.length > 0
   const isOutOfStock = item.is_off_sale || (item.sale_type === 'stock' && item.remaining_stock <= 0)
   const canPurchase = item.is_limited ? hasResellers : !isOutOfStock || hasResellers
   
@@ -185,21 +204,42 @@ const ItemDetail = () => {
   }
   
   const handleSell = async () => {
+    // Check if item is limited
+    if (!item?.is_limited) {
+      showPopup('Only limited items can be sold on the marketplace', 'error')
+      return
+    }
+
     if (!selectedSerialForSale || !salePrice || salePrice <= 0) {
       showPopup('Please select a serial and enter a valid price', 'error')
+      return
+    }
+    
+    // Ensure no decimals
+    const price = Math.floor(parseFloat(salePrice))
+    if (price <= 0 || isNaN(price)) {
+      showPopup('Please enter a valid whole number price', 'error')
       return
     }
     
     try {
       await axios.post('/api/marketplace/list', {
         user_item_id: selectedSerialForSale,
-        sale_price: parseFloat(salePrice)
+        sale_price: price
       })
       showPopup('Item listed for sale!', 'success')
       setShowSellDialog(false)
       setSelectedSerialForSale(null)
       setSalePrice('')
       fetchItemDetails()
+      // Refetch owned items for this specific item
+      try {
+        const response = await axios.get(`/api/users/me/owns/${id}`)
+        setOwnedItems(response.data || [])
+      } catch (e) {
+        // If refetch fails, just continue - the item details will refresh
+        console.error('Error refetching owned items:', e)
+      }
     } catch (error) {
       showPopup(error.response?.data?.error || 'Failed to list item', 'error')
     }
@@ -313,25 +353,25 @@ const ItemDetail = () => {
               </div>
               
               <div className="item-actions">
-                {canPurchase ? (
+                {canPurchase && ownedItems.length === 0 ? (
                   <button 
                     className="buy-btn buy-btn-large" 
                     onClick={() => {
-                      if (item.is_limited && hasResellers) {
-                        confirmPurchase(true, resellers[0].id)
-                      } else if (isOutOfStock && hasResellers) {
-                        confirmPurchase(true, resellers[0].id)
-                      } else {
+                      if (item.is_limited && availableResellers.length > 0) {
+                        confirmPurchase(true, availableResellers[0].id)
+                      } else if (isOutOfStock && availableResellers.length > 0) {
+                        confirmPurchase(true, availableResellers[0].id)
+                      } else if (!item.is_limited && !isOutOfStock) {
                         confirmPurchase(false, null)
                       }
                     }}
                   >
                     Buy {bestPrice ? `$${bestPrice.toLocaleString()}` : `$${item.current_price?.toLocaleString()}`}
                   </button>
-                ) : (
+                ) : ownedItems.length === 0 ? (
                   <div className="no-resellers-text">No Resellers</div>
-                )}
-                {ownedItems.length > 0 && (
+                ) : null}
+                {ownedItems.length > 0 && item?.is_limited && (
                   <button className="sell-btn" onClick={() => setShowSellDialog(true)}>
                     Sell
                   </button>
@@ -402,21 +442,53 @@ const ItemDetail = () => {
             <div className="no-resellers-message">No resellers available</div>
           ) : (
             <div className="resellers-list">
-              {resellers.map(reseller => (
-                <div key={reseller.id} className="reseller-item">
-                  <div className="reseller-info">
-                    <div className="reseller-username">{reseller.users?.username || 'Unknown'}</div>
-                    <div className="reseller-serial">Serial #{reseller.serial_number || 'N/A'}</div>
-                    <div className="reseller-price">${reseller.sale_price?.toLocaleString()}</div>
+              {resellers.map(reseller => {
+                // Check if this reseller item is owned by the current user
+                const isOwnItem = user && ownedItems.some(owned => owned.id === reseller.id)
+                
+                return (
+                  <div key={reseller.id} className="reseller-item">
+                    <div className="reseller-info">
+                      <div className="reseller-username">{reseller.users?.username || 'Unknown'}</div>
+                      <div className="reseller-serial">Serial #{reseller.serial_number || 'N/A'}</div>
+                      <div className="reseller-price">${reseller.sale_price?.toLocaleString()}</div>
+                    </div>
+                    {isOwnItem ? (
+                      <button
+                        className="reseller-buy-btn"
+                        onClick={async () => {
+                          try {
+                            await axios.post('/api/marketplace/list', {
+                              user_item_id: reseller.id,
+                              sale_price: null
+                            })
+                            showPopup('Item unlisted', 'success')
+                            fetchItemDetails()
+                            // Refetch owned items
+                            try {
+                              const response = await axios.get(`/api/users/me/owns/${id}`)
+                              setOwnedItems(response.data || [])
+                            } catch (e) {
+                              console.error('Error refetching owned items:', e)
+                            }
+                          } catch (error) {
+                            showPopup(error.response?.data?.error || 'Failed to unlist item', 'error')
+                          }
+                        }}
+                      >
+                        Unlist
+                      </button>
+                    ) : (
+                      <button
+                        className="reseller-buy-btn"
+                        onClick={() => confirmPurchase(true, reseller.id)}
+                      >
+                        Buy
+                      </button>
+                    )}
                   </div>
-                  <button
-                    className="reseller-buy-btn"
-                    onClick={() => confirmPurchase(true, reseller.id)}
-                  >
-                    Buy
-                  </button>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
@@ -441,24 +513,39 @@ const ItemDetail = () => {
         {showSellDialog && (
           <div className="confirm-dialog-overlay" onClick={() => setShowSellDialog(false)}>
             <div className="confirm-dialog" onClick={(e) => e.stopPropagation()}>
-              <h3>List Item for Sale</h3>
+              <h3>{selectedSerialForSale && ownedItems.find(i => i.id === selectedSerialForSale)?.is_for_sale ? 'Update Sale Price' : 'List Item for Sale'}</h3>
+              {!item?.is_limited && (
+                <div style={{ padding: '12px', marginBottom: '16px', backgroundColor: '#ff6b6b20', border: '1px solid #ff6b6b', borderRadius: '6px', color: '#ff6b6b', fontSize: '14px' }}>
+                  Only limited items can be sold on the marketplace.
+                </div>
+              )}
               <div className="form-group">
                 <label>Select Serial</label>
                 <select
                   className="input"
                   value={selectedSerialForSale || ''}
-                  onChange={(e) => setSelectedSerialForSale(e.target.value)}
+                  onChange={(e) => {
+                    const selectedItem = ownedItems.find(i => i.id === e.target.value)
+                    setSelectedSerialForSale(e.target.value)
+                    // Pre-fill price if item is already listed
+                    if (selectedItem?.is_for_sale && selectedItem?.sale_price) {
+                      setSalePrice(selectedItem.sale_price.toString())
+                    } else {
+                      setSalePrice('')
+                    }
+                  }}
+                  disabled={!item?.is_limited}
                 >
                   <option value="">Select a serial...</option>
                   {ownedItems
-                    .filter(item => !item.is_for_sale) // Only show items not already listed
                     .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
                     .map((ownedItem, index) => {
                       // Get serial number based on creation order (all items of this type, not just owned)
                       const serialNumber = index + 1
+                      const isListed = ownedItem.is_for_sale
                       return (
                         <option key={ownedItem.id} value={ownedItem.id}>
-                          Serial #{serialNumber}
+                          Serial #{serialNumber} {isListed ? `(Listed: $${ownedItem.sale_price?.toLocaleString()})` : ''}
                         </option>
                       )
                     })}
@@ -470,15 +557,43 @@ const ItemDetail = () => {
                   type="number"
                   className="input"
                   value={salePrice}
-                  onChange={(e) => setSalePrice(e.target.value)}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    // Only allow whole numbers (no decimals)
+                    if (value === '' || (!isNaN(value) && !value.includes('.'))) {
+                      setSalePrice(value)
+                    }
+                  }}
                   min="1"
                   step="1"
                   placeholder="Enter price"
+                  disabled={!item?.is_limited}
                 />
+                {salePrice && !isNaN(salePrice) && parseFloat(salePrice) > 0 && (
+                  <div className="price-preview" style={{ marginTop: '12px', padding: '12px', backgroundColor: '#2a2d2f', borderRadius: '6px', fontSize: '14px' }}>
+                    <div style={{ marginBottom: '8px', color: '#b0b0b0' }}>Price Breakdown:</div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                      <span style={{ color: '#8c8c8c' }}>List Price:</span>
+                      <span style={{ color: '#f5f5f5', fontWeight: '600' }}>${Math.floor(parseFloat(salePrice)).toLocaleString()}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                      <span style={{ color: '#8c8c8c' }}>You Receive (80%):</span>
+                      <span style={{ color: '#00b06f', fontWeight: '600' }}>${calculateFees(salePrice).sellerAmount.toLocaleString()}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #3d3f41', paddingTop: '8px', marginTop: '8px' }}>
+                      <span style={{ color: '#8c8c8c' }}>Marketplace Fee (20%):</span>
+                      <span style={{ color: '#ff6b6b', fontWeight: '600' }}>-${calculateFees(salePrice).adminFee.toLocaleString()}</span>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="confirm-dialog-actions">
-                <button className="confirm-btn" onClick={handleSell}>
-                  List for Sale
+                <button 
+                  className="confirm-btn" 
+                  onClick={handleSell}
+                  disabled={!item?.is_limited}
+                >
+                  {selectedSerialForSale && ownedItems.find(i => i.id === selectedSerialForSale)?.is_for_sale ? 'Update Price' : 'List for Sale'}
                 </button>
                 <button className="cancel-btn" onClick={() => {
                   setShowSellDialog(false)

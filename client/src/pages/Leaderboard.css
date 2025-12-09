@@ -11,6 +11,34 @@
   font-weight: 700;
 }
 
+.leaderboard-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.leaderboard-tab {
+  padding: 10px 20px;
+  background-color: var(--roblox-bg-secondary);
+  border: 1px solid var(--roblox-border);
+  border-radius: 6px;
+  color: var(--roblox-text-secondary);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.leaderboard-tab:hover {
+  background-color: var(--roblox-bg-hover);
+  color: var(--roblox-text-primary);
+}
+
+.leaderboard-tab.active {
+  background-color: var(--roblox-blue);
+  border-color: var(--roblox-blue);
+  color: white;
+}
+
 .leaderboard-table {
   background-color: var(--roblox-bg-secondary);
   border-radius: 8px;

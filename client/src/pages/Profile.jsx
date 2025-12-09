@@ -100,64 +100,105 @@ const Profile = () => {
 
   const fetchPortfolioData = async () => {
     try {
+      // Try to fetch snapshots first
+      try {
+        const snapshotsResponse = await axios.get(`/api/users/${userId}/snapshots`)
+        const snapshots = snapshotsResponse.data || []
+        
+        if (snapshots.length > 0) {
+          // Use snapshot data
+          const data = snapshots.map(snapshot => ({
+            date: new Date(snapshot.snapshot_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+            value: snapshot.total_value,
+            rap: snapshot.total_rap
+          }))
+          
+          setPortfolioData(data)
+          return
+        }
+      } catch (snapshotError) {
+        // If snapshots don't exist yet, fall back to calculating from inventory
+        console.log('No snapshots available, calculating from inventory')
+      }
+      
+      // Fallback: Calculate from current inventory (for backwards compatibility)
       const response = await axios.get(`/api/users/${userId}/inventory`)
       const items = response.data
-      
-      // Get all unique item IDs
-      const itemIds = [...new Set(items.map(item => item.item_id))]
-      
-      // Fetch RAP history for all items
-      const rapPromises = itemIds.map(itemId => 
-        axios.get(`/api/items/${itemId}/rap-history`).catch(() => ({ data: [] }))
-      )
-      const rapResponses = await Promise.all(rapPromises)
-      
-      // Create a map of item_id to RAP history
-      const rapMap = new Map()
-      itemIds.forEach((itemId, index) => {
-        rapMap.set(itemId, rapResponses[index].data || [])
-      })
-      
-      // Group RAP history by date and calculate portfolio value
-      const dateMap = new Map()
       
       // Calculate current portfolio totals
       let currentValue = 0
       let currentRAP = 0
       
-      items.forEach(userItem => {
-        const itemId = userItem.item_id
-        const rapHistory = rapMap.get(itemId) || []
-        const itemData = userItem.items
-        const itemValue = itemData?.value || itemData?.current_price || userItem.purchase_price || 0
-        const itemRAP = itemData?.current_price || userItem.purchase_price || 0
-        
-        currentValue += itemValue
-        currentRAP += itemRAP
-        
-        rapHistory.forEach(rap => {
-          const date = new Date(rap.timestamp).toLocaleDateString()
-          if (!dateMap.has(date)) {
-            dateMap.set(date, { value: 0, rap: 0 })
+      // Get reseller prices for items that are limited or out of stock
+      const itemIds = items.map(item => item.item_id)
+      const resellerPriceMap = new Map()
+      
+      // Fetch reseller prices for each item
+      const resellerPromises = itemIds.map(async (itemId) => {
+        try {
+          const res = await axios.get(`/api/items/${itemId}/resellers`)
+          if (res.data && res.data.length > 0) {
+            return { itemId, price: res.data[0].sale_price }
           }
-          const dayData = dateMap.get(date)
-          dayData.value += itemValue
-          dayData.rap += rap.rap_value
-        })
+          return { itemId, price: null }
+        } catch (e) {
+          return { itemId, price: null }
+        }
       })
       
-      // Convert to array and sort by date
-      let data = Array.from(dateMap.entries())
-        .map(([date, values]) => ({ date, ...values }))
-        .sort((a, b) => new Date(a.date) - new Date(b.date))
+      const resellerResults = await Promise.all(resellerPromises)
+      resellerResults.forEach(({ itemId, price }) => {
+        if (price !== null) {
+          resellerPriceMap.set(itemId, price)
+        }
+      })
       
-      // If no RAP history, add current values as a single data point
-      if (data.length === 0 && items.length > 0) {
-        const today = new Date().toLocaleDateString()
-        data = [{ date: today, value: currentValue, rap: currentRAP }]
-      }
+      // Get RAP history for all items
+      const rapPromises = itemIds.map(async (itemId) => {
+        try {
+          const res = await axios.get(`/api/items/${itemId}/rap-history`)
+          if (res.data && res.data.length > 0) {
+            return { itemId, rap: res.data[res.data.length - 1].rap_value }
+          }
+          return { itemId, rap: null }
+        } catch (e) {
+          return { itemId, rap: null }
+        }
+      })
       
-      setPortfolioData(data)
+      const rapResults = await Promise.all(rapPromises)
+      const rapMap = new Map()
+      rapResults.forEach(({ itemId, rap }) => {
+        if (rap !== null) {
+          rapMap.set(itemId, rap)
+        }
+      })
+      
+      items.forEach(userItem => {
+        const itemData = userItem.items
+        if (!itemData) return
+        
+        // Calculate value
+        const isOutOfStock = itemData.is_off_sale || 
+          (itemData.sale_type === 'stock' && itemData.remaining_stock <= 0)
+        
+        let itemValue = itemData.value || itemData.current_price || userItem.purchase_price || 0
+        
+        // If out of stock or limited, use reseller price if available
+        if ((itemData.is_limited || isOutOfStock) && resellerPriceMap.has(userItem.item_id)) {
+          itemValue = resellerPriceMap.get(userItem.item_id)
+        }
+        
+        currentValue += itemValue
+        
+        // Calculate RAP
+        const itemRAP = rapMap.get(userItem.item_id) || itemData.current_price || userItem.purchase_price || 0
+        currentRAP += itemRAP
+      })
+      
+      // If no snapshots, add current values as a single data point
+      const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      setPortfolioData([{ date: today, value: currentValue, rap: currentRAP }])
     } catch (error) {
       console.error('Error fetching portfolio data:', error)
     }
@@ -326,27 +367,6 @@ const Profile = () => {
                       </div>
                       <div className="inventory-item-name">{userItem.items?.name}</div>
                       <div className="inventory-item-price">${userItem.calculatedValue.toLocaleString()}</div>
-                      {!id && userItem.is_for_sale && (
-                        <button
-                          className="btn btn-secondary btn-small"
-                          onClick={async (e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            try {
-                              await axios.post('/api/marketplace/list', {
-                                user_item_id: userItem.id,
-                                sale_price: null
-                              })
-                              fetchInventory()
-                              showPopup('Item unlisted', 'success')
-                            } catch (error) {
-                              showPopup('Failed to unlist item', 'error')
-                            }
-                          }}
-                        >
-                          Unlist
-                        </button>
-                      )}
                     </Link>
                   )
                 })}

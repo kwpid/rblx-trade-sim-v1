@@ -129,20 +129,57 @@ router.post('/list', authenticate, async (req, res) => {
   try {
     const { user_item_id, sale_price } = req.body;
 
+    // If sale_price is null, unlist the item
+    if (sale_price === null) {
+      const { data: userItem, error: userItemError } = await supabase
+        .from('user_items')
+        .select('*')
+        .eq('id', user_item_id)
+        .eq('user_id', req.user.id)
+        .single();
+
+      if (userItemError || !userItem) {
+        return res.status(404).json({ error: 'Item not found in your inventory' });
+      }
+
+      const { data: updatedItem, error: updateError } = await supabase
+        .from('user_items')
+        .update({
+          is_for_sale: false,
+          sale_price: null
+        })
+        .eq('id', user_item_id)
+        .select()
+        .single();
+
+      if (updateError) throw updateError;
+
+      return res.json(updatedItem);
+    }
+
     if (!sale_price || sale_price <= 0) {
       return res.status(400).json({ error: 'Valid sale price is required' });
     }
 
-    // Get user item
+    // Get user item with item details
     const { data: userItem, error: userItemError } = await supabase
       .from('user_items')
-      .select('*')
+      .select(`
+        *,
+        items:item_id (*)
+      `)
       .eq('id', user_item_id)
       .eq('user_id', req.user.id)
       .single();
 
     if (userItemError || !userItem) {
       return res.status(404).json({ error: 'Item not found in your inventory' });
+    }
+
+    // Only allow selling limited items
+    const itemData = userItem.items;
+    if (!itemData || !itemData.is_limited) {
+      return res.status(400).json({ error: 'You can only sell limited items' });
     }
 
     // Update user item
@@ -182,7 +219,10 @@ router.post('/purchase-from-player', authenticate, async (req, res) => {
       return res.status(404).json({ error: 'Item not available' });
     }
 
-    // Allow purchasing own items (for reselling purposes)
+    // Prevent purchasing own items
+    if (userItem.user_id === req.user.id) {
+      return res.status(400).json({ error: 'You cannot purchase your own item' });
+    }
 
     // Check user cash
     const { data: user } = await supabase
@@ -202,16 +242,38 @@ router.post('/purchase-from-player', authenticate, async (req, res) => {
       .eq('id', userItem.user_id)
       .single();
 
-    // Transfer cash
+    // Calculate fees: 80% to seller, 20% to admin
+    const salePrice = userItem.sale_price;
+    const sellerAmount = Math.floor(salePrice * 0.8); // 80% to seller
+    const adminFee = salePrice - sellerAmount; // 20% to admin
+
+    // Find an admin account to receive the fee
+    const { data: admins } = await supabase
+      .from('users')
+      .select('id, cash')
+      .eq('is_admin', true)
+      .limit(1);
+
+    // Transfer cash from buyer
     await supabase
       .from('users')
-      .update({ cash: user.cash - userItem.sale_price })
+      .update({ cash: user.cash - salePrice })
       .eq('id', req.user.id);
 
+    // Transfer 80% to seller
     await supabase
       .from('users')
-      .update({ cash: seller.cash + userItem.sale_price })
+      .update({ cash: seller.cash + sellerAmount })
       .eq('id', userItem.user_id);
+
+    // Transfer 20% to admin (if admin exists)
+    if (admins && admins.length > 0) {
+      const admin = admins[0];
+      await supabase
+        .from('users')
+        .update({ cash: admin.cash + adminFee })
+        .eq('id', admin.id);
+    }
 
     // Transfer item
     await supabase
@@ -220,7 +282,7 @@ router.post('/purchase-from-player', authenticate, async (req, res) => {
         user_id: req.user.id,
         is_for_sale: false,
         sale_price: null,
-        purchase_price: userItem.sale_price
+        purchase_price: salePrice
       })
       .eq('id', user_item_id);
 
@@ -230,7 +292,7 @@ router.post('/purchase-from-player', authenticate, async (req, res) => {
       .insert([
         {
           item_id: userItem.item_id,
-          rap_value: userItem.sale_price,
+          rap_value: salePrice,
           timestamp: new Date().toISOString()
         }
       ]);

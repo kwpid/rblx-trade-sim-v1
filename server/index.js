@@ -13,6 +13,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Initialize jobs
 require('./jobs/paycheck');
+require('./jobs/playerSnapshots');
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
