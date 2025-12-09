@@ -13,6 +13,32 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'All fields are required' });
     }
 
+    // Validate username format
+    // Only allow letters, numbers, and one underscore
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      return res.status(400).json({ error: 'Username can only contain letters, numbers, and one underscore' });
+    }
+
+    // Check if there's more than one underscore
+    const underscoreCount = (username.match(/_/g) || []).length;
+    if (underscoreCount > 1) {
+      return res.status(400).json({ error: 'Username can only contain one underscore' });
+    }
+
+    // Check if username starts or ends with underscore
+    if (username.startsWith('_') || username.endsWith('_')) {
+      return res.status(400).json({ error: 'Username cannot start or end with an underscore' });
+    }
+
+    // Check minimum and maximum length
+    if (username.length < 3) {
+      return res.status(400).json({ error: 'Username must be at least 3 characters' });
+    }
+
+    if (username.length > 20) {
+      return res.status(400).json({ error: 'Username must be 20 characters or less' });
+    }
+
     // Check if user exists
     const { data: existingUser } = await supabase
       .from('users')

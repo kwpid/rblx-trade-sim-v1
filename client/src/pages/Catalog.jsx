@@ -146,8 +146,11 @@ const Catalog = () => {
               const price = getItemPrice(item)
               const noResellers = hasNoResellers(item)
               
-              const imageUrl = `https://www.roblox.com/asset-thumbnail/image?assetId=${item.roblox_item_id}&width=420&height=420&format=png`
+              const imageUrl = item.image_url || `https://www.roblox.com/asset-thumbnail/image?assetId=${item.roblox_item_id}&width=420&height=420&format=png`
               const isInStock = !item.is_limited && !item.is_off_sale && item.sale_type === 'stock' && item.remaining_stock > 0
+              const isTimerActive = !item.is_limited && !item.is_off_sale && item.sale_type === 'timer' && new Date(item.sale_end_time) > new Date()
+              const wasTimer = item.is_limited && item.sale_type === 'timer'
+              const wasStock = item.is_limited && item.sale_type === 'stock'
               
               return (
                 <Link key={item.id} to={`/catalog/${item.id}`} className="catalog-item-card">
@@ -159,11 +162,17 @@ const Catalog = () => {
                     {item.is_limited && (
                       <div className="limited-badge-overlay">
                         <span className="limited-tag">LIMITED</span>
-                        <span className="limited-u-tag">U</span>
+                        {wasStock && <span className="limited-u-tag">U</span>}
                       </div>
                     )}
                     {isInStock && (
                       <div className="new-badge">NEW</div>
+                    )}
+                    {isTimerActive && (
+                      <>
+                        <div className="timer-badge">🕐</div>
+                        <div className="new-badge">NEW</div>
+                      </>
                     )}
                   </div>
                   <div className="item-details">

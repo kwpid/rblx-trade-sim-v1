@@ -17,6 +17,7 @@ import AdminPanel from './pages/AdminPanel'
 import PrivateRoute from './components/PrivateRoute'
 import TopBar from './components/TopBar'
 import NotificationContainer from './components/NotificationContainer'
+import PaycheckNotification from './components/PaycheckNotification'
 import './App.css'
 
 function App() {
@@ -35,7 +36,7 @@ function App() {
                     <TopBar />
                     <div className="main-content">
                       <Routes>
-                        <Route path="/" element={<Dashboard />} />
+                        <Route path="/" element={<Catalog />} />
                         <Route path="/catalog" element={<Catalog />} />
                         <Route path="/catalog/:id" element={<ItemDetail />} />
                         <Route path="/profile" element={<Profile />} />
@@ -49,6 +50,7 @@ function App() {
                       </Routes>
                     </div>
                     <NotificationContainer />
+                    <PaycheckNotification />
                   </PrivateRoute>
                 }
               />

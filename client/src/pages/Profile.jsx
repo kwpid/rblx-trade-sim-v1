@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import axios from 'axios'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
@@ -12,6 +12,7 @@ const Profile = () => {
   const [profileUser, setProfileUser] = useState(null)
   const [inventory, setInventory] = useState([])
   const [resellerPrices, setResellerPrices] = useState({})
+  const [rapValues, setRapValues] = useState({})
   const [loading, setLoading] = useState(true)
   const [portfolioData, setPortfolioData] = useState([])
   const { showPopup } = useNotifications()
@@ -67,6 +68,29 @@ const Profile = () => {
         priceMap[itemId] = price
       })
       setResellerPrices(priceMap)
+
+      // Fetch RAP history for all unique items to get current RAP
+      const uniqueItemIds = [...new Set(inventory.map(item => item.item_id))]
+      const rapPromises = uniqueItemIds.map(async (itemId) => {
+        try {
+          const res = await axios.get(`/api/items/${itemId}/rap-history`)
+          if (res.data && res.data.length > 0) {
+            // Get most recent RAP
+            const latestRAP = res.data[res.data.length - 1].rap_value
+            return { itemId, rap: latestRAP }
+          }
+          return { itemId, rap: null }
+        } catch (e) {
+          return { itemId, rap: null }
+        }
+      })
+      
+      const raps = await Promise.all(rapPromises)
+      const rapMap = {}
+      raps.forEach(({ itemId, rap }) => {
+        rapMap[itemId] = rap
+      })
+      setRapValues(rapMap)
     } catch (error) {
       console.error('Error fetching inventory:', error)
     } finally {
@@ -212,8 +236,7 @@ const Profile = () => {
           ) : (
             <div className="inventory-grid">
               {inventory
-                .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
-                .map((userItem, index) => {
+                .map((userItem) => {
                   // Calculate serial number based on creation order for this item
                   const sameItemInventory = inventory
                     .filter(item => item.item_id === userItem.item_id)
@@ -234,22 +257,54 @@ const Profile = () => {
                     }
                   }
                   
+                  // Get RAP for sorting (use most recent RAP, or fallback to current_price or purchase_price)
+                  const itemRAP = rapValues[userItem.item_id] || itemData?.current_price || userItem.purchase_price || 0
+                  
+                  return {
+                    ...userItem,
+                    calculatedValue: itemValue,
+                    calculatedRAP: itemRAP,
+                    serialNumber
+                  }
+                })
+                .sort((a, b) => {
+                  // Sort by value first (highest first), then by RAP, then by price
+                  if (b.calculatedValue !== a.calculatedValue) {
+                    return b.calculatedValue - a.calculatedValue
+                  }
+                  if (b.calculatedRAP !== a.calculatedRAP) {
+                    return b.calculatedRAP - a.calculatedRAP
+                  }
+                  return (b.items?.current_price || b.purchase_price || 0) - (a.items?.current_price || a.purchase_price || 0)
+                })
+                .map((userItem) => {
                   return (
-                    <div key={userItem.id} className="inventory-item">
-                      <div className="inventory-item-serial">Serial #{serialNumber}</div>
+                    <Link 
+                      key={userItem.id} 
+                      to={`/catalog/${userItem.item_id}`}
+                      className="inventory-item"
+                      style={{ textDecoration: 'none', color: 'inherit' }}
+                    >
+                      <div className="inventory-item-serial">Serial #{userItem.serialNumber}</div>
                       <div className="inventory-item-image">
                         <img 
-                          src={`https://www.roblox.com/asset-thumbnail/image?assetId=${userItem.items?.roblox_item_id}&width=420&height=420&format=png`}
+                          src={userItem.items?.image_url || `https://www.roblox.com/asset-thumbnail/image?assetId=${userItem.items?.roblox_item_id}&width=420&height=420&format=png`}
                           alt={userItem.items?.name}
                         />
-                        {userItem.items?.is_limited && <span className="limited-badge-inv">LIMITED U</span>}
+                        {userItem.items?.is_limited && (
+                          <span className="limited-badge-inv">
+                            LIMITED{userItem.items?.sale_type === 'stock' ? ' U' : ''}
+                          </span>
+                        )}
                       </div>
                       <div className="inventory-item-name">{userItem.items?.name}</div>
-                      <div className="inventory-item-price">${itemValue.toLocaleString()}</div>
+                      <div className="inventory-item-price">${userItem.calculatedValue.toLocaleString()}</div>
                       {!id && userItem.is_for_sale && (
                         <button
                           className="btn btn-secondary btn-small"
-                          onClick={async () => {
+                          onClick={async (e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
                             try {
                               await axios.post('/api/marketplace/list', {
                                 user_item_id: userItem.id,
@@ -265,7 +320,7 @@ const Profile = () => {
                           Unlist
                         </button>
                       )}
-                    </div>
+                    </Link>
                   )
                 })}
             </div>

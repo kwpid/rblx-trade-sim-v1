@@ -13,9 +13,49 @@ const Register = () => {
   const { register } = useAuth()
   const navigate = useNavigate()
 
+  const validateUsername = (username) => {
+    // Only allow letters, numbers, and one underscore
+    const usernameRegex = /^[a-zA-Z0-9]_?[a-zA-Z0-9]*$|^[a-zA-Z0-9]+$/
+    
+    // Check if username contains only allowed characters
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      return { valid: false, error: 'Username can only contain letters, numbers, and one underscore' }
+    }
+    
+    // Check if there's more than one underscore
+    const underscoreCount = (username.match(/_/g) || []).length
+    if (underscoreCount > 1) {
+      return { valid: false, error: 'Username can only contain one underscore' }
+    }
+    
+    // Check if username starts or ends with underscore
+    if (username.startsWith('_') || username.endsWith('_')) {
+      return { valid: false, error: 'Username cannot start or end with an underscore' }
+    }
+    
+    // Check minimum length
+    if (username.length < 3) {
+      return { valid: false, error: 'Username must be at least 3 characters' }
+    }
+    
+    // Check maximum length
+    if (username.length > 20) {
+      return { valid: false, error: 'Username must be 20 characters or less' }
+    }
+    
+    return { valid: true }
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+
+    // Validate username
+    const usernameValidation = validateUsername(username)
+    if (!usernameValidation.valid) {
+      setError(usernameValidation.error)
+      return
+    }
 
     if (password !== confirmPassword) {
       setError('Passwords do not match')
@@ -32,7 +72,7 @@ const Register = () => {
     const result = await register(username, email, password)
     
     if (result.success) {
-      navigate('/')
+      navigate('/catalog')
     } else {
       setError(result.error)
     }

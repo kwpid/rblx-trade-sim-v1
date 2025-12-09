@@ -210,6 +210,200 @@
   margin-top: 8px;
 }
 
+.admin-tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid var(--roblox-border);
+  margin-bottom: 24px;
+}
+
+.admin-tab {
+  padding: 12px 24px;
+  background: none;
+  border: none;
+  color: var(--roblox-text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+  margin-bottom: -1px;
+}
+
+.admin-tab:hover {
+  color: var(--roblox-text-primary);
+  background-color: var(--roblox-bg-hover);
+}
+
+.admin-tab.active {
+  color: var(--roblox-text-primary);
+  border-bottom-color: var(--roblox-green);
+}
+
+.value-update-section {
+  margin-top: 24px;
+}
+
+.value-update-form {
+  background-color: var(--roblox-bg-secondary);
+  border-radius: 8px;
+  padding: 24px;
+  border: 1px solid var(--roblox-border);
+  max-width: 600px;
+}
+
+.value-update-history {
+  background-color: var(--roblox-bg-secondary);
+  border-radius: 8px;
+  padding: 24px;
+  border: 1px solid var(--roblox-border);
+}
+
+.value-update-history .table-header {
+  grid-template-columns: 2fr 120px 100px 120px 120px;
+}
+
+.value-update-history .table-row {
+  grid-template-columns: 2fr 120px 100px 120px 120px;
+}
+
+.value-update-history h3 {
+  color: var(--roblox-text-primary);
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.value-changes-section {
+  margin-top: 24px;
+}
+
+.value-changes-table {
+  background-color: var(--roblox-bg-secondary);
+  border-radius: 8px;
+  padding: 24px;
+  border: 1px solid var(--roblox-border);
+  overflow-x: auto;
+}
+
+.value-changes-table .table-header {
+  grid-template-columns: 2fr 180px 150px 150px 2fr 120px 150px;
+}
+
+.value-changes-table .table-row {
+  grid-template-columns: 2fr 180px 150px 150px 2fr 120px 150px;
+}
+
+@media (max-width: 1200px) {
+  .value-changes-table .table-header,
+  .value-changes-table .table-row {
+    grid-template-columns: 2fr 150px 120px 120px 1.5fr 100px 120px;
+  }
+}
+
+@media (max-width: 900px) {
+  .value-changes-table .table-header,
+  .value-changes-table .table-row {
+    grid-template-columns: 1fr 120px;
+  }
+
+  .value-changes-table .table-header > *:nth-child(3),
+  .value-changes-table .table-header > *:nth-child(4),
+  .value-changes-table .table-header > *:nth-child(5),
+  .value-changes-table .table-header > *:nth-child(6),
+  .value-changes-table .table-header > *:nth-child(7),
+  .value-changes-table .table-row > *:nth-child(3),
+  .value-changes-table .table-row > *:nth-child(4),
+  .value-changes-table .table-row > *:nth-child(5),
+  .value-changes-table .table-row > *:nth-child(6),
+  .value-changes-table .table-row > *:nth-child(7) {
+    display: none;
+  }
+}
+
+.item-selector-container {
+  background-color: var(--roblox-bg-secondary);
+  border: 1px solid var(--roblox-border);
+  border-radius: 8px;
+  padding: 16px;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.item-selector-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.item-selector-card {
+  background-color: var(--roblox-bg-primary);
+  border: 2px solid var(--roblox-border);
+  border-radius: 8px;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: center;
+}
+
+.item-selector-card:hover {
+  border-color: var(--roblox-green);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.item-selector-card.selected {
+  border-color: var(--roblox-green);
+  background-color: var(--roblox-bg-hover);
+}
+
+.item-selector-image {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+.item-selector-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--roblox-text-primary);
+  margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item-selector-status {
+  font-size: 11px;
+  color: var(--roblox-text-secondary);
+  margin-bottom: 4px;
+}
+
+.item-selector-value {
+  font-size: 12px;
+  color: var(--roblox-green);
+  font-weight: 600;
+}
+
+.item-selector-card.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.item-selector-card.disabled:hover {
+  transform: none;
+  border-color: var(--roblox-border);
+  box-shadow: none;
+}
+
+.item-selector-note {
+  font-size: 11px;
+  color: var(--roblox-text-muted);
+  margin-top: 4px;
+}
+
 @media (max-width: 900px) {
   .table-header,
   .table-row {
@@ -220,6 +414,20 @@
   .table-header > *:nth-child(6),
   .table-row > *:nth-child(5),
   .table-row > *:nth-child(6) {
+    display: none;
+  }
+
+  .value-update-history .table-header,
+  .value-update-history .table-row {
+    grid-template-columns: 1fr 80px;
+  }
+
+  .value-update-history .table-header > *:nth-child(3),
+  .value-update-history .table-header > *:nth-child(4),
+  .value-update-history .table-header > *:nth-child(5),
+  .value-update-history .table-row > *:nth-child(3),
+  .value-update-history .table-row > *:nth-child(4),
+  .value-update-history .table-row > *:nth-child(5) {
     display: none;
   }
 }

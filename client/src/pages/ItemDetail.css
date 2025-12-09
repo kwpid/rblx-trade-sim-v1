@@ -68,6 +68,18 @@
   border-radius: 0 4px 4px 0;
 }
 
+.item-timer-badge {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 8px 10px;
+  font-size: 16px;
+  border-radius: 4px;
+  z-index: 2;
+}
+
 .item-info-panel {
   display: flex;
   flex-direction: column;

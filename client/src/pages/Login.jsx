@@ -19,7 +19,7 @@ const Login = () => {
     const result = await login(usernameOrEmail, password)
     
     if (result.success) {
-      navigate('/')
+      navigate('/catalog')
     } else {
       setError(result.error)
     }

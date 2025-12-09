@@ -146,7 +146,7 @@ const ItemDetail = () => {
     }
   }
   
-  const imageUrl = `https://www.roblox.com/asset-thumbnail/image?assetId=${item.roblox_item_id}&width=420&height=420&format=png`
+  const imageUrl = item.image_url || `https://www.roblox.com/asset-thumbnail/image?assetId=${item.roblox_item_id}&width=420&height=420&format=png`
 
   const chartData = rapHistory.map(h => ({
     date: new Date(h.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
@@ -154,16 +154,19 @@ const ItemDetail = () => {
   }))
 
   const getDemandLevel = (item) => {
-    if (item.demand >= 80) return 'Amazing'
-    if (item.demand >= 60) return 'High'
-    if (item.demand >= 40) return 'Normal'
-    if (item.demand >= 20) return 'Low'
-    return 'Terrible'
+    const demand = item.demand
+    if (demand === 'very_high') return 'Very High'
+    if (demand === 'high') return 'High'
+    if (demand === 'medium') return 'Medium'
+    if (demand === 'low') return 'Low'
+    if (demand === 'very_low') return 'Very Low'
+    return 'Unknown'
   }
 
   const getTrendLevel = (item) => {
-    if (item.trend > 0) return 'Rising'
-    if (item.trend < 0) return 'Lowering'
+    const trend = item.trend
+    if (trend === 'rising') return 'Rising'
+    if (trend === 'declining') return 'Declining'
     return 'Stable'
   }
 
@@ -181,8 +184,11 @@ const ItemDetail = () => {
             {item.is_limited && (
               <div className="item-limited-badge">
                 <span className="item-limited-tag">LIMITED</span>
-                <span className="item-limited-u-tag">U</span>
+                {item.sale_type === 'stock' && <span className="item-limited-u-tag">U</span>}
               </div>
+            )}
+            {!item.is_limited && !item.is_off_sale && item.sale_type === 'timer' && new Date(item.sale_end_time) > new Date() && (
+              <div className="item-timer-badge">🕐</div>
             )}
           </div>
           

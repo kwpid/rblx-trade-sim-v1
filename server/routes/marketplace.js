@@ -55,6 +55,27 @@ router.post('/purchase', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'Insufficient funds' });
     }
 
+    // Check buy limit (only applies to original price purchases, not limited items)
+    if (item.buy_limit && item.buy_limit > 0 && !item.is_limited) {
+      // Count how many of this item the user already owns (purchased at original price)
+      const { data: userItems, error: countError } = await supabase
+        .from('user_items')
+        .select('id')
+        .eq('user_id', req.user.id)
+        .eq('item_id', item.id);
+
+      if (countError) {
+        console.error('Error checking buy limit:', countError);
+      } else {
+        const ownedCount = userItems?.length || 0;
+        if (ownedCount >= item.buy_limit) {
+          return res.status(400).json({ 
+            error: `Buy limit reached. You can only purchase ${item.buy_limit} copy/copies of this item at the original price.` 
+          });
+        }
+      }
+    }
+
     // Deduct cash
     await supabase
       .from('users')
@@ -85,16 +106,8 @@ router.post('/purchase', authenticate, async (req, res) => {
         .eq('id', item_id);
     }
 
-    // Update RAP
-    await supabase
-      .from('item_rap_history')
-      .insert([
-        {
-          item_id: item.id,
-          rap_value: item.current_price,
-          timestamp: new Date().toISOString()
-        }
-      ]);
+    // Don't update RAP for original stock purchases - RAP is only for reseller purchases
+    // RAP will be updated when items are purchased from other players (resellers)
 
     res.json({ success: true, userItem });
   } catch (error) {

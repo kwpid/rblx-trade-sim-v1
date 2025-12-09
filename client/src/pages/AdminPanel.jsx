@@ -5,12 +5,81 @@ import { useNotifications } from '../contexts/NotificationContext'
 import './AdminPanel.css'
 
 const AdminItemEditForm = ({ item, onUpdate }) => {
-  const [value, setValue] = useState(item.value || item.current_price || 0)
+  const [value, setValue] = useState(item.value ?? 0)
+  const [imageUrl, setImageUrl] = useState(item.image_url || '')
+  const [itemName, setItemName] = useState(item.name || '')
+  const [itemDescription, setItemDescription] = useState(item.description || '')
   const isOutOfStock = item.is_off_sale || (item.sale_type === 'stock' && item.remaining_stock <= 0)
   
   return (
     <div className="admin-edit-form">
       <h3>Edit Item</h3>
+      <div className="form-group">
+        <label>Item Name</label>
+        <input
+          type="text"
+          className="input"
+          value={itemName}
+          onChange={(e) => setItemName(e.target.value)}
+          placeholder="Item name"
+        />
+        <button 
+          className="btn btn-small" 
+          onClick={() => onUpdate({ name: itemName.trim() })}
+          style={{ marginTop: '8px' }}
+        >
+          Update Name
+        </button>
+      </div>
+      <div className="form-group">
+        <label>Description</label>
+        <textarea
+          className="input"
+          value={itemDescription}
+          onChange={(e) => setItemDescription(e.target.value)}
+          placeholder="Item description"
+          rows="3"
+        />
+        <button 
+          className="btn btn-small" 
+          onClick={() => onUpdate({ description: itemDescription.trim() })}
+          style={{ marginTop: '8px' }}
+        >
+          Update Description
+        </button>
+      </div>
+      <div className="form-group">
+        <label>Image URL</label>
+        <input
+          type="url"
+          className="input"
+          value={imageUrl}
+          onChange={(e) => setImageUrl(e.target.value)}
+          placeholder="https://tr.rbxcdn.com/..."
+        />
+        <small style={{ color: 'var(--roblox-text-muted)', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+          Leave empty to use Roblox thumbnail. Example: https://tr.rbxcdn.com/180DAY-e8169c1b6658967004dde52ffd71e56d/420/420/Hat/Webp/noFilter
+        </small>
+        <button 
+          className="btn btn-small" 
+          onClick={() => onUpdate({ image_url: imageUrl.trim() || null })}
+          style={{ marginTop: '8px' }}
+        >
+          Update Image
+        </button>
+        {imageUrl && (
+          <div style={{ marginTop: '12px' }}>
+            <img 
+              src={imageUrl} 
+              alt="Preview" 
+              style={{ maxWidth: '200px', maxHeight: '200px', borderRadius: '8px', border: '1px solid var(--roblox-border)' }}
+              onError={(e) => {
+                e.target.style.display = 'none'
+              }}
+            />
+          </div>
+        )}
+      </div>
       <div className="form-group">
         <label>Value {isOutOfStock ? '' : '(Only editable when out of stock)'}</label>
         <input
@@ -26,6 +95,7 @@ const AdminItemEditForm = ({ item, onUpdate }) => {
           <button 
             className="btn btn-small" 
             onClick={() => onUpdate({ value: parseFloat(value) })}
+            style={{ marginTop: '8px' }}
           >
             Update Value
           </button>
@@ -36,12 +106,23 @@ const AdminItemEditForm = ({ item, onUpdate }) => {
 }
 
 const AdminPanel = () => {
+  const [activeTab, setActiveTab] = useState('items') // 'items', 'values', or 'changes'
   const [items, setItems] = useState([])
   const [showUploadForm, setShowUploadForm] = useState(false)
   const [selectedItem, setSelectedItem] = useState(null)
   const [rapHistory, setRapHistory] = useState([])
   const [resellers, setResellers] = useState([])
   const [loading, setLoading] = useState(true)
+  const [valueChangeHistory, setValueChangeHistory] = useState([])
+  const [loadingHistory, setLoadingHistory] = useState(false)
+  const [valueUpdateForm, setValueUpdateForm] = useState({
+    item_id: '',
+    value: '',
+    explanation: '',
+    trend: 'stable',
+    demand: 'unknown'
+  })
+  const [itemSearchQuery, setItemSearchQuery] = useState('')
   
   const [formData, setFormData] = useState({
     roblox_item_id: '',
@@ -49,7 +130,9 @@ const AdminPanel = () => {
     sale_type: 'stock',
     stock_count: '',
     timer_duration: '',
-    is_off_sale: false
+    is_off_sale: false,
+    image_url: '',
+    buy_limit: ''
   })
   const [itemPreview, setItemPreview] = useState(null)
   const [loadingPreview, setLoadingPreview] = useState(false)
@@ -59,6 +142,12 @@ const AdminPanel = () => {
     fetchItems()
   }, [])
 
+  useEffect(() => {
+    if (activeTab === 'changes') {
+      fetchValueChangeHistory()
+    }
+  }, [activeTab])
+
   const fetchItems = async () => {
     try {
       const response = await axios.get('/api/admin/items')
@@ -67,6 +156,18 @@ const AdminPanel = () => {
       console.error('Error fetching items:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchValueChangeHistory = async () => {
+    setLoadingHistory(true)
+    try {
+      const response = await axios.get('/api/admin/value-changes')
+      setValueChangeHistory(response.data)
+    } catch (error) {
+      console.error('Error fetching value change history:', error)
+    } finally {
+      setLoadingHistory(false)
     }
   }
 
@@ -118,11 +219,15 @@ const AdminPanel = () => {
       setItemPreview(null)
       setFormData({
         roblox_item_id: '',
+        item_name: '',
+        item_description: '',
         initial_price: '',
         sale_type: 'stock',
         stock_count: '',
         timer_duration: '',
-        is_off_sale: false
+        is_off_sale: false,
+        image_url: '',
+        buy_limit: ''
       })
       fetchItems()
     } catch (error) {
@@ -153,10 +258,30 @@ const AdminPanel = () => {
       <div className="container">
         <div className="admin-header">
           <h1>Admin Panel</h1>
-          <button className="btn" onClick={() => setShowUploadForm(true)}>
-            Upload New Item
+        </div>
+
+        <div className="admin-tabs">
+          <button 
+            className={`admin-tab ${activeTab === 'items' ? 'active' : ''}`}
+            onClick={() => setActiveTab('items')}
+          >
+            Items
+          </button>
+          <button 
+            className={`admin-tab ${activeTab === 'values' ? 'active' : ''}`}
+            onClick={() => setActiveTab('values')}
+          >
+            Value Updates
           </button>
         </div>
+
+        {activeTab === 'items' && (
+          <>
+            <div className="admin-header" style={{ marginTop: '24px', marginBottom: '24px' }}>
+              <button className="btn" onClick={() => setShowUploadForm(true)}>
+                Upload New Item
+              </button>
+            </div>
 
         {showUploadForm && (
           <div className="modal-overlay" onClick={() => setShowUploadForm(false)}>
@@ -175,18 +300,64 @@ const AdminPanel = () => {
                   />
                   {loadingPreview && <div className="preview-loading">Loading preview...</div>}
                 </div>
-                {itemPreview && (
+                {(itemPreview || formData.image_url) && (
                   <div className="item-preview">
                     <h3>Preview</h3>
                     <div className="preview-content">
-                      <img src={itemPreview.imageUrl} alt={itemPreview.name} className="preview-image" />
+                      <img 
+                        src={formData.image_url || itemPreview?.imageUrl || `https://www.roblox.com/asset-thumbnail/image?assetId=${formData.roblox_item_id}&width=420&height=420&format=png`} 
+                        alt={formData.item_name || itemPreview?.name || 'Item Preview'} 
+                        className="preview-image"
+                        onError={(e) => {
+                          e.target.src = `https://www.roblox.com/asset-thumbnail/image?assetId=${formData.roblox_item_id}&width=420&height=420&format=png`
+                        }}
+                      />
                       <div className="preview-info">
-                        <div className="preview-name">{itemPreview.name}</div>
-                        <div className="preview-description">{itemPreview.description}</div>
+                        <div className="preview-name">{formData.item_name || itemPreview?.name || 'Item Preview'}</div>
+                        <div className="preview-description">{formData.item_description || itemPreview?.description || 'Enter Roblox Item ID to see details'}</div>
                       </div>
                     </div>
                   </div>
                 )}
+                <div className="form-group">
+                  <label>Item Name (Optional - leave empty to use Roblox name)</label>
+                  <input
+                    type="text"
+                    value={formData.item_name}
+                    onChange={(e) => setFormData({ ...formData, item_name: e.target.value })}
+                    className="input"
+                    placeholder="Custom item name"
+                  />
+                  <small style={{ color: 'var(--roblox-text-muted)', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                    If left empty, the name from Roblox will be used
+                  </small>
+                </div>
+                <div className="form-group">
+                  <label>Description (Optional - leave empty to use Roblox description)</label>
+                  <textarea
+                    value={formData.item_description}
+                    onChange={(e) => setFormData({ ...formData, item_description: e.target.value })}
+                    className="input"
+                    placeholder="Custom item description"
+                    rows="3"
+                  />
+                  <small style={{ color: 'var(--roblox-text-muted)', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                    If left empty, the description from Roblox will be used
+                  </small>
+                </div>
+                <div className="form-group">
+                  <label>Image URL (Optional - leave empty to use Roblox thumbnail)</label>
+                  <input
+                    type="url"
+                    value={formData.image_url}
+                    onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                    className="input"
+                    placeholder="https://tr.rbxcdn.com/..."
+                  />
+                  <small style={{ color: 'var(--roblox-text-muted)', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                    Example: https://tr.rbxcdn.com/180DAY-e8169c1b6658967004dde52ffd71e56d/420/420/Hat/Webp/noFilter
+                  </small>
+                </div>
                 <div className="form-group">
                   <label>Initial Price (R$)</label>
                   <input
@@ -276,9 +447,11 @@ const AdminPanel = () => {
               <div>Status</div>
               <div>Actions</div>
             </div>
-            {items.map(item => (
+            {items.map(item => {
+              const imageUrl = item.image_url || `https://www.roblox.com/asset-thumbnail/image?assetId=${item.roblox_item_id}&width=420&height=420&format=png`
+              return (
               <div key={item.id} className="table-row">
-                <div><img src={`https://www.roblox.com/asset-thumbnail/image?assetId=${item.roblox_item_id}&width=420&height=420&format=png`} alt={item.name} className="item-thumb" /></div>
+                <div><img src={imageUrl} alt={item.name} className="item-thumb" /></div>
                 <div>{item.name}</div>
                 <div>R${item.current_price?.toLocaleString()}</div>
                 <div>{item.sale_type}</div>
@@ -309,7 +482,7 @@ const AdminPanel = () => {
                   </button>
                 </div>
               </div>
-            ))}
+            )})}
           </div>
         </div>
 
@@ -332,7 +505,7 @@ const AdminPanel = () => {
               />
               <div className="item-details-grid">
                 <div>
-                  <img src={`https://www.roblox.com/asset-thumbnail/image?assetId=${selectedItem.roblox_item_id}&width=420&height=420&format=png`} alt={selectedItem.name} className="detail-image" />
+                  <img src={selectedItem.image_url || `https://www.roblox.com/asset-thumbnail/image?assetId=${selectedItem.roblox_item_id}&width=420&height=420&format=png`} alt={selectedItem.name} className="detail-image" />
                 </div>
                 <div>
                   <h3>RAP History</h3>
@@ -369,6 +542,215 @@ const AdminPanel = () => {
               <button className="btn" onClick={() => setSelectedItem(null)}>
                 Close
               </button>
+            </div>
+          </div>
+        )}
+          </>
+        )}
+
+        {activeTab === 'values' && (
+          <div className="value-update-section">
+            <h2>Update Item Values</h2>
+            <p style={{ color: 'var(--roblox-text-muted)', marginBottom: '24px' }}>
+              Update values for items that are out of stock or limited. Each update requires an explanation.
+            </p>
+            
+            <div className="value-update-form">
+              <div className="form-group">
+                <label>Select Item</label>
+                <div className="item-selector-container">
+                  <input
+                    type="text"
+                    className="input"
+                    placeholder="Search items..."
+                    value={itemSearchQuery}
+                    onChange={(e) => setItemSearchQuery(e.target.value)}
+                    style={{ marginBottom: '12px' }}
+                  />
+                  <div className="item-selector-grid">
+                    {items
+                      .filter(item => {
+                        const matchesSearch = itemSearchQuery === '' || item.name.toLowerCase().includes(itemSearchQuery.toLowerCase())
+                        return matchesSearch
+                      })
+                      .map(item => {
+                        const isEligible = item.is_limited || item.is_off_sale || 
+                          (item.sale_type === 'stock' && item.remaining_stock <= 0) ||
+                          (item.sale_type === 'timer' && new Date(item.sale_end_time) < new Date())
+                        const imageUrl = item.image_url || `https://www.roblox.com/asset-thumbnail/image?assetId=${item.roblox_item_id}&width=420&height=420&format=png`
+                        const isSelected = valueUpdateForm.item_id === item.id
+                        return (
+                          <div
+                            key={item.id}
+                            className={`item-selector-card ${isSelected ? 'selected' : ''} ${!isEligible ? 'disabled' : ''}`}
+                            onClick={() => {
+                              if (isEligible) {
+                                setValueUpdateForm({
+                                  ...valueUpdateForm,
+                                  item_id: item.id,
+                                  value: item.value || 0,
+                                  trend: item.trend || 'stable',
+                                  demand: item.demand || 'unknown'
+                                })
+                              }
+                            }}
+                          >
+                            <img src={imageUrl} alt={item.name} className="item-selector-image" />
+                            <div className="item-selector-name">{item.name}</div>
+                            <div className="item-selector-status">
+                              {item.is_limited ? 'Limited' : 
+                               item.is_off_sale ? 'Off Sale' :
+                               (item.sale_type === 'stock' && item.remaining_stock <= 0) ? 'Out of Stock' :
+                               (item.sale_type === 'timer' && new Date(item.sale_end_time) < new Date()) ? 'Limited' :
+                               'In Stock'}
+                            </div>
+                            <div className="item-selector-value">
+                              Value: R${(item.value || 0).toLocaleString()}
+                            </div>
+                            {!isEligible && (
+                              <div className="item-selector-note" style={{ fontSize: '11px', color: 'var(--roblox-text-muted)', marginTop: '4px' }}>
+                                Must be out of stock to update
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                  </div>
+                  {items.filter(item => {
+                    const matchesSearch = itemSearchQuery === '' || item.name.toLowerCase().includes(itemSearchQuery.toLowerCase())
+                    return matchesSearch
+                  }).length === 0 && (
+                    <p style={{ textAlign: 'center', color: 'var(--roblox-text-muted)', padding: '24px' }}>
+                      No items found
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {valueUpdateForm.item_id && (
+                <>
+                  <div className="form-group">
+                    <label>Value (R$)</label>
+                    <input
+                      type="number"
+                      className="input"
+                      value={valueUpdateForm.value}
+                      onChange={(e) => setValueUpdateForm({ ...valueUpdateForm, value: e.target.value })}
+                      min="0"
+                      step="1"
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Trend</label>
+                    <select
+                      className="input"
+                      value={valueUpdateForm.trend}
+                      onChange={(e) => setValueUpdateForm({ ...valueUpdateForm, trend: e.target.value })}
+                      required
+                    >
+                      <option value="declining">Declining</option>
+                      <option value="stable">Stable</option>
+                      <option value="rising">Rising</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Demand</label>
+                    <select
+                      className="input"
+                      value={valueUpdateForm.demand}
+                      onChange={(e) => setValueUpdateForm({ ...valueUpdateForm, demand: e.target.value })}
+                      required
+                    >
+                      <option value="very_low">Very Low</option>
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                      <option value="very_high">Very High</option>
+                      <option value="unknown">Unknown</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Explanation *</label>
+                    <textarea
+                      className="input"
+                      value={valueUpdateForm.explanation}
+                      onChange={(e) => setValueUpdateForm({ ...valueUpdateForm, explanation: e.target.value })}
+                      placeholder="Explain why you're updating this value..."
+                      rows="4"
+                      required
+                    />
+                    <small style={{ color: 'var(--roblox-text-muted)', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                      Required: Please provide a reason for this value update
+                    </small>
+                  </div>
+
+                  <button
+                    className="btn"
+                    onClick={async () => {
+                      if (!valueUpdateForm.explanation || valueUpdateForm.explanation.trim() === '') {
+                        showPopup('Explanation is required', 'error')
+                        return
+                      }
+
+                      try {
+                        await axios.put(`/api/admin/items/${valueUpdateForm.item_id}`, {
+                          value: parseFloat(valueUpdateForm.value),
+                          trend: valueUpdateForm.trend,
+                          demand: valueUpdateForm.demand,
+                          value_update_explanation: valueUpdateForm.explanation,
+                          value_updated_at: new Date().toISOString()
+                        })
+                        showPopup('Value updated successfully', 'success')
+                        setValueUpdateForm({
+                          item_id: '',
+                          value: '',
+                          explanation: '',
+                          trend: 'stable',
+                          demand: 'unknown'
+                        })
+                        fetchItems()
+                        if (activeTab === 'changes') {
+                          fetchValueChangeHistory()
+                        }
+                      } catch (error) {
+                        showPopup(error.response?.data?.error || 'Failed to update value', 'error')
+                      }
+                    }}
+                  >
+                    Update Value
+                  </button>
+                </>
+              )}
+            </div>
+
+            <div className="value-update-history" style={{ marginTop: '32px' }}>
+              <h3>Recent Value Updates</h3>
+              <div className="items-table">
+                <div className="table-header">
+                  <div>Item</div>
+                  <div>Value</div>
+                  <div>Trend</div>
+                  <div>Demand</div>
+                  <div>Updated</div>
+                </div>
+                {items
+                  .filter(item => item.is_limited || item.is_off_sale || (item.sale_type === 'stock' && item.remaining_stock <= 0))
+                  .sort((a, b) => new Date(b.value_updated_at || 0) - new Date(a.value_updated_at || 0))
+                  .slice(0, 20)
+                  .map(item => (
+                    <div key={item.id} className="table-row">
+                      <div>{item.name}</div>
+                      <div>R${(item.value || 0).toLocaleString()}</div>
+                      <div style={{ textTransform: 'capitalize' }}>{item.trend || 'stable'}</div>
+                      <div style={{ textTransform: 'capitalize' }}>{(item.demand || 'unknown').replace('_', ' ')}</div>
+                      <div>{item.value_updated_at ? new Date(item.value_updated_at).toLocaleDateString() : 'Never'}</div>
+                    </div>
+                  ))}
+              </div>
             </div>
           </div>
         )}

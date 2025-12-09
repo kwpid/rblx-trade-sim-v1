@@ -8,7 +8,6 @@ const TopBar = () => {
   const { user, logout } = useAuth()
   const location = useLocation()
   const [cash, setCash] = useState(user?.cash || 0)
-  const [paycheckTimer, setPaycheckTimer] = useState(60)
 
   useEffect(() => {
     if (user) {
@@ -16,20 +15,6 @@ const TopBar = () => {
       fetchUserCash()
     }
   }, [user])
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setPaycheckTimer(prev => {
-        if (prev <= 1) {
-          fetchUserCash()
-          return 60
-        }
-        return prev - 1
-      })
-    }, 1000)
-
-    return () => clearInterval(interval)
-  }, [])
 
   const fetchUserCash = async () => {
     try {
@@ -45,8 +30,8 @@ const TopBar = () => {
   }
 
   const tabs = [
-    { path: '/catalog', label: 'Catalog' },
-    { path: '/profile', label: 'My Profile' },
+    { path: '/', label: 'Catalog' },
+    { path: '/profile', label: 'Profile' },
     { path: '/players', label: 'Players' },
     { path: '/trade', label: 'Trade' },
     { path: '/deals', label: 'Deals' },
@@ -56,6 +41,14 @@ const TopBar = () => {
 
   if (user?.is_admin) {
     tabs.splice(1, 0, { path: '/admin', label: 'Admin' })
+  }
+  
+  // Check if current path matches tab (including root)
+  const isActive = (tabPath) => {
+    if (tabPath === '/') {
+      return location.pathname === '/' || location.pathname === '/catalog'
+    }
+    return location.pathname === tabPath || location.pathname.startsWith(tabPath + '/')
   }
 
   return (
@@ -70,7 +63,7 @@ const TopBar = () => {
               <Link
                 key={tab.path}
                 to={tab.path}
-                className={`tab ${location.pathname === tab.path ? 'active' : ''}`}
+                className={`tab ${isActive(tab.path) ? 'active' : ''}`}
               >
                 {tab.label}
               </Link>
@@ -78,9 +71,6 @@ const TopBar = () => {
           </nav>
         </div>
         <div className="topbar-right">
-          <div className="paycheck-timer">
-            <span>Next Paycheck: {paycheckTimer}s</span>
-          </div>
           <div className="cash-display">
             <span className="cash-label">Cash:</span>
             <span className="cash-amount">R${formatCash(cash)}</span>

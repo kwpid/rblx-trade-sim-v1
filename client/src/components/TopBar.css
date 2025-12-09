@@ -11,19 +11,22 @@
 }
 
 .topbar-content {
-  max-width: 1400px;
+  max-width: 1600px;
   margin: 0 auto;
   height: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 32px;
+  padding: 0 24px;
+  gap: 24px;
 }
 
 .topbar-left {
   display: flex;
   align-items: center;
-  gap: 32px;
+  gap: 24px;
+  flex: 1;
+  min-width: 0;
 }
 
 .logo {
@@ -35,10 +38,11 @@
 
 .logo h2 {
   color: var(--roblox-text-primary);
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
-  letter-spacing: -0.5px;
+  letter-spacing: -0.3px;
   margin: 0;
+  white-space: nowrap;
 }
 
 .logo-icon {
@@ -56,18 +60,27 @@
 
 .tabs {
   display: flex;
-  gap: 2px;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .tab {
-  padding: 10px 16px;
+  padding: 8px 14px;
   color: var(--roblox-text-secondary);
   text-decoration: none;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   transition: all 0.15s;
   position: relative;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .tab:hover {
@@ -96,63 +109,61 @@
 .topbar-right {
   display: flex;
   align-items: center;
-  gap: 12px;
-}
-
-.paycheck-timer {
-  font-size: 12px;
-  color: var(--roblox-text-secondary);
-  background-color: var(--roblox-bg-tertiary);
-  padding: 8px 14px;
-  border-radius: 6px;
-  font-weight: 500;
+  gap: 10px;
+  flex-shrink: 0;
 }
 
 .cash-display {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   background-color: var(--roblox-bg-tertiary);
-  padding: 8px 16px;
+  padding: 6px 14px;
   border-radius: 6px;
   border: 1px solid var(--roblox-border);
+  white-space: nowrap;
 }
 
 .cash-label {
   color: var(--roblox-text-muted);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
 }
 
 .cash-amount {
   color: var(--roblox-green);
   font-weight: 700;
-  font-size: 15px;
+  font-size: 14px;
 }
 
 .user-info {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding-left: 12px;
+  gap: 10px;
+  padding-left: 10px;
   border-left: 1px solid var(--roblox-border);
 }
 
 .user-info > span {
   color: var(--roblox-text-primary);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
+  white-space: nowrap;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .logout-btn {
-  padding: 8px 16px !important;
-  font-size: 13px !important;
+  padding: 6px 14px !important;
+  font-size: 12px !important;
   background-color: transparent !important;
   border: 1px solid var(--roblox-border) !important;
   color: var(--roblox-text-secondary) !important;
   border-radius: 6px !important;
   font-weight: 500 !important;
   transition: all 0.15s !important;
+  white-space: nowrap;
 }
 
 .logout-btn:hover {
@@ -161,22 +172,51 @@
   border-color: var(--roblox-border-light) !important;
 }
 
-@media (max-width: 1100px) {
-  .tabs {
-    display: none;
+@media (max-width: 1200px) {
+  .topbar-content {
+    padding: 0 20px;
+    gap: 16px;
   }
   
   .topbar-left {
     gap: 16px;
   }
+  
+  .tab {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
 }
 
-@media (max-width: 768px) {
-  .paycheck-timer {
+@media (max-width: 1000px) {
+  .tabs {
     display: none;
   }
   
+  .topbar-left {
+    gap: 12px;
+  }
+  
+  .logo h2 {
+    font-size: 15px;
+  }
+}
+
+@media (max-width: 768px) {
   .topbar-content {
     padding: 0 16px;
+    gap: 12px;
+  }
+  
+  .cash-display {
+    padding: 6px 10px;
+  }
+  
+  .cash-label {
+    display: none;
+  }
+  
+  .user-info > span {
+    max-width: 80px;
   }
 }

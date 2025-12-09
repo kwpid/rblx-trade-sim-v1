@@ -11,7 +11,7 @@ router.use(requireAdmin);
 // Upload new item
 router.post('/items', async (req, res) => {
   try {
-    const { roblox_item_id, initial_price, sale_type, stock_count, timer_duration, is_off_sale } = req.body;
+    const { roblox_item_id, item_name, item_description, initial_price, sale_type, stock_count, timer_duration, is_off_sale, image_url, buy_limit } = req.body;
 
     if (!roblox_item_id || !initial_price) {
       return res.status(400).json({ error: 'Roblox item ID and initial price are required' });
@@ -20,11 +20,20 @@ router.post('/items', async (req, res) => {
     // Fetch item details from Rolimons
     const itemDetails = await getItemDetails(roblox_item_id);
 
+    // Use provided image_url or fallback to Roblox thumbnail
+    // If image_url is empty string, use Roblox thumbnail
+    const finalImageUrl = (image_url && image_url.trim() !== '') ? image_url : itemDetails.imageUrl;
+
     // Calculate end time if timer
     let sale_end_time = null;
     if (sale_type === 'timer' && timer_duration) {
       sale_end_time = new Date(Date.now() + timer_duration * 60 * 1000); // timer_duration in minutes
     }
+
+    // Use custom name if provided, otherwise use Roblox name
+    const finalName = (item_name && item_name.trim() !== '') ? item_name.trim() : itemDetails.name;
+    // Use custom description if provided, otherwise use Roblox description
+    const finalDescription = (item_description && item_description.trim() !== '') ? item_description.trim() : itemDetails.description;
 
     // Create item
     const { data: item, error } = await supabase
@@ -32,9 +41,9 @@ router.post('/items', async (req, res) => {
       .insert([
         {
           roblox_item_id,
-          name: itemDetails.name,
-          description: itemDetails.description,
-          image_url: itemDetails.imageUrl,
+          name: finalName,
+          description: finalDescription,
+          image_url: finalImageUrl,
           initial_price,
           current_price: initial_price,
           sale_type: sale_type || 'stock',
@@ -43,6 +52,10 @@ router.post('/items', async (req, res) => {
           sale_end_time,
           is_limited: false,
           is_off_sale: is_off_sale || false,
+          buy_limit: buy_limit && buy_limit > 0 ? parseInt(buy_limit) : null,
+          value: 0,
+          trend: 'stable',
+          demand: 'unknown',
           created_by: req.user.id
         }
       ])
@@ -51,16 +64,7 @@ router.post('/items', async (req, res) => {
 
     if (error) throw error;
 
-    // Create initial RAP entry
-    await supabase
-      .from('item_rap_history')
-      .insert([
-        {
-          item_id: item.id,
-          rap_value: initial_price,
-          timestamp: new Date().toISOString()
-        }
-      ]);
+    // Don't create initial RAP entry - RAP is only for reseller purchases
 
     res.json(item);
   } catch (error) {
@@ -108,6 +112,31 @@ router.put('/items/:id', async (req, res) => {
       if (!isOutOfStock) {
         return res.status(400).json({ error: 'Value can only be updated when item is out of stock' });
       }
+
+      // Track value change history if value, trend, or demand is being updated
+      const hasValueChange = req.body.value !== undefined && req.body.value !== currentItem.value;
+      const hasTrendChange = req.body.trend !== undefined && req.body.trend !== currentItem.trend;
+      const hasDemandChange = req.body.demand !== undefined && req.body.demand !== currentItem.demand;
+
+      if (hasValueChange || hasTrendChange || hasDemandChange) {
+        // Create value change history entry
+        await supabase
+          .from('value_change_history')
+          .insert([
+            {
+              item_id: req.params.id,
+              previous_value: currentItem.value || 0,
+              new_value: req.body.value !== undefined ? req.body.value : currentItem.value || 0,
+              previous_trend: currentItem.trend || 'stable',
+              new_trend: req.body.trend !== undefined ? req.body.trend : currentItem.trend || 'stable',
+              previous_demand: currentItem.demand || 'unknown',
+              new_demand: req.body.demand !== undefined ? req.body.demand : currentItem.demand || 'unknown',
+              explanation: req.body.value_update_explanation || null,
+              changed_by: req.user.id,
+              created_at: new Date().toISOString()
+            }
+          ]);
+      }
     }
 
     const { data: item, error } = await supabase
@@ -123,6 +152,28 @@ router.put('/items/:id', async (req, res) => {
   } catch (error) {
     console.error('Error updating item:', error);
     res.status(500).json({ error: 'Failed to update item' });
+  }
+});
+
+// Get value change history
+router.get('/value-changes', async (req, res) => {
+  try {
+    const { data: history, error } = await supabase
+      .from('value_change_history')
+      .select(`
+        *,
+        items:item_id (id, name),
+        users:changed_by (id, username)
+      `)
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    if (error) throw error;
+
+    res.json(history || []);
+  } catch (error) {
+    console.error('Error fetching value change history:', error);
+    res.status(500).json({ error: 'Failed to fetch value change history' });
   }
 });
 
