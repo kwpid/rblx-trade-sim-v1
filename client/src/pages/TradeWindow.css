@@ -60,6 +60,11 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
     gap: 10px;
+    max-height: 500px;
+    /* Scrollable area */
+    overflow-y: auto;
+    padding-right: 5px;
+    /* Space for scrollbar */
 }
 
 /* Inventory Item Card */

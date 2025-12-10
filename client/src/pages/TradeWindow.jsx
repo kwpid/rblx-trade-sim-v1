@@ -111,10 +111,12 @@ const TradeWindow = () => {
 
     const processInventory = (items) => {
         const tradableItems = items.filter(item => item.items?.is_limited === true)
-        return tradableItems.map(userItem => {
+        const processed = tradableItems.map(userItem => {
             const serialNumber = userItem.serial_number || '#'
             return processItem(userItem, serialNumber)
         })
+        // Sort by value (descending)
+        return processed.sort((a, b) => (b.calculatedValue || 0) - (a.calculatedValue || 0))
     }
 
     const processItem = (userItem, serialNumber = null) => {
@@ -245,7 +247,7 @@ const TradeWindow = () => {
                                 />
                             </div>
                             <div className="inventory-items-grid">
-                                {filteredMyInv.slice(0, 16).map(item => ( // Limit display slightly for perf
+                                {filteredMyInv.map(item => ( // Show ALL items
                                     <div
                                         key={item.id}
                                         className={`inv-card ${myOffer.find(i => i.id === item.id) ? 'selected' : ''}`}
@@ -278,7 +280,7 @@ const TradeWindow = () => {
                                 />
                             </div>
                             <div className="inventory-items-grid">
-                                {filteredTheirInv.slice(0, 16).map(item => (
+                                {filteredTheirInv.map(item => (
                                     <div
                                         key={item.id}
                                         className={`inv-card ${theirOffer.find(i => i.id === item.id) ? 'selected' : ''}`}

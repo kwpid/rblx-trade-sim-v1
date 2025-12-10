@@ -139,14 +139,9 @@ const updateChallengeProgress = async (userId, type, amount = 1, metadata = {}) 
             }
             // For VALUE/PROFIT types, checks if the SINGLE action met the target (threshold), usually amount passed is the value
             else if (type.includes('_VALUE') || type.includes('_PROFIT')) {
+                // If the single action amount meets the target threshold, mark as COMPLETE
                 if (amount >= challenge.target_value) {
-                    newCurrent += 1; // It's a "do this once" or "do this X times" thing?
-                    // The prompt says "Trade an item worth 5000+". Usually this means "Do it once".
-                    // But if the target is just "value", we treat it as a boolean success if matched.
-                    // However, if we want "Trade 5 items worth...", then we need counters.
-                    // The prompt implies singular goals mostly, or counts.
-                    // "Trade an item worth ..." -> Singluar.
-                    // So if amount (value) >= target, we increment progress.
+                    newCurrent = challenge.target_value; // Instant complete
                     shouldUpdate = true;
                 }
             }
