@@ -164,7 +164,7 @@ router.get('/leaderboard', async (req, res) => {
       .from('users')
       .select('id, username, cash')
       .order('cash', { ascending: false })
-      .limit(100);
+      .limit(10); // Limit to top 10
 
     if (error) throw error;
 
@@ -178,165 +178,114 @@ router.get('/leaderboard', async (req, res) => {
 // Get leaderboard by value
 router.get('/leaderboard/value', async (req, res) => {
   try {
-    // Get all users with their inventories
+    // 1. Get All Users (Lightweight)
     const { data: users, error: usersError } = await supabase
       .from('users')
       .select('id, username');
 
     if (usersError) throw usersError;
 
-    const userValues = [];
+    // 2. Bulk Fetch All User Items (Batched would be better for scale, but manageable here)
+    const { data: allItems, error: itemsError } = await supabase
+      .from('user_items')
+      .select(`
+        user_id,
+        items:item_id (
+            value,
+            rap,
+            is_limited,
+            is_off_sale,
+            sale_type,
+            remaining_stock
+        )
+      `)
+      .not('items', 'is', null); // Filter invalid items
 
-    for (const user of users) {
-      try {
-        // Get user's inventory
-        const { data: inventory, error: inventoryError } = await supabase
-          .from('user_items')
-          .select(`
-            *,
-            items:item_id (*)
-          `)
-          .eq('user_id', user.id);
+    if (itemsError) throw itemsError;
 
-        if (inventoryError) continue;
+    // 3. Aggregate in Memory
+    const userValueMap = {};
 
-        let totalValue = 0;
+    allItems.forEach(ui => {
+      if (!userValueMap[ui.user_id]) userValueMap[ui.user_id] = 0;
 
-        if (inventory && inventory.length > 0) {
-          // Get reseller prices for items that are limited or out of stock
-          const itemIds = inventory.map(item => item.item_id);
-          const { data: resellers } = await supabase
-            .from('user_items')
-            .select('item_id, sale_price')
-            .in('item_id', itemIds)
-            .eq('is_for_sale', true)
-            .order('sale_price', { ascending: true });
+      const itemData = ui.items;
+      // Strictly use manual value only
+      const val = (itemData.value !== null && itemData.value !== undefined) ? itemData.value : 0;
 
-          const resellerPriceMap = new Map();
-          if (resellers) {
-            resellers.forEach(reseller => {
-              if (!resellerPriceMap.has(reseller.item_id) ||
-                resellerPriceMap.get(reseller.item_id) > reseller.sale_price) {
-                resellerPriceMap.set(reseller.item_id, reseller.sale_price);
-              }
-            });
-          }
+      userValueMap[ui.user_id] += val;
+    });
 
-          inventory.forEach(userItem => {
-            const itemData = userItem.items;
-            if (!itemData) return;
+    // 4. Map & Sort
+    const leaderboard = users.map(u => ({
+      id: u.id,
+      username: u.username,
+      value: userValueMap[u.id] || 0
+    }));
 
-            const isOutOfStock = itemData.is_off_sale ||
-              (itemData.sale_type === 'stock' && itemData.remaining_stock <= 0);
+    leaderboard.sort((a, b) => b.value - a.value);
 
-            // Only use item.value if it's explicitly set (not null/undefined), otherwise start with 0
-            let itemValue = (itemData.value !== null && itemData.value !== undefined) ? itemData.value : 0;
+    // 5. Limit to Top 10
+    res.json(leaderboard.slice(0, 10));
 
-            if (itemValue === 0 && (itemData.is_limited || isOutOfStock) && resellerPriceMap.has(userItem.item_id)) {
-              itemValue = resellerPriceMap.get(userItem.item_id);
-            }
-
-            totalValue += itemValue;
-          });
-        }
-
-        userValues.push({
-          id: user.id,
-          username: user.username,
-          value: totalValue
-        });
-      } catch (error) {
-        console.error(`Error calculating value for user ${user.id}:`, error);
-      }
-    }
-
-    // Sort by value descending and limit to top 100
-    userValues.sort((a, b) => b.value - a.value);
-    res.json(userValues.slice(0, 100));
   } catch (error) {
-    console.error('Error fetching value leaderboard:', error);
-    res.status(500).json({ error: 'Failed to fetch value leaderboard' });
+    console.error('Error fetching leaderboard:', error);
+    res.status(500).json({ error: 'Failed to fetch leaderboard' });
   }
 });
 
 // Get leaderboard by RAP
 router.get('/leaderboard/rap', async (req, res) => {
   try {
-    // Get all users with their inventories
+    // 1. Get All Users
     const { data: users, error: usersError } = await supabase
       .from('users')
       .select('id, username');
 
     if (usersError) throw usersError;
 
-    const userRAPs = [];
+    // 2. Bulk Fetch All User Items
+    const { data: allItems, error: itemsError } = await supabase
+      .from('user_items')
+      .select(`
+        user_id,
+        items:item_id (
+            rap,
+            is_limited
+        )
+      `)
+      .not('items', 'is', null);
 
-    for (const user of users) {
-      try {
-        // Get user's inventory
-        const { data: inventory, error: inventoryError } = await supabase
-          .from('user_items')
-          .select(`
-            *,
-            items:item_id (*)
-          `)
-          .eq('user_id', user.id);
+    if (itemsError) throw itemsError;
 
-        if (inventoryError) continue;
+    // 3. Aggregate in Memory
+    const userRAPMap = {};
 
-        let totalRAP = 0;
+    allItems.forEach(ui => {
+      if (!userRAPMap[ui.user_id]) userRAPMap[ui.user_id] = 0;
 
-        if (inventory && inventory.length > 0) {
-          // Get RAP history for all items
-          const itemIds = inventory.map(item => item.item_id);
-          const rapPromises = itemIds.map(async (itemId) => {
-            try {
-              const { data: rapHistory } = await supabase
-                .from('item_rap_history')
-                .select('rap_value')
-                .eq('item_id', itemId)
-                .order('timestamp', { ascending: false })
-                .limit(1);
-
-              if (rapHistory && rapHistory.length > 0) {
-                return { itemId, rap: rapHistory[0].rap_value };
-              }
-              return { itemId, rap: null };
-            } catch (e) {
-              return { itemId, rap: null };
-            }
-          });
-
-          const rapResults = await Promise.all(rapPromises);
-          const rapMap = new Map();
-          rapResults.forEach(({ itemId, rap }) => {
-            if (rap !== null) {
-              rapMap.set(itemId, rap);
-            }
-          });
-
-          inventory.forEach(userItem => {
-            const itemData = userItem.items;
-            if (!itemData) return;
-
-            const itemRAP = rapMap.get(userItem.item_id) || itemData.current_price || userItem.purchase_price || 0;
-            totalRAP += itemRAP;
-          });
-        }
-
-        userRAPs.push({
-          id: user.id,
-          username: user.username,
-          rap: totalRAP
-        });
-      } catch (error) {
-        console.error(`Error calculating RAP for user ${user.id}:`, error);
+      const itemData = ui.items;
+      // Strictly use RAP for limiteds only
+      let val = 0;
+      if (itemData.is_limited) {
+        val = itemData.rap || 0;
       }
-    }
 
-    // Sort by RAP descending and limit to top 100
-    userRAPs.sort((a, b) => b.rap - a.rap);
-    res.json(userRAPs.slice(0, 100));
+      userRAPMap[ui.user_id] += val;
+    });
+
+    // 4. Map & Sort
+    const leaderboard = users.map(u => ({
+      id: u.id,
+      username: u.username,
+      rap: userRAPMap[u.id] || 0
+    }));
+
+    leaderboard.sort((a, b) => b.rap - a.rap);
+
+    // 5. Limit to Top 10
+    res.json(leaderboard.slice(0, 10));
+
   } catch (error) {
     console.error('Error fetching RAP leaderboard:', error);
     res.status(500).json({ error: 'Failed to fetch RAP leaderboard' });
@@ -437,6 +386,7 @@ router.get('/', async (req, res) => {
         }
 
         let totalValue = 0;
+        let totalRAP = 0;
         inventory.forEach(userItem => {
           const itemData = userItem.items;
           if (!itemData) return;

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import axios from 'axios'
 import './Leaderboard.css'
 
@@ -20,7 +21,7 @@ const Leaderboard = () => {
       } else if (activeTab === 'rap') {
         endpoint = '/api/users/leaderboard/rap'
       }
-      
+
       const response = await axios.get(endpoint)
       setLeaderboard(response.data)
     } catch (error) {
@@ -54,13 +55,13 @@ const Leaderboard = () => {
       <div className="container">
         <h1>Leaderboard</h1>
         <div className="leaderboard-tabs">
-          <button 
+          <button
             className={`leaderboard-tab ${activeTab === 'value' ? 'active' : ''}`}
             onClick={() => setActiveTab('value')}
           >
             Value
           </button>
-          <button 
+          <button
             className={`leaderboard-tab ${activeTab === 'rap' ? 'active' : ''}`}
             onClick={() => setActiveTab('rap')}
           >
@@ -80,7 +81,11 @@ const Leaderboard = () => {
                   {index + 1}
                 </span>
               </div>
-              <div className="username-col">{player.username}</div>
+              <div className="username-col">
+                <Link to={`/profile/${player.id}`} className="leaderboard-link">
+                  {player.username}
+                </Link>
+              </div>
               <div className="cash-col">${getValue(player).toLocaleString()}</div>
             </div>
           ))}
