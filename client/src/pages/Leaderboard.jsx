@@ -82,7 +82,7 @@ const Leaderboard = () => {
                 </span>
               </div>
               <div className="username-col">
-                <Link to={`/profile/${player.id}`} className="leaderboard-link">
+                <Link to={`/players/${player.id}`} className="leaderboard-link">
                   {player.username}
                 </Link>
               </div>

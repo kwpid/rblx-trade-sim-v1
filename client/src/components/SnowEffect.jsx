@@ -22,8 +22,8 @@ const SnowEffect = () => {
             flakes.push({
                 x: Math.random() * width,
                 y: Math.random() * height,
-                r: Math.random() * 3 + 1,
-                d: Math.random() * flakeCount
+                r: Math.random() * 2 + 1, // Smaller range 1-3
+                d: Math.random() // Simplified density
             })
         }
 
@@ -42,20 +42,16 @@ const SnowEffect = () => {
 
         let angle = 0;
         function move() {
-            angle += 0.01;
+            angle += 0.005; // Slower sway
             for (let i = 0; i < flakeCount; i++) {
                 const f = flakes[i];
-                // Updating X and Y coordinates
-                // We will add 1 to the cos function to prevent negative values which will move flakes upwards
-                // Every particle has its own density which can be used to make the downward movement different for each flake
-                // Lets make it more random by adding in the radius
-                f.y += Math.pow(f.d, 2) + 1;
-                f.x += Math.sin(angle) * 2;
+                // Slower fall speed: Base 0.5 + random
+                f.y += 0.5 + f.d;
+                f.x += Math.sin(angle) * 1; // Slower sway amount
 
-                // Sending flakes back from the top when it exits
-                // Lets make it a bit more organic and let flakes enter from the left and right also.
+                // Reset to top
                 if (f.y > height) {
-                    flakes[i] = { x: Math.random() * width, y: 0, r: f.r, d: f.d };
+                    flakes[i] = { x: Math.random() * width, y: -10, r: f.r, d: f.d }; // Start above screen
                 }
             }
         }

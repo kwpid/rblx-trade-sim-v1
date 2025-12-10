@@ -11,7 +11,7 @@ router.use(requireAdmin);
 // Upload new item
 router.post('/items', async (req, res) => {
   try {
-    const { roblox_item_id, item_name, item_description, initial_price, sale_type, stock_count, timer_duration, timer_unit, is_off_sale, image_url, buy_limit } = req.body;
+    const { roblox_item_id, item_name, item_description, initial_price, sale_type, stock_count, timer_duration, timer_unit, is_off_sale, image_url, buy_limit, initial_value } = req.body;
 
     if (!roblox_item_id || !initial_price) {
       return res.status(400).json({ error: 'Roblox item ID and initial price are required' });
@@ -69,7 +69,7 @@ router.post('/items', async (req, res) => {
           is_limited: false,
           is_off_sale: is_off_sale || false,
           buy_limit: buy_limit && buy_limit > 0 ? parseInt(buy_limit) : null,
-          value: 0,
+          value: initial_value ? parseInt(initial_value) : 0,
           trend: 'stable',
           demand: 'unknown',
           created_by: req.user.id
@@ -152,16 +152,8 @@ router.put('/items/:id', async (req, res) => {
       return res.status(404).json({ error: 'Item not found' });
     }
 
-    // Check if trying to update value when item is not out of stock
+    // Check if trying to update value (Always allowed now, to support "Initial Value" editing)
     if (req.body.value !== undefined) {
-      const isOutOfStock = currentItem.is_off_sale ||
-        (currentItem.sale_type === 'stock' && currentItem.remaining_stock <= 0) ||
-        (currentItem.sale_type === 'timer' && new Date(currentItem.sale_end_time) < new Date());
-
-      if (!isOutOfStock) {
-        return res.status(400).json({ error: 'Value can only be updated when item is out of stock' });
-      }
-
       // Track value change history if value, trend, or demand is being updated
       const hasValueChange = req.body.value !== undefined && req.body.value !== currentItem.value;
       const hasTrendChange = req.body.trend !== undefined && req.body.trend !== currentItem.trend;
@@ -185,6 +177,37 @@ router.put('/items/:id', async (req, res) => {
               created_at: new Date().toISOString()
             }
           ]);
+
+        // Send Discord Webhook
+        try {
+          const axios = require('axios');
+          const webhookUrl = process.env.DISCORD_WEBHOOK_URL_VALUES;
+          if (webhookUrl) {
+            const newValue = req.body.value !== undefined ? req.body.value : currentItem.value || 0;
+            const oldValue = currentItem.value || 0;
+            const trend = req.body.trend !== undefined ? req.body.trend : currentItem.trend || 'stable';
+            const demand = req.body.demand !== undefined ? req.body.demand : currentItem.demand || 'unknown';
+
+            const embed = {
+              title: `Value Update: ${currentItem.name}`,
+              thumbnail: { url: currentItem.image_url },
+              color: 3447003, // Blue
+              fields: [
+                { name: "Old Value", value: `R$${oldValue.toLocaleString()}`, inline: true },
+                { name: "New Value", value: `R$${newValue.toLocaleString()}`, inline: true },
+                { name: "Trend", value: trend.toUpperCase(), inline: true },
+                { name: "Demand", value: demand.toUpperCase().replace('_', ' '), inline: true },
+                { name: "Explanation", value: req.body.value_update_explanation || "No explanation provided" }
+              ],
+              footer: { text: `Updated by Admin` },
+              timestamp: new Date().toISOString()
+            };
+
+            await axios.post(webhookUrl, { embeds: [embed] });
+          }
+        } catch (err) {
+          console.error("Failed to send value update webhook:", err);
+        }
       }
     }
 
@@ -223,6 +246,32 @@ router.get('/value-changes', async (req, res) => {
   } catch (error) {
     console.error('Error fetching value change history:', error);
     res.status(500).json({ error: 'Failed to fetch value change history' });
+  }
+});
+
+// Get RAP changes (transactions log)
+router.get('/rap-changes', async (req, res) => {
+  try {
+    // Fetch 'buy' transactions (representing a sale)
+    // Join items, buyer (user_id), and seller (related_user_id)
+    const { data: logs, error } = await supabase
+      .from('transactions')
+      .select(`
+        *,
+        items:item_id (id, name, image_url),
+        buyer:users!user_id (id, username),
+        seller:users!related_user_id (id, username)
+      `)
+      .eq('type', 'buy')
+      .order('created_at', { ascending: false })
+      .limit(100);
+
+    if (error) throw error;
+
+    res.json(logs || []);
+  } catch (error) {
+    console.error('Error fetching rap changes:', error);
+    res.status(500).json({ error: 'Failed to fetch rap changes' });
   }
 });
 

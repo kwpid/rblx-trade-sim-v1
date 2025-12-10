@@ -22,9 +22,20 @@ const updateItemRAPSnapshot = async (itemId, salePrice) => {
       const newSalesCount = existingSnapshot.sales_count + 1;
       const newSalesVolume = existingSnapshot.sales_volume + salePrice;
       // Calculate new average RAP
-      const newRapValue = Math.floor(
+      // DAMPENED UPDATE: Prevent RAP from spiking too hard (Projected prevention)
+      // Cap the new RAP at 1.2x the old RAP? Or just weigh history more?
+      // Let's use a weighted average but also a hard cap on the *increase*.
+      // User asked: "rap caps or increase caps per update cycle so projecteds happen less"
+
+      let calculatedRap = Math.floor(
         (existingSnapshot.rap_value * existingSnapshot.sales_count + salePrice) / newSalesCount
       );
+
+      // dampening: max 20% increase from previous daily snapshot RAP
+      const maxRap = Math.floor(existingSnapshot.rap_value * 1.2);
+      // but if salePrice is lower, we allow it to drop (no floor cap requested, mainly anti-inflation)
+
+      const newRapValue = Math.min(calculatedRap, maxRap);
 
       await supabase
         .from('item_rap_history')
@@ -387,10 +398,10 @@ router.post('/purchase-from-player', authenticate, async (req, res) => {
       .eq('id', userItem.user_id)
       .single();
 
-    // Calculate fees: 80% to seller, 20% to admin
+    // Calculate fees: 60% to seller, 40% to admin (User Request: 40% tax)
     const salePrice = userItem.sale_price;
-    const sellerAmount = Math.floor(salePrice * 0.8); // 80% to seller
-    const adminFee = salePrice - sellerAmount; // 20% to admin
+    const sellerAmount = Math.floor(salePrice * 0.6); // 60% to seller
+    const adminFee = salePrice - sellerAmount; // 40% to admin
 
     // Find an admin account to receive the fee
     const { data: admins } = await supabase

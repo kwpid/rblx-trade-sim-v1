@@ -3,6 +3,7 @@ const router = express.Router();
 const supabase = require('../config/supabase');
 const { authenticate } = require('../middleware/auth');
 const { generateChallenges, GIFTS, pickEventItem } = require('../utils/eventHelper');
+const EVENT_ITEMS = require('../config/eventItems');
 
 // Get event status
 router.get('/status', authenticate, async (req, res) => {
@@ -59,6 +60,103 @@ router.get('/status', authenticate, async (req, res) => {
     }
 });
 
+// Get gift details (contents & odds)
+// Get gift details (contents & odds)
+router.get('/gift-details', async (req, res) => {
+    try {
+        if (!EVENT_ITEMS) {
+            console.error('CRITICAL: EVENT_ITEMS is undefined');
+            throw new Error('EVENT_ITEMS config missing');
+        }
+        if (!GIFTS) {
+            console.error('CRITICAL: GIFTS is undefined');
+            throw new Error('GIFTS config missing');
+        }
+
+        // 1. Collect all Item IDs
+        const allIds = new Set();
+        Object.values(EVENT_ITEMS).forEach(arr => {
+            if (Array.isArray(arr)) arr.forEach(id => allIds.add(id));
+        });
+
+        // 2. Fetch Item Details
+        // REMOVED 'rarity' from select as it does not exist in the items table
+        const { data: items, error: dbError } = await supabase
+            .from('items')
+            .select('id, name, image_url, rap, value')
+            .in('id', Array.from(allIds));
+
+        if (dbError) {
+            console.error('Supabase DB Error:', dbError);
+            throw dbError;
+        }
+
+        if (!items) {
+            console.error('Supabase returned null for items list (not empty array).');
+            return res.status(500).json({ error: 'Failed to fetch event items' });
+        }
+
+        // Map for easy lookup
+        const itemMap = {};
+        items.forEach(i => itemMap[i.id] = i);
+
+        // 3. Build Response
+        const giftDetails = GIFTS.map(gift => {
+            const possibleItems = [];
+
+            // Calculate total weight for normalization (usually 100, but good to be safe)
+            const totalWeight = Object.values(gift.weights).reduce((a, b) => a + b, 0);
+
+            for (const [rarity, weight] of Object.entries(gift.weights)) {
+                if (weight <= 0) continue;
+
+                const pool = EVENT_ITEMS[rarity] || [];
+                if (pool.length === 0) continue;
+
+                const chancePerItem = (weight / totalWeight) / pool.length; // e.g. 50% / 2 items = 25% each
+
+                pool.forEach(id => {
+                    if (itemMap[id]) {
+                        const itemData = itemMap[id];
+                        possibleItems.push({
+                            ...itemData,
+                            value: itemData.is_limited ? itemData.value : 0, // Mask value if not limited
+                            rarity: rarity, // Manually assign rarity from config
+                            chance: chancePerItem * 100
+                        });
+                    }
+                });
+            }
+
+            // Sort: Best (Legendary) -> Worst (Common), then by Value Descending
+            const rarityRank = { LEGENDARY: 4, RARE: 3, UNCOMMON: 2, COMMON: 1 };
+
+            return {
+                ...gift,
+                possible_items: possibleItems.sort((a, b) => {
+                    // 1. Rarity (High to Low)
+                    const rA = rarityRank[a.rarity] || 0;
+                    const rB = rarityRank[b.rarity] || 0;
+                    if (rA !== rB) return rB - rA;
+
+                    // 2. Value (High to Low)
+                    const valA = a.rap || a.value || 0;
+                    const valB = b.rap || b.value || 0;
+                    return valB - valA;
+                })
+            };
+        });
+
+        res.json({ gifts: giftDetails });
+
+    } catch (error) {
+        console.error('CRITICAL ERROR in /gift-details handler:', error);
+        // Print stack trace
+        console.error(error.stack);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
 // Refresh challenges
 router.post('/refresh', authenticate, async (req, res) => {
     try {
@@ -68,6 +166,19 @@ router.post('/refresh', authenticate, async (req, res) => {
         const { data: user } = await supabase.from('users').select('cash').eq('id', req.user.id).single();
         if (user.cash < COST) {
             return res.status(400).json({ error: 'Insufficient cash' });
+        }
+
+        // Check for incomplete challenges
+        const { data: activeChallenges } = await supabase
+            .from('user_challenges')
+            .select('*')
+            .eq('user_id', req.user.id)
+            .eq('is_claimed', false); // Only care about active ones
+
+        // If any challenge is not completed (current < target), deny refresh
+        const hasIncomplete = activeChallenges && activeChallenges.some(c => c.current_value < c.target_value);
+        if (hasIncomplete) {
+            return res.status(400).json({ error: 'Must complete all active challenges first' });
         }
 
         // Deduct cash

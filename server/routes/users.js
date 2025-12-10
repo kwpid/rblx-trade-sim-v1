@@ -37,7 +37,15 @@ router.get('/:id/inventory', async (req, res) => {
 
     if (error) throw error;
 
-    res.json(items);
+    // Mask non-limited item values
+    const maskedItems = (items || []).map(ui => {
+      if (ui.items && !ui.items.is_limited) {
+        ui.items.value = 0;
+      }
+      return ui;
+    });
+
+    res.json(maskedItems);
   } catch (error) {
     console.error('Error fetching inventory:', error);
     res.status(500).json({ error: 'Failed to fetch inventory' });
@@ -142,10 +150,16 @@ router.get('/me/inventory', authenticate, async (req, res) => {
       });
     }
 
-    const result = userItems.map(userItem => ({
-      ...userItem,
-      items: itemsMap.get(userItem.item_id) || null
-    }));
+    const result = userItems.map(userItem => {
+      const itemData = itemsMap.get(userItem.item_id) || null;
+      if (itemData && !itemData.is_limited) {
+        itemData.value = 0; // Mask
+      }
+      return {
+        ...userItem,
+        items: itemData
+      };
+    });
 
     res.json(result);
   } catch (error) {
@@ -157,9 +171,21 @@ router.get('/me/inventory', authenticate, async (req, res) => {
   }
 });
 
+// Leaderboard Cache
+const leaderboardCache = {
+  cash: { data: null, expire: 0 },
+  value: { data: null, expire: 0 },
+  rap: { data: null, expire: 0 }
+};
+
 // Get leaderboard by cash
 router.get('/leaderboard', async (req, res) => {
   try {
+    // Check Cache
+    if (leaderboardCache.cash.data && Date.now() < leaderboardCache.cash.expire) {
+      return res.json(leaderboardCache.cash.data);
+    }
+
     const { data: users, error } = await supabase
       .from('users')
       .select('id, username, cash')
@@ -167,6 +193,12 @@ router.get('/leaderboard', async (req, res) => {
       .limit(10); // Limit to top 10
 
     if (error) throw error;
+
+    if (error) throw error;
+
+    // Update Cache
+    leaderboardCache.cash.data = users;
+    leaderboardCache.cash.expire = Date.now() + 5 * 60 * 1000; // 5 minutes
 
     res.json(users);
   } catch (error) {
@@ -178,6 +210,11 @@ router.get('/leaderboard', async (req, res) => {
 // Get leaderboard by value
 router.get('/leaderboard/value', async (req, res) => {
   try {
+    // Check Cache
+    if (leaderboardCache.value.data && Date.now() < leaderboardCache.value.expire) {
+      return res.json(leaderboardCache.value.data);
+    }
+
     // 1. Get All Users (Lightweight)
     const { data: users, error: usersError } = await supabase
       .from('users')
@@ -210,7 +247,10 @@ router.get('/leaderboard/value', async (req, res) => {
       if (!userValueMap[ui.user_id]) userValueMap[ui.user_id] = 0;
 
       const itemData = ui.items;
-      // Strictly use manual value only
+      // Strictly use manual value only, AND only if limited
+      // If not limited, value is hidden/0 for game purposes
+      if (!itemData.is_limited) return;
+
       const val = (itemData.value !== null && itemData.value !== undefined) ? itemData.value : 0;
 
       userValueMap[ui.user_id] += val;
@@ -226,7 +266,13 @@ router.get('/leaderboard/value', async (req, res) => {
     leaderboard.sort((a, b) => b.value - a.value);
 
     // 5. Limit to Top 10
-    res.json(leaderboard.slice(0, 10));
+    const top10 = leaderboard.slice(0, 10);
+
+    // Update Cache
+    leaderboardCache.value.data = top10;
+    leaderboardCache.value.expire = Date.now() + 5 * 60 * 1000;
+
+    res.json(top10);
 
   } catch (error) {
     console.error('Error fetching leaderboard:', error);
@@ -237,6 +283,11 @@ router.get('/leaderboard/value', async (req, res) => {
 // Get leaderboard by RAP
 router.get('/leaderboard/rap', async (req, res) => {
   try {
+    // Check Cache
+    if (leaderboardCache.rap.data && Date.now() < leaderboardCache.rap.expire) {
+      return res.json(leaderboardCache.rap.data);
+    }
+
     // 1. Get All Users
     const { data: users, error: usersError } = await supabase
       .from('users')
@@ -284,7 +335,13 @@ router.get('/leaderboard/rap', async (req, res) => {
     leaderboard.sort((a, b) => b.rap - a.rap);
 
     // 5. Limit to Top 10
-    res.json(leaderboard.slice(0, 10));
+    const top10 = leaderboard.slice(0, 10);
+
+    // Update Cache
+    leaderboardCache.rap.data = top10;
+    leaderboardCache.rap.expire = Date.now() + 5 * 60 * 1000;
+
+    res.json(top10);
 
   } catch (error) {
     console.error('Error fetching RAP leaderboard:', error);
