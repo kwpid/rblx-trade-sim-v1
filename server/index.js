@@ -39,7 +39,7 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
-app.listen(PORT, 'localhost', () => {
+app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 
   // Start AI Service

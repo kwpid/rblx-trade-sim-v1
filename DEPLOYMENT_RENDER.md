@@ -43,6 +43,6 @@ Once deployed:
 5.  API requests (e.g., `/api/items`) should work.
 
 ## Troubleshooting
-- **Build Fails**: Check the logs. Ensure `npm install` succeeded in both folders. The verify the `build` script in `package.json` is `npm install && cd client && npm install && npm run build`.
+- **Build Fails**: Check the logs. Ensure `npm install` succeeded in both folders. The verify the `build` script in `package.json` is `npm install && cd client && npm install --include=dev && npm run build`.
 - **White Screen**: Console errors about "file not found"? Ensure `NODE_ENV` is set to `production` so Express serves the `client/dist` folder.
 - **Database Connection Error**: Double check `DATABASE_URL` and `SUPABASE_KEY`. Ensure Supabase allows connections from anywhere (0.0.0.0/0) or Render's IP.
