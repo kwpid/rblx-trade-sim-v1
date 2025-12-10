@@ -1,0 +1,189 @@
+.trades-container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.trades-header {
+    margin-bottom: 20px;
+}
+
+.trades-header h1 {
+    color: #fff;
+    font-size: 32px;
+    margin-bottom: 15px;
+}
+
+.trade-tabs {
+    display: flex;
+    gap: 10px;
+    border-bottom: 1px solid #393b3d;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+.trade-tab {
+    background: transparent;
+    border: none;
+    color: #fff;
+    padding: 8px 16px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    opacity: 0.7;
+    transition: all 0.2s;
+    border-radius: 4px;
+}
+
+.trade-tab:hover {
+    background: rgba(255, 255, 255, 0.1);
+    opacity: 1;
+}
+
+.trade-tab.active {
+    background: #393b3d;
+    opacity: 1;
+}
+
+.trades-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.trade-card {
+    display: flex;
+    align-items: center;
+    background: #232527;
+    /* VS Code dark / Roblox dark */
+    padding: 12px 20px;
+    border-radius: 8px;
+    text-decoration: none;
+    color: #fff;
+    transition: transform 0.1s, background 0.2s;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.trade-card:hover {
+    background: #2b2d31;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.trade-card-left {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex: 1;
+}
+
+.trade-avatar {
+    width: 48px;
+    height: 48px;
+    background-color: #393b3d;
+    border-radius: 50%;
+    overflow: hidden;
+    position: relative;
+}
+
+.trade-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.trade-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.trade-partner-name {
+    font-size: 18px;
+    font-weight: 700;
+    color: #fff;
+}
+
+.trade-date {
+    font-size: 12px;
+    color: #8c8c8c;
+    margin-top: 4px;
+}
+
+.trade-card-right {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.trade-status-indicator {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.trade-status-indicator.inbound {
+    background: rgba(0, 162, 255, 0.2);
+    color: #00a2ff;
+}
+
+.trade-status-indicator.outbound {
+    background: rgba(255, 165, 0, 0.2);
+    color: orange;
+}
+
+.trade-status-indicator.completed {
+    background: rgba(0, 176, 111, 0.2);
+    color: #00b06f;
+}
+
+.trade-status-indicator.inactive {
+    background: rgba(140, 140, 140, 0.2);
+    color: #8c8c8c;
+}
+
+.trade-action-btn {
+    background: #00a2ff;
+    color: white;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 4px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.trade-action-btn:hover {
+    background: #0088d6;
+}
+
+.no-trades {
+    text-align: center;
+    padding: 40px;
+    color: #8c8c8c;
+    font-size: 16px;
+    background: #232527;
+    border-radius: 8px;
+}
+
+.loading-container {
+    display: flex;
+    justify-content: center;
+    padding: 50px;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #393b3d;
+    border-top-color: #00a2ff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}

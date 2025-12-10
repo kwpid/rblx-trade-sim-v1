@@ -1,12 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import axios from 'axios'
-import { useNotifications } from '../contexts/NotificationContext'
+import { Link } from 'react-router-dom'
 import './Deals.css'
 
 const Deals = () => {
   const [deals, setDeals] = useState([])
   const [loading, setLoading] = useState(true)
-  const { showPopup } = useNotifications()
 
   useEffect(() => {
     fetchDeals()
@@ -14,26 +13,9 @@ const Deals = () => {
 
   const fetchDeals = async () => {
     try {
-      // Get all items that are for sale by players
-      const items = await axios.get('/api/items')
-      const allDeals = []
-      
-      for (const item of items.data) {
-        if (item.is_limited) {
-          const resellers = await axios.get(`/api/items/${item.id}/resellers`)
-          resellers.data.forEach(reseller => {
-            allDeals.push({
-              ...item,
-              seller: reseller.users,
-              salePrice: reseller.sale_price
-            })
-          })
-        }
-      }
-      
-      // Sort by price
-      allDeals.sort((a, b) => a.salePrice - b.salePrice)
-      setDeals(allDeals)
+      // Fetch items that are below RAP
+      const response = await axios.get('/api/marketplace/deals')
+      setDeals(response.data)
     } catch (error) {
       console.error('Error fetching deals:', error)
     } finally {
@@ -41,54 +23,68 @@ const Deals = () => {
     }
   }
 
-  const handlePurchase = async (userItemId) => {
-    try {
-      await axios.post('/api/marketplace/purchase-from-player', {
-        user_item_id: userItemId
-      })
-      showPopup('Item purchased successfully!', 'success')
-      fetchDeals()
-      setTimeout(() => window.location.reload(), 1000)
-    } catch (error) {
-      showPopup(error.response?.data?.error || 'Failed to purchase item', 'error')
-    }
-  }
-
-  if (loading) {
-    return <div className="loading"><div className="spinner"></div></div>
+  const calculateDealPercentage = (price, rap) => {
+    if (!rap || rap === 0) return 0
+    return Math.round(((rap - price) / rap) * 100)
   }
 
   return (
-    <div className="deals">
-      <div className="container">
-        <h1>Deals</h1>
-        <p className="deals-description">Browse limited items for sale by other players</p>
-        {deals.length === 0 ? (
-          <div className="empty-deals">No deals available</div>
+    <div className="deals-page">
+      <div className="deals-header">
+        {/* Header buttons placeholder as per image - functionality can be added later if needed */}
+        <div className="deals-filters">
+          <button className="filter-btn">Hide Projecteds</button>
+          <button className="filter-btn">Calculate by Value</button>
+          <button className="filter-btn">Hide Below 10%</button>
+          <button className="filter-btn active">Relevance</button>
+        </div>
+      </div>
+
+      <div className="deals-grid">
+        {loading ? (
+          <div className="loading">Loading deals...</div>
+        ) : deals.length === 0 ? (
+          <div className="no-deals">No deals found right now. Check back later!</div>
         ) : (
-          <div className="deals-grid">
-            {deals.map((deal, index) => (
-              <div key={index} className="deal-card">
-                <img src={deal.image_url} alt={deal.name} />
-                <div className="deal-info">
-                  <h3>{deal.name}</h3>
-                  <div className="deal-seller">Seller: {deal.seller?.username}</div>
-                  <div className="deal-price">R${deal.salePrice?.toLocaleString()}</div>
-                  <button
-                    className="btn"
-                    onClick={() => handlePurchase(deal.id)}
-                  >
-                    Purchase
-                  </button>
+          deals.map(deal => {
+            const dealPercent = calculateDealPercentage(deal.price, deal.rap)
+            return (
+              <Link to={`/catalog/${deal.item_id}`} key={deal.id} className="deal-card">
+                <div className="deal-header-bg" style={{ backgroundColor: getRarityColor(deal.rarity) }}>
+                  <span className="deal-item-name">{deal.item_name}</span>
                 </div>
-              </div>
-            ))}
-          </div>
+                <div className="deal-content">
+                  <div className="deal-image">
+                    <img src={deal.image_url} alt={deal.item_name} />
+                  </div>
+                  <div className="deal-stats">
+                    <div className="stat-row">
+                      <span className="stat-label">Price</span>
+                      <span className="stat-value">{deal.price.toLocaleString()}</span>
+                    </div>
+                    <div className="stat-row">
+                      <span className="stat-label">RAP</span>
+                      <span className="stat-value">{deal.rap.toLocaleString()}</span>
+                    </div>
+                    <div className="stat-row">
+                      <span className="stat-label">Deal</span>
+                      <span className="stat-value deal-percent">{dealPercent}%</span>
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            )
+          })
         )}
       </div>
     </div>
   )
 }
 
-export default Deals
+// Helper for card header color (placeholder logic)
+const getRarityColor = (rarity) => {
+  // You can implement actual rarity logic here
+  return '#393b3d'
+}
 
+export default Deals

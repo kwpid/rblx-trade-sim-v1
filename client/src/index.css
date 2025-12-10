@@ -1,75 +1,139 @@
 :root {
-  --roblox-bg-primary: #191919;
-  --roblox-bg-secondary: #232527;
-  --roblox-bg-tertiary: #393b3d;
-  --roblox-bg-card: #232527;
-  --roblox-bg-hover: #2d2f31;
-  --roblox-bg-input: #393b3d;
-  --roblox-border: #3d3f41;
-  --roblox-border-light: #4a4c4e;
-  --roblox-text-primary: #f5f5f5;
-  --roblox-text-secondary: #bdbebe;
-  --roblox-text-muted: #8c8c8c;
-  --roblox-green: #00b06f;
-  --roblox-green-hover: #00a366;
-  --roblox-green-dark: #00934f;
-  --roblox-limited-orange: #f68802;
-  --roblox-limited-u: #a855f7;
-  --roblox-robux: #bdbebe;
-  --roblox-error: #ff4d4d;
-  --roblox-link: #00b0ff;
+    --roblox-bg-primary: #191919;
+    --roblox-bg-secondary: #232527;
+    --roblox-bg-tertiary: #2b2d2f;
+    --roblox-bg-hover: #2a2c2e;
+    --roblox-text-primary: #ffffff;
+    --roblox-text-secondary: #b8b8b8;
+    --roblox-text-muted: #8c8c8c;
+    --roblox-border: #393939;
+    --roblox-green: #00b06f;
 }
 
 * {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }
 
 body {
-  font-family: 'Builder Sans', 'Gotham SSm A', 'Gotham SSm B', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  background-color: var(--roblox-bg-primary);
-  color: var(--roblox-text-primary);
-  overflow-x: hidden;
-  font-size: 14px;
-  line-height: 1.5;
+    font-family: 'HCo Gotham SSm', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    background-color: var(--roblox-bg-primary);
+    color: var(--roblox-text-primary);
+    line-height: 1.6;
 }
 
-#root {
-  min-height: 100vh;
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
 }
 
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+.card {
+    background-color: var(--roblox-bg-secondary);
+    border-radius: 8px;
+    padding: 24px;
+    border: 1px solid var(--roblox-border);
 }
 
-::-webkit-scrollbar-track {
-  background: var(--roblox-bg-secondary);
+.btn {
+    padding: 12px 24px;
+    border-radius: 8px;
+    border: none;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
 }
 
-::-webkit-scrollbar-thumb {
-  background: var(--roblox-bg-tertiary);
-  border-radius: 4px;
+.btn-primary {
+    background-color: #00a2ff;
+    color: white;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: var(--roblox-border-light);
+.btn-primary:hover {
+    background-color: #0088d4;
+}
+
+.btn-secondary {
+    background-color: var(--roblox-bg-tertiary);
+    color: var(--roblox-text-primary);
+    border: 1px solid var(--roblox-border);
+}
+
+.btn-secondary:hover {
+    background-color: var(--roblox-bg-hover);
+}
+
+.loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 200px;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid var(--roblox-border);
+    border-top-color: #00a2ff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.main-content {
+    margin-top: 56px;
+    min-height: calc(100vh - 56px);
+    animation: fadeIn 0.2s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+input,
+textarea,
+select {
+    background-color: var(--roblox-bg-tertiary);
+    border: 1px solid var(--roblox-border);
+    color: var(--roblox-text-primary);
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+    outline: none;
+    border-color: #00a2ff;
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: var(--roblox-text-muted);
 }
 
 a {
-  color: var(--roblox-link);
-  text-decoration: none;
+    color: #00a2ff;
+    text-decoration: none;
 }
 
 a:hover {
-  text-decoration: underline;
-}
-
-button {
-  font-family: inherit;
-}
-
-input, select, textarea {
-  font-family: inherit;
+    text-decoration: none;
 }

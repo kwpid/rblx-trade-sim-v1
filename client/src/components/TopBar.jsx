@@ -3,16 +3,30 @@ import { useAuth } from '../contexts/AuthContext'
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 import './TopBar.css'
+/* Inline styles fix for badge if css file not opened */
+/* .nav-badge { background: red; color: white; border-radius: 50%; padding: 2px 6px; font-size: 10px; margin-left: 5px; vertical-align: super; } */
 
 const TopBar = () => {
   const { user, logout } = useAuth()
   const location = useLocation()
   const [cash, setCash] = useState(user?.cash || 0)
+  const [inboundCount, setInboundCount] = useState(0)
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+
+  useEffect(() => {
+    setIsMenuOpen(false)
+  }, [location])
+
+  // State for inbound trades count
 
   useEffect(() => {
     if (user) {
       setCash(user.cash)
       fetchUserCash()
+      fetchInboundTrades()
+      // Poll every 30s
+      const interval = setInterval(fetchInboundTrades, 30000)
+      return () => clearInterval(interval)
     }
   }, [user])
 
@@ -25,6 +39,17 @@ const TopBar = () => {
     }
   }
 
+  const fetchInboundTrades = async () => {
+    try {
+      const response = await axios.get('/api/trades?type=inbound')
+      // Assuming response.data is array of trades. 
+      // If it's already filtered by 'inbound' and 'pending' via API, length is count.
+      setInboundCount(response.data.length)
+    } catch (error) {
+      console.error('Error fetching trades:', error)
+    }
+  }
+
   const formatCash = (amount) => {
     return new Intl.NumberFormat('en-US').format(amount)
   }
@@ -33,8 +58,9 @@ const TopBar = () => {
     { path: '/', label: 'Catalog' },
     { path: '/profile', label: 'Profile' },
     { path: '/players', label: 'Players' },
-    { path: '/trade', label: 'Trade' },
+    { path: '/trades', label: 'Trade' },
     { path: '/deals', label: 'Deals' },
+    { path: '/transactions', label: 'Transactions' },
     { path: '/value-changes', label: 'Value Changes' },
     { path: '/leaderboard', label: 'Leaderboard' },
     { path: '/settings', label: 'Settings' }
@@ -43,7 +69,7 @@ const TopBar = () => {
   if (user?.is_admin) {
     tabs.splice(1, 0, { path: '/admin', label: 'Admin' })
   }
-  
+
   // Check if current path matches tab (including root)
   const isActive = (tabPath) => {
     if (tabPath === '/') {
@@ -56,6 +82,16 @@ const TopBar = () => {
     <div className="topbar">
       <div className="topbar-content">
         <div className="topbar-left">
+          <button
+            className={`hamburger-btn ${isMenuOpen ? 'active' : ''}`}
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            aria-label="Menu"
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+
           <Link to="/" className="logo">
             <h2>Roblox Trade Simulator</h2>
           </Link>
@@ -67,6 +103,9 @@ const TopBar = () => {
                 className={`tab ${isActive(tab.path) ? 'active' : ''}`}
               >
                 {tab.label}
+                {tab.label === 'Trade' && inboundCount > 0 && (
+                  <span className="nav-badge">{inboundCount}</span>
+                )}
               </Link>
             ))}
           </nav>
@@ -83,6 +122,23 @@ const TopBar = () => {
             </button>
           </div>
         </div>
+      </div>
+
+      <div className={`mobile-menu-overlay ${isMenuOpen ? 'open' : ''}`} onClick={() => setIsMenuOpen(false)}></div>
+
+      <div className={`mobile-menu ${isMenuOpen ? 'open' : ''}`}>
+        {tabs.map(tab => (
+          <Link
+            key={tab.path}
+            to={tab.path}
+            className={`mobile-nav-item ${isActive(tab.path) ? 'active' : ''}`}
+          >
+            {tab.label}
+            {tab.label === 'Trade' && inboundCount > 0 && (
+              <span className="nav-badge">{inboundCount}</span>
+            )}
+          </Link>
+        ))}
       </div>
     </div>
   )

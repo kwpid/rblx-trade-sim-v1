@@ -1,0 +1,261 @@
+/* Complete Trade Details Redesign */
+.trade-details-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 40px 20px;
+}
+
+.trade-section {
+    margin-bottom: 40px;
+}
+
+.trade-section h3 {
+    color: #b0b0b0;
+    font-size: 0.95rem;
+    font-weight: 400;
+    margin-bottom: 20px;
+    font-style: normal;
+}
+
+/* Trade Items Grid */
+.trade-items-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+    justify-items: center;
+}
+
+.trade-item-card {
+    background-color: #393b3d;
+    border-radius: 8px;
+    padding: 10px;
+    width: 140px;
+    transition: background-color 0.2s;
+    cursor: pointer;
+    text-decoration: none;
+    display: block;
+    position: relative;
+}
+
+.trade-item-card:hover {
+    background-color: #454749;
+}
+
+.item-image-container {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1;
+    background-color: #2a2c2e;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    overflow: visible;
+}
+
+.item-image-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+/* LIMITED Badge - Bottom Left */
+.limited-badge {
+    position: absolute;
+    bottom: 4px;
+    left: 4px;
+    display: flex;
+    gap: 3px;
+    z-index: 2;
+}
+
+.limited-tag {
+    background-color: #00b06f;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+}
+
+.limited-u-tag {
+    background-color: #ffc107;
+    color: white;
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-size: 9px;
+    font-weight: 700;
+}
+
+/* Serial Number - Top Right */
+.serial-number {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    background-color: rgba(0, 0, 0, 0.75);
+    color: #fff;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 600;
+    z-index: 2;
+}
+
+/* Item Info Below Image */
+.item-card-info {
+    text-align: center;
+    padding: 0 4px;
+}
+
+.item-card-name {
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 500;
+    margin-bottom: 6px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.2;
+}
+
+.item-card-value {
+    color: #00b06f;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+/* Remove Button */
+.trade-item-card .remove-item-btn {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 22px;
+    height: 22px;
+    background: #ff3b30;
+    border: 2px solid #232527;
+    border-radius: 50%;
+    color: white;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    padding: 0;
+    z-index: 10;
+}
+
+.trade-item-card .remove-item-btn:hover {
+    background: #e03028;
+    transform: scale(1.1);
+}
+
+/* Trade Totals */
+.trade-totals {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #393b3d;
+}
+
+.total-line {
+    display: flex;
+    justify-content: space-between;
+    color: #8c8c8c;
+    font-size: 0.95rem;
+}
+
+.total-line span {
+    color: #fff;
+    font-weight: 700;
+}
+
+/* Trade Actions */
+.trade-actions {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 16px;
+    padding: 24px 0;
+    border-top: 1px solid #393b3d;
+    margin-top: 20px;
+}
+
+.trade-actions button {
+    padding: 12px 28px;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+}
+
+.confirm-btn {
+    background-color: #00b06f;
+    color: #fff;
+}
+
+.confirm-btn:hover {
+    background-color: #00a86b;
+}
+
+.cancel-btn {
+    background-color: transparent;
+    color: #fff;
+    border: 1px solid #fff;
+}
+
+.cancel-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.proof-btn {
+    background-color: #00b06f;
+    color: #fff;
+    padding: 12px 32px;
+}
+
+.proof-btn:hover {
+    background-color: #00a86b;
+}
+
+/* Trade Value Difference */
+.trade-value-diff {
+    color: #ff3b30;
+    font-size: 1.2rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.trade-value-diff.positive {
+    color: #00b06f;
+}
+
+.status-badge {
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-weight: 600;
+    text-align: center;
+    font-size: 1rem;
+}
+
+.status-badge.accepted {
+    background-color: #00b06f20;
+    color: #00b06f;
+}
+
+.status-badge.declined {
+    background-color: #ff3b3020;
+    color: #ff3b30;
+}
+
+.status-badge.cancelled {
+    background-color: #8c8c8c20;
+    color: #8c8c8c;
+}

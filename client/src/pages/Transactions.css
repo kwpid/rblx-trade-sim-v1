@@ -1,0 +1,114 @@
+.transactions-container {
+    padding: 24px;
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.transactions-header h1 {
+    font-size: 24px;
+    color: var(--roblox-text-primary);
+    margin-bottom: 20px;
+}
+
+.transactions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.transaction-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: var(--roblox-bg-secondary);
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid var(--roblox-border);
+}
+
+.tx-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.tx-image {
+    width: 50px;
+    height: 50px;
+    background-color: var(--roblox-bg-tertiary);
+    border-radius: 6px;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.tx-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.tx-placeholder {
+    color: var(--roblox-text-muted);
+    font-size: 20px;
+}
+
+.tx-title {
+    color: var(--roblox-text-primary);
+    font-weight: 600;
+    font-size: 15px;
+}
+
+.tx-sub {
+    color: var(--roblox-text-secondary);
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+.tx-user {
+    color: var(--roblox-link);
+}
+
+.tx-amount {
+    font-family: 'Gotham SSm', sans-serif;
+    font-weight: 700;
+    font-size: 16px;
+}
+
+.tx-amount.buy {
+    color: #ff3e3e;
+}
+
+.tx-amount.sell {
+    color: #00b06f;
+}
+
+.pagination-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid var(--roblox-border);
+}
+
+.pagination-controls button {
+    background-color: var(--roblox-bg-secondary);
+    border: 1px solid var(--roblox-border);
+    color: var(--roblox-text-primary);
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.pagination-controls button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.pagination-controls span {
+    color: var(--roblox-text-secondary);
+}

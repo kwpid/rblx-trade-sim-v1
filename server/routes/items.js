@@ -8,7 +8,7 @@ const { getItemDetails } = require('../utils/rolimons');
 router.get('/', async (req, res) => {
   try {
     const { limit = 50, offset = 0 } = req.query;
-    
+
     const { data: items, error } = await supabase
       .from('items')
       .select('*')
@@ -123,6 +123,26 @@ router.get('/value-changes', async (req, res) => {
   }
 });
 
+// Get RAP change logs
+router.get('/rap-changes', async (req, res) => {
+  try {
+    const { data: logs, error } = await supabase
+      .from('rap_change_log')
+      .select(`
+        *,
+        items:item_id (id, name, image_url, roblox_item_id)
+      `)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (error) throw error;
+    res.json(logs);
+  } catch (error) {
+    console.error('Error fetching RAP changes:', error);
+    res.status(500).json({ error: 'Failed to fetch RAP changes' });
+  }
+});
+
 // Get item owners (must come before /:id)
 router.get('/:id/owners', async (req, res) => {
   try {
@@ -165,6 +185,15 @@ router.get('/:id', async (req, res) => {
 
     if (!item) {
       return res.status(404).json({ error: 'Item not found' });
+    }
+
+    // Check for expired timer to mark as limited
+    if (!item.is_limited && item.sale_type === 'timer' && item.sale_end_time && new Date(item.sale_end_time) < new Date()) {
+      await supabase
+        .from('items')
+        .update({ is_limited: true })
+        .eq('id', item.id);
+      item.is_limited = true;
     }
 
     res.json(item);

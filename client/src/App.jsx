@@ -9,11 +9,13 @@ import Catalog from './pages/Catalog'
 import ItemDetail from './pages/ItemDetail'
 import Profile from './pages/Profile'
 import Players from './pages/Players'
-import Trade from './pages/Trade'
+import TradeWindow from './pages/TradeWindow'
+import Trades from './pages/Trades'
 import Deals from './pages/Deals'
 import Leaderboard from './pages/Leaderboard'
 import Settings from './pages/Settings'
 import ValueChanges from './pages/ValueChanges'
+import Transactions from './pages/Transactions'
 import AdminPanel from './pages/AdminPanel'
 import PrivateRoute from './components/PrivateRoute'
 import TopBar from './components/TopBar'
@@ -43,9 +45,12 @@ function App() {
                         <Route path="/profile" element={<Profile />} />
                         <Route path="/players" element={<Players />} />
                         <Route path="/players/:id" element={<Profile />} />
-                        <Route path="/trade" element={<Trade />} />
+                        <Route path="/trade" element={<Navigate to="/trades" replace />} />
+                        <Route path="/trades" element={<Trades />} />
+                        <Route path="/trades/:id" element={<TradeWindow />} />
                         <Route path="/deals" element={<Deals />} />
                         <Route path="/value-changes" element={<ValueChanges />} />
+                        <Route path="/transactions" element={<Transactions />} />
                         <Route path="/leaderboard" element={<Leaderboard />} />
                         <Route path="/settings" element={<Settings />} />
                         <Route path="/admin" element={<AdminPanel />} />

@@ -1,79 +1,121 @@
-.deals {
+.deals-page {
   padding: 24px;
-  min-height: calc(100vh - 56px);
-  margin-top: 56px;
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
-.deals h1 {
-  color: var(--roblox-text-primary);
-  margin-bottom: 8px;
-  font-size: 28px;
-  font-weight: 700;
+.deals-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 20px;
 }
 
-.deals-description {
-  color: var(--roblox-text-muted);
-  margin-bottom: 24px;
+.deals-filters {
+  display: flex;
+  gap: 10px;
+}
+
+.filter-btn {
+  background-color: transparent;
+  border: 1px solid var(--roblox-border-light);
+  color: var(--roblox-text-secondary);
+  padding: 6px 14px;
+  border-radius: 4px;
+  cursor: pointer;
   font-size: 14px;
+  font-weight: 500;
+  font-style: italic;
+  /* Match reference */
 }
 
-.empty-deals {
-  text-align: center;
-  color: var(--roblox-text-muted);
-  padding: 60px 20px;
-  background-color: var(--roblox-bg-secondary);
-  border-radius: 8px;
+.filter-btn.active {
+  background-color: var(--roblox-bg-tertiary);
+  /* Highlight active */
+  color: var(--roblox-text-primary);
 }
 
 .deals-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
 }
 
 .deal-card {
   background-color: var(--roblox-bg-secondary);
-  border-radius: 8px;
+  border-radius: 6px;
   overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  height: 140px;
+  /* Approximate height */
+  position: relative;
   border: 1px solid var(--roblox-border);
-  transition: border-color 0.15s;
 }
 
-.deal-card:hover {
-  border-color: var(--roblox-border-light);
-}
-
-.deal-card img {
-  width: 100%;
-  aspect-ratio: 1;
-  object-fit: contain;
-  background-color: var(--roblox-bg-primary);
-  padding: 16px;
-}
-
-.deal-info {
-  padding: 16px;
-}
-
-.deal-info h3 {
-  color: var(--roblox-text-primary);
-  margin-bottom: 4px;
-  font-size: 14px;
-  font-weight: 500;
+.deal-header-bg {
+  padding: 6px 10px;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  background: #393b3d;
+  /* Default header color */
 }
 
-.deal-seller {
-  color: var(--roblox-text-muted);
-  font-size: 12px;
-  margin-bottom: 12px;
-}
-
-.deal-price {
-  color: var(--roblox-text-secondary);
-  font-size: 16px;
+.deal-item-name {
+  font-size: 13px;
   font-weight: 600;
-  margin-bottom: 12px;
+  color: #fff;
+  /* Ensure text is readable on colored header */
+}
+
+.deal-content {
+  display: flex;
+  padding: 10px;
+  gap: 12px;
+  height: 100%;
+}
+
+.deal-image {
+  width: 80px;
+  height: 80px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.deal-image img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.deal-stats {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.stat-label {
+  color: var(--roblox-text-secondary);
+}
+
+.stat-value {
+  color: var(--roblox-text-primary);
+  font-weight: 600;
+}
+
+.stat-value.deal-percent {
+  color: #fff;
+  /* Could be colored based on goodness */
 }

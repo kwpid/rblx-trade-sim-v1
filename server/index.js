@@ -29,6 +29,7 @@ app.use('/api/users', require('./routes/users'));
 app.use('/api/trades', require('./routes/trades'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/transactions', require('./routes/transactions'));
 
 // Serve static files from React app in production
 if (process.env.NODE_ENV === 'production') {
@@ -40,5 +41,14 @@ if (process.env.NODE_ENV === 'production') {
 
 app.listen(PORT, 'localhost', () => {
   console.log(`Server running on port ${PORT}`);
+
+  // Start AI Service
+  try {
+    const aiService = require('./services/aiService');
+    aiService.start();
+    console.log('AI System Started');
+  } catch (err) {
+    console.error('Failed to start AI System:', err);
+  }
 });
 

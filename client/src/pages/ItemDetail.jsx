@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useNotifications } from '../contexts/NotificationContext'
 import axios from 'axios'
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts'
+import { ComposedChart, Line, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts'
 import './ItemDetail.css'
 
 const ItemDetail = () => {
@@ -22,6 +22,8 @@ const ItemDetail = () => {
   const [selectedSerialForSale, setSelectedSerialForSale] = useState(null)
   const [salePrice, setSalePrice] = useState('')
   const [timeRemaining, setTimeRemaining] = useState(null)
+  const [cooldown, setCooldown] = useState(false)
+  const [cooldownTime, setCooldownTime] = useState(0)
   const { showPopup } = useNotifications()
 
   // Calculate fee breakdown
@@ -52,7 +54,7 @@ const ItemDetail = () => {
         const response = await axios.get(`/api/users/me/owns/${id}`, {
           validateStatus: (status) => status < 500 // Don't throw on 401/403
         })
-        
+
         // Check if response is successful
         if (response.status === 200 && response.data) {
           setOwnedItems(response.data || [])
@@ -119,8 +121,15 @@ const ItemDetail = () => {
         axios.get(`/api/items/${id}/owners`)
       ])
       setItem(itemResponse.data)
-      setRapHistory(rapResponse.data)
-      const sortedResellers = resellersResponse.data.sort((a, b) => 
+      // Format RAP history data with proper dates and sales volume
+      const formattedRapHistory = rapResponse.data.map(snapshot => ({
+        date: new Date(snapshot.snapshot_date || snapshot.timestamp).toLocaleDateString(),
+        rap: snapshot.rap_value || 0,
+        volume: snapshot.sales_volume || 0,
+        sales: snapshot.sales_count || 0
+      }))
+      setRapHistory(formattedRapHistory)
+      const sortedResellers = resellersResponse.data.sort((a, b) =>
         (a.sale_price || 0) - (b.sale_price || 0)
       )
       setResellers(sortedResellers)
@@ -133,26 +142,55 @@ const ItemDetail = () => {
   }
 
   const handlePurchase = async () => {
+    if (cooldown) {
+      showPopup(`Please wait ${Math.ceil((cooldownTime - Date.now()) / 1000)}s before purchasing again.`, 'error');
+      return;
+    }
+
     setShowConfirmDialog(false)
     try {
       await axios.post('/api/marketplace/purchase', { item_id: id })
       showPopup('Item purchased successfully!', 'success')
-      fetchItemDetails()
-      setTimeout(() => window.location.reload(), 1000)
+
+      // Cooldown
+      setCooldown(true);
+      setCooldownTime(Date.now() + 5000);
+      setTimeout(() => setCooldown(false), 5000);
+
+      // Instant Refresh
+      await fetchItemDetails();
+      // Also refresh owned items
+      const ownedResponse = await axios.get(`/api/users/me/owns/${id}`);
+      setOwnedItems(ownedResponse.data || []);
+
     } catch (error) {
       showPopup(error.response?.data?.error || 'Failed to purchase item', 'error')
     }
   }
 
   const handlePurchaseFromPlayer = async (userItemId) => {
+    if (cooldown) {
+      showPopup(`Please wait ${Math.ceil((cooldownTime - Date.now()) / 1000)}s before purchasing again.`, 'error');
+      return;
+    }
+
     setShowConfirmDialog(false)
     try {
       await axios.post('/api/marketplace/purchase-from-player', {
         user_item_id: userItemId
       })
       showPopup('Item purchased successfully!', 'success')
-      fetchItemDetails()
-      setTimeout(() => window.location.reload(), 1000)
+
+      // Cooldown
+      setCooldown(true);
+      setCooldownTime(Date.now() + 5000);
+      setTimeout(() => setCooldown(false), 5000);
+
+      // Instant Refresh
+      await fetchItemDetails();
+      // Also refresh owned items
+      const ownedResponse = await axios.get(`/api/users/me/owns/${id}`);
+      setOwnedItems(ownedResponse.data || []);
     } catch (error) {
       showPopup(error.response?.data?.error || 'Failed to purchase item', 'error')
     }
@@ -183,22 +221,22 @@ const ItemDetail = () => {
   // But for purchasing, filter out own items
   const bestPrice = resellers.length > 0 ? resellers[0].sale_price : null
   const hasResellers = resellers.length > 0
-  
+
   // Filter out user's own items from resellers for purchasing
-  const availableResellers = user ? resellers.filter(r => 
+  const availableResellers = user ? resellers.filter(r =>
     !ownedItems.some(owned => owned.id === r.id)
   ) : resellers
-  
+
   const hasAvailableResellers = availableResellers.length > 0
   const isOutOfStock = item.is_off_sale || (item.sale_type === 'stock' && item.remaining_stock <= 0)
   // Users can buy from resellers even if they own a copy (buy limit only applies to original price purchases)
   const canPurchase = item.is_limited ? hasAvailableResellers : !isOutOfStock || hasAvailableResellers
-  
-  // Get RAP (most recent from history or current price)
-  const currentRAP = rapHistory.length > 0 ? rapHistory[rapHistory.length - 1].rap_value : (item.current_price || 0)
+
+  // Get RAP (prefer rap column, then history, then current price)
+  const currentRAP = (item.rap !== null && item.rap !== undefined) ? item.rap : (rapHistory.length > 0 ? rapHistory[rapHistory.length - 1].rap_value : (item.current_price || 0))
   // Only use item.value if it's explicitly set (not null/undefined), otherwise use 0
   const itemValue = (item.value !== null && item.value !== undefined) ? item.value : 0
-  
+
   const displayPrice = () => {
     if (item.is_limited) {
       return hasResellers ? `$${bestPrice?.toLocaleString()}` : 'No Resellers'
@@ -208,7 +246,7 @@ const ItemDetail = () => {
     }
     return `$${item.current_price?.toLocaleString()}`
   }
-  
+
   const handleSell = async () => {
     // Check if item is limited
     if (!item?.is_limited) {
@@ -220,14 +258,14 @@ const ItemDetail = () => {
       showPopup('Please select a serial and enter a valid price', 'error')
       return
     }
-    
+
     // Ensure no decimals
     const price = Math.floor(parseFloat(salePrice))
     if (price <= 0 || isNaN(price)) {
       showPopup('Please enter a valid whole number price', 'error')
       return
     }
-    
+
     try {
       await axios.post('/api/marketplace/list', {
         user_item_id: selectedSerialForSale,
@@ -250,7 +288,7 @@ const ItemDetail = () => {
       showPopup(error.response?.data?.error || 'Failed to list item', 'error')
     }
   }
-  
+
   const imageUrl = item.image_url || `https://www.roblox.com/asset-thumbnail/image?assetId=${item.roblox_item_id}&width=420&height=420&format=png`
 
   const chartData = rapHistory.map(h => ({
@@ -279,11 +317,11 @@ const ItemDetail = () => {
     <div className="item-detail">
       <div className="container">
         <Link to="/catalog" className="back-link">← Back to Catalog</Link>
-        
+
         <div className="item-main-section">
           <div className="item-image-container">
-            <img 
-              src={imageUrl} 
+            <img
+              src={imageUrl}
               alt={item.name}
             />
             {item.is_limited && (
@@ -298,7 +336,7 @@ const ItemDetail = () => {
               </div>
             )}
           </div>
-          
+
           <div className="item-info-panel">
             <div className="item-info-header">
               <div className="item-info-left">
@@ -307,58 +345,58 @@ const ItemDetail = () => {
                 {ownedItems.length > 0 && (
                   <div className="item-owned-count">Item Owned ({ownedItems.length})</div>
                 )}
-                
+
                 <div className="item-stats-grid">
                   <span className="stat-label">Best Price</span>
                   <span className="stat-value price">
                     {displayPrice()}
                   </span>
-                  
+
                   <span className="stat-label">RAP</span>
                   <span className="stat-value price-value">${currentRAP.toLocaleString()}</span>
-                  
+
                   <span className="stat-label">Value</span>
                   <span className="stat-value price-value">${itemValue.toLocaleString()}</span>
-                  
+
                   <span className="stat-label">Owners</span>
                   <span className="stat-value">{ownerCount}</span>
-                  
+
                   {!item.is_limited && !item.is_off_sale && item.sale_type === 'stock' && (
                     <>
                       <span className="stat-label">Stock</span>
                       <span className="stat-value">{item.remaining_stock || 0} / {item.stock_count || 0}</span>
                     </>
                   )}
-                  
+
                   {!item.is_limited && !item.is_off_sale && item.sale_type === 'timer' && timeRemaining && (
                     <>
                       <span className="stat-label">Time Remaining</span>
                       <span className="stat-value">{timeRemaining}</span>
                     </>
                   )}
-                  
+
                   {item.is_limited && (
                     <>
                       <span className="stat-label">Demand</span>
                       <span className="stat-value">{getDemandLevel(item)}</span>
-                      
+
                       <span className="stat-label">Trend</span>
                       <span className="stat-value">{getTrendLevel(item)}</span>
                     </>
                   )}
-                  
+
                   <span className="stat-label">Type</span>
                   <span className="stat-value">{item.category || 'Accessory | Hat'}</span>
-                  
+
                   <span className="stat-label">Description</span>
                   <span className="stat-value">{item.description || 'No description available.'}</span>
                 </div>
               </div>
-              
+
               <div className="item-actions">
                 {canPurchase ? (
-                  <button 
-                    className="buy-btn buy-btn-large" 
+                  <button
+                    className="buy-btn buy-btn-large"
                     onClick={() => {
                       if (item.is_limited && availableResellers.length > 0) {
                         confirmPurchase(true, availableResellers[0].id)
@@ -394,47 +432,59 @@ const ItemDetail = () => {
                 <span>Avg Price</span>
               </div>
             </div>
-            <ResponsiveContainer width="100%" height={200}>
-              <AreaChart data={chartData}>
-                <defs>
-                  <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#00b06f" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#00b06f" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <XAxis 
-                  dataKey="date" 
-                  axisLine={false} 
-                  tickLine={false} 
+            <ResponsiveContainer width="100%" height={250}>
+              <ComposedChart data={rapHistory}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#4a4a4a" />
+                <XAxis
+                  dataKey="date"
+                  axisLine={false}
+                  tickLine={false}
                   tick={{ fill: '#8c8c8c', fontSize: 12 }}
                 />
-                <YAxis 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{ fill: '#8c8c8c', fontSize: 12 }}
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#00a2ff', fontSize: 12 }}
                   tickFormatter={(value) => {
                     if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`
                     if (value >= 1000) return `$${(value / 1000).toFixed(1)}K`
                     return `$${value.toLocaleString()}`
                   }}
                 />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#232527', 
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#232527',
                     border: '1px solid #3d3f41',
                     borderRadius: '8px',
-                    color: '#f5f5f5'
+                    color: '#f5f5f5',
+                    padding: '12px'
                   }}
-                  formatter={(value) => [`$${typeof value === 'number' ? value.toLocaleString() : value}`, 'RAP']}
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+                      return (
+                        <div style={{ backgroundColor: '#232527', border: '1px solid #3d3f41', borderRadius: '8px', padding: '12px' }}>
+                          <p style={{ margin: '0 0 8px 0', fontWeight: 'bold', color: '#fff' }}>{data.date}</p>
+                          <p style={{ margin: '4px 0', color: '#00a2ff' }}>RAP: ${data.rap?.toLocaleString()}</p>
+                          {data.sales > 0 && (
+                            <p style={{ margin: '4px 0', color: '#8c8c8c' }}>Sales: {data.sales}</p>
+                          )}
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
                 />
-                <Area 
-                  type="monotone" 
-                  dataKey="value" 
-                  stroke="#00b06f" 
+                <Legend />
+                <Line
+                  type="monotone"
+                  dataKey="rap"
+                  stroke="#00a2ff"
+                  name="RAP"
+                  dot={false}
                   strokeWidth={2}
-                  fill="url(#colorValue)"
                 />
-              </AreaChart>
+              </ComposedChart>
             </ResponsiveContainer>
           </div>
         )}
@@ -448,7 +498,7 @@ const ItemDetail = () => {
               {resellers.map(reseller => {
                 // Check if this reseller item is owned by the current user
                 const isOwnItem = user && ownedItems.some(owned => owned.id === reseller.id)
-                
+
                 return (
                   <div key={reseller.id} className="reseller-item">
                     <div className="reseller-info">
@@ -500,9 +550,19 @@ const ItemDetail = () => {
           <div className="confirm-dialog-overlay" onClick={() => setShowConfirmDialog(false)}>
             <div className="confirm-dialog" onClick={(e) => e.stopPropagation()}>
               <h3>Confirm Purchase</h3>
-              <p>Are you sure you want to purchase this item?</p>
+              <div className="confirm-purchase-image">
+                <img src={imageUrl} alt={item.name} style={{ width: '150px', height: '150px', objectFit: 'contain', margin: '20px auto', display: 'block' }} />
+              </div>
+              <p style={{ textAlign: 'center', marginBottom: '10px' }}>Are you sure you want to purchase this item?</p>
+              <p style={{ textAlign: 'center', color: '#b0b0b0', fontSize: '14px', marginBottom: '20px' }}>
+                You'll have ${((user?.cash || 0) - (bestPrice || item?.current_price || 0)).toLocaleString()} left.
+              </p>
               <div className="confirm-dialog-actions">
-                <button className="confirm-btn" onClick={() => confirmAction && confirmAction()}>
+                <button
+                  className="confirm-btn"
+                  onClick={() => confirmAction && confirmAction()}
+                  style={{ padding: '8px 20px', fontSize: '14px' }}
+                >
                   Confirm
                 </button>
                 <button className="cancel-btn" onClick={() => setShowConfirmDialog(false)}>
@@ -543,8 +603,7 @@ const ItemDetail = () => {
                   {ownedItems
                     .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
                     .map((ownedItem, index) => {
-                      // Get serial number based on creation order (all items of this type, not just owned)
-                      const serialNumber = index + 1
+                      const serialNumber = ownedItem.serial_number || (index + 1)
                       const isListed = ownedItem.is_for_sale
                       return (
                         <option key={ownedItem.id} value={ownedItem.id}>
@@ -591,8 +650,9 @@ const ItemDetail = () => {
                 )}
               </div>
               <div className="confirm-dialog-actions">
-                <button 
-                  className="confirm-btn" 
+                <button
+                  className="confirm-btn"
+                  style={{ padding: '8px 16px', fontSize: '13px' }}
                   onClick={handleSell}
                   disabled={!item?.is_limited}
                 >

@@ -1,62 +1,154 @@
-.settings {
-  padding: 24px;
-  min-height: calc(100vh - 56px);
-  margin-top: 56px;
+.settings-page {
+  padding: 30px 0;
+  max-width: 1000px;
+  margin: 0 auto;
 }
 
-.settings h1 {
+.settings-layout {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.settings-sidebar {
+  width: 250px;
+  flex-shrink: 0;
+}
+
+.settings-sidebar h2 {
+  font-size: 24px;
+  margin-bottom: 16px;
   color: var(--roblox-text-primary);
-  margin-bottom: 24px;
-  font-size: 28px;
-  font-weight: 700;
 }
 
-.settings-content {
+.settings-nav {
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  max-width: 600px;
+  gap: 4px;
 }
 
-.settings-content .card {
-  background-color: var(--roblox-bg-secondary);
-  border-radius: 8px;
-  padding: 24px;
-  border: 1px solid var(--roblox-border);
-}
-
-.settings-content h2 {
-  color: var(--roblox-text-primary);
-  margin-bottom: 20px;
-  font-size: 18px;
-  font-weight: 600;
-}
-
-.settings-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 0;
-  border-bottom: 1px solid var(--roblox-border);
-}
-
-.settings-item:last-child {
-  border-bottom: none;
-}
-
-.settings-label {
+.settings-tab {
+  text-align: left;
+  background: transparent;
+  border: none;
+  padding: 10px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
   color: var(--roblox-text-secondary);
-  font-size: 14px;
-}
-
-.settings-value {
-  color: var(--roblox-text-primary);
-  font-size: 14px;
+  transition: all 0.2s;
   font-weight: 500;
 }
 
-.settings-content p {
-  color: var(--roblox-text-muted);
+.settings-tab:hover {
+  color: var(--roblox-text-primary);
+  background-color: var(--roblox-bg-secondary);
+}
+
+.settings-tab.active {
+  background-color: var(--roblox-bg-tertiary);
+  color: var(--roblox-text-primary);
+  font-weight: 600;
+}
+
+.settings-content {
+  flex: 1;
+  background-color: var(--roblox-bg-secondary);
+  border: 1px solid var(--roblox-border);
+  border-radius: 8px;
+  padding: 24px;
+  min-height: 400px;
+}
+
+.section-title {
+  font-size: 22px;
+  margin-bottom: 24px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--roblox-border);
+}
+
+.setting-group {
+  margin-bottom: 20px;
+}
+
+.setting-group label {
+  display: block;
   margin-bottom: 8px;
-  font-size: 14px;
+  font-weight: 600;
+  color: var(--roblox-text-primary);
+  font-size: 15px;
+}
+
+.setting-control input,
+.setting-control textarea,
+.setting-group select,
+.fake-input {
+  width: 100%;
+  padding: 10px 12px;
+  background-color: #000;
+  /* Darker input bg */
+  border: 1px solid var(--roblox-border);
+  border-radius: 4px;
+  color: var(--roblox-text-primary);
+  font-size: 15px;
+}
+
+.fake-input {
+  display: block;
+  cursor: default;
+  color: var(--roblox-text-secondary);
+}
+
+.setting-control.disabled input {
+  background-color: var(--roblox-bg-tertiary);
+  color: var(--roblox-text-muted);
+  cursor: not-allowed;
+}
+
+.setting-note {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--roblox-text-muted);
+}
+
+.email-display {
+  display: flex;
+  gap: 10px;
+}
+
+.visibility-toggle {
+  background-color: var(--roblox-bg-tertiary);
+  border: 1px solid var(--roblox-border);
+  color: var(--roblox-text-primary);
+  padding: 0 16px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.save-btn-container {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.save-btn {
+  background-color: var(--roblox-link);
+  color: white;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.save-btn:hover {
+  background-color: #0090e3;
+}
+
+.placeholder-text {
+  color: var(--roblox-text-secondary);
+  font-style: italic;
+  text-align: center;
+  margin-top: 40px;
 }

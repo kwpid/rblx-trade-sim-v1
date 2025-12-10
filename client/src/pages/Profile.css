@@ -5,55 +5,109 @@
   margin-top: 56px;
 }
 
-.profile-header {
-  margin-bottom: 24px;
-}
-
-.profile-user-info h1 {
-  color: var(--roblox-text-primary);
-  font-size: 28px;
-  font-weight: 700;
-  margin-bottom: 16px;
-}
-
-.profile-stats {
+/* New Profile Header Styles */
+.profile-header-card {
   display: flex;
-  gap: 32px;
-  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--roblox-bg-secondary);
+  padding: 24px;
+  border-radius: 12px;
+  margin-bottom: 24px;
+  border: 1px solid var(--roblox-border);
 }
 
-.stat-item {
+.profile-left {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.profile-avatar-container {
+  position: relative;
+  width: 100px;
+  height: 100px;
+}
+
+.profile-avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  background-color: #393939;
+  border: 2px solid #393939;
+}
+
+.online-status {
+  position: absolute;
+  bottom: 5px;
+  right: 5px;
+  width: 20px;
+  height: 20px;
+  background-color: #00b06f;
+  border: 4px solid #2b2b2b;
+  border-radius: 50%;
+}
+
+.profile-info h1 {
+  font-size: 32px;
+  font-weight: 800;
+  color: #fff;
+  margin: 0 0 8px 0;
+  font-style: italic;
+}
+
+.profile-stats-new {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.stat-label {
-  color: var(--roblox-text-muted);
-  font-size: 12px;
-  text-transform: uppercase;
+.stat-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 18px;
+}
+
+.stat-val {
+  font-weight: 800;
+  color: #fff;
+  font-style: italic;
+}
+
+.stat-lbl {
+  color: #8c8c8c;
   font-weight: 500;
+  font-style: italic;
 }
 
-.stat-value {
-  color: var(--roblox-text-primary);
-  font-size: 20px;
-  font-weight: 600;
-}
-
-.stat-value.price-value {
-  color: #00a366;
-  font-weight: 700;
-}
-
-.portfolio-graph {
-  margin-bottom: 24px;
-  padding: 24px;
-  background-color: var(--roblox-bg-secondary);
+.trade-btn-large {
+  background-color: #393939;
+  color: #fff;
+  border: 1px solid #666;
+  padding: 12px 40px;
   border-radius: 8px;
-  border: 1px solid var(--roblox-border);
+  font-size: 20px;
+  font-weight: 700;
+  text-decoration: none;
+  font-style: italic;
+  transition: all 0.2s;
 }
 
+.trade-btn-large:hover {
+  background-color: #4a4a4a;
+  border-color: #888;
+}
+
+.own-profile-tag {
+  color: #555;
+  font-weight: 700;
+  font-style: italic;
+  font-size: 24px;
+}
+
+/* Old styles - kept for other sections */
 .inventory-section {
   margin-top: 24px;
 }
@@ -202,75 +256,20 @@
   font-weight: 700;
 }
 
-.btn-small {
-  padding: 8px 14px;
-  font-size: 12px;
-  margin-top: 4px;
-}
-
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.8);
+/* Online Status Indicator */
+.profile-name-container {
   display: flex;
   align-items: center;
-  justify-content: center;
-  z-index: 3000;
-}
-
-.modal {
-  background-color: var(--roblox-bg-secondary);
-  border-radius: 12px;
-  padding: 32px;
-  width: 90%;
-  max-width: 400px;
-  border: 1px solid var(--roblox-border);
-}
-
-.modal h2 {
-  color: var(--roblox-text-primary);
-  margin-bottom: 24px;
-  font-size: 20px;
-  font-weight: 600;
-}
-
-.modal .form-group {
-  margin-bottom: 20px;
-}
-
-.modal .form-group label {
-  display: block;
-  margin-bottom: 8px;
-  color: var(--roblox-text-secondary);
-  font-size: 14px;
-}
-
-.modal-actions {
-  display: flex;
   gap: 12px;
-  margin-top: 24px;
 }
 
-.modal-actions .btn {
-  flex: 1;
-}
-
-@media (max-width: 768px) {
-  .inventory-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-  
-  .inventory-controls {
-    width: 100%;
-    flex-wrap: wrap;
-  }
-  
-  .inventory-search {
-    flex: 1;
-  }
+.online-indicator {
+  width: 14px;
+  height: 14px;
+  background-color: #00b06f;
+  /* Roblox Green */
+  border-radius: 50%;
+  border: 2px solid var(--roblox-bg-secondary);
+  box-shadow: 0 0 0 1px #00b06f;
+  display: inline-block;
 }

@@ -8,7 +8,7 @@ router.get('/:id', async (req, res) => {
   try {
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, username, email, cash, is_admin, created_at')
+      .select('id, username, email, cash, is_admin, created_at, is_online')
       .eq('id', req.params.id)
       .single();
 
@@ -81,7 +81,7 @@ router.get('/me/owns/:itemId', authenticate, async (req, res) => {
 
     if (error) {
       console.error('Supabase error checking ownership:', error);
-      return res.status(500).json({ 
+      return res.status(500).json({
         error: 'Failed to check ownership',
         details: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
@@ -90,7 +90,7 @@ router.get('/me/owns/:itemId', authenticate, async (req, res) => {
     res.json(userItems || []);
   } catch (error) {
     console.error('Error checking ownership:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to check ownership',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
@@ -150,7 +150,7 @@ router.get('/me/inventory', authenticate, async (req, res) => {
     res.json(result);
   } catch (error) {
     console.error('Error fetching inventory:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to fetch inventory',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
@@ -215,8 +215,8 @@ router.get('/leaderboard/value', async (req, res) => {
           const resellerPriceMap = new Map();
           if (resellers) {
             resellers.forEach(reseller => {
-              if (!resellerPriceMap.has(reseller.item_id) || 
-                  resellerPriceMap.get(reseller.item_id) > reseller.sale_price) {
+              if (!resellerPriceMap.has(reseller.item_id) ||
+                resellerPriceMap.get(reseller.item_id) > reseller.sale_price) {
                 resellerPriceMap.set(reseller.item_id, reseller.sale_price);
               }
             });
@@ -226,16 +226,16 @@ router.get('/leaderboard/value', async (req, res) => {
             const itemData = userItem.items;
             if (!itemData) return;
 
-            const isOutOfStock = itemData.is_off_sale || 
+            const isOutOfStock = itemData.is_off_sale ||
               (itemData.sale_type === 'stock' && itemData.remaining_stock <= 0);
-            
+
             // Only use item.value if it's explicitly set (not null/undefined), otherwise start with 0
             let itemValue = (itemData.value !== null && itemData.value !== undefined) ? itemData.value : 0;
-            
+
             if ((itemData.is_limited || isOutOfStock) && resellerPriceMap.has(userItem.item_id)) {
               itemValue = resellerPriceMap.get(userItem.item_id);
             }
-            
+
             totalValue += itemValue;
           });
         }
@@ -297,7 +297,7 @@ router.get('/leaderboard/rap', async (req, res) => {
                 .eq('item_id', itemId)
                 .order('timestamp', { ascending: false })
                 .limit(1);
-              
+
               if (rapHistory && rapHistory.length > 0) {
                 return { itemId, rap: rapHistory[0].rap_value };
               }
@@ -372,27 +372,29 @@ router.get('/', async (req, res) => {
     const { limit = 50, offset = 0, search = '', online_only = 'true' } = req.query;
     const limitNum = parseInt(limit);
     const offsetNum = parseInt(offset);
-    
+
     let query = supabase
       .from('users')
       .select('id, username, cash, is_admin, created_at');
-    
+
     // Filter by search query
     if (search && search.trim() !== '') {
       query = query.ilike('username', `%${search.trim()}%`);
     }
-    
+
     // Filter by online status
     if (online_only === 'true') {
       const onlineUserIds = getOnlineUsers();
+
       if (onlineUserIds.length > 0) {
-        query = query.in('id', onlineUserIds);
+        // AI (is_online=true) OR Real (in onlineUserIds)
+        query = query.or(`is_online.eq.true,id.in.(${onlineUserIds.join(',')})`);
       } else {
-        // No online users, return empty array
-        return res.json([]);
+        // Only AI (since no real users online)
+        query = query.eq('is_online', true);
       }
     }
-    
+
     const { data: users, error } = await query
       .order('cash', { ascending: false })
       .range(offsetNum, offsetNum + limitNum - 1);
@@ -427,8 +429,8 @@ router.get('/', async (req, res) => {
         const resellerPriceMap = new Map();
         if (resellers) {
           resellers.forEach(reseller => {
-            if (!resellerPriceMap.has(reseller.item_id) || 
-                resellerPriceMap.get(reseller.item_id) > reseller.sale_price) {
+            if (!resellerPriceMap.has(reseller.item_id) ||
+              resellerPriceMap.get(reseller.item_id) > reseller.sale_price) {
               resellerPriceMap.set(reseller.item_id, reseller.sale_price);
             }
           });
@@ -439,15 +441,15 @@ router.get('/', async (req, res) => {
           const itemData = userItem.items;
           if (!itemData) return;
 
-          const isOutOfStock = itemData.is_off_sale || 
+          const isOutOfStock = itemData.is_off_sale ||
             (itemData.sale_type === 'stock' && itemData.remaining_stock <= 0);
-          
+
           let itemValue = (itemData.value !== null && itemData.value !== undefined) ? itemData.value : 0;
-          
+
           if ((itemData.is_limited || isOutOfStock) && resellerPriceMap.has(userItem.item_id)) {
             itemValue = resellerPriceMap.get(userItem.item_id);
           }
-          
+
           totalValue += itemValue;
         });
 

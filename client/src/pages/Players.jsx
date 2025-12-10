@@ -43,6 +43,11 @@ const Players = () => {
     e.preventDefault()
     setActiveSearchQuery(searchQuery)
     setCurrentPage(1)
+    // When searching, show all players (online + offline)
+    // When search is cleared, revert to online only
+    if (searchQuery.trim() !== '') {
+      setShowOnlineOnly(false)
+    }
   }
 
   const handlePageChange = (page) => {
@@ -58,7 +63,7 @@ const Players = () => {
     <div className="players">
       <div className="container">
         <h1>Players</h1>
-        
+
         <div className="players-controls" style={{ marginBottom: '24px', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
           <form onSubmit={handleSearch} style={{ display: 'flex', gap: '8px', flex: 1, minWidth: '200px' }}>
             <input
@@ -71,7 +76,7 @@ const Players = () => {
             />
             <button type="submit" className="btn btn-primary">Search</button>
           </form>
-          
+
           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
             <input
               type="checkbox"
@@ -79,9 +84,11 @@ const Players = () => {
               onChange={(e) => {
                 setShowOnlineOnly(e.target.checked)
                 setCurrentPage(1)
-                // Reset search when toggling online filter
-                setActiveSearchQuery('')
-                setSearchQuery('')
+                // When manually toggling, clear search
+                if (e.target.checked) {
+                  setActiveSearchQuery('')
+                  setSearchQuery('')
+                }
               }}
             />
             <span>Show online only</span>

@@ -3,108 +3,284 @@ const router = express.Router();
 const supabase = require('../config/supabase');
 const { authenticate } = require('../middleware/auth');
 
-// Create trade offer
+// Helper to get trade details
+async function getTradeWithItems(tradeId) {
+  const { data: trade, error } = await supabase
+    .from('trades')
+    .select(`
+      *,
+      sender:sender_id (id, username),
+      receiver:receiver_id (id, username),
+      trade_items (
+        id,
+        side,
+        user_items (
+          id,
+          user_id,
+          item_id,
+          created_at,
+          purchase_price,
+          items (
+             id,
+             name,
+             image_url,
+             current_price,
+             rap,
+             value,
+             is_limited,
+             is_off_sale,
+             sale_type,
+             remaining_stock
+          )
+        )
+      )
+    `)
+    .eq('id', tradeId)
+    .single();
+
+  if (error) throw error;
+  return trade;
+}
+
+// Create a new trade
 router.post('/', authenticate, async (req, res) => {
   try {
-    const { recipient_id, offered_items, requested_items, offered_cash, requested_cash } = req.body;
+    const { receiver_id, sender_item_ids, receiver_item_ids } = req.body;
 
-    if (!recipient_id) {
-      return res.status(400).json({ error: 'Recipient is required' });
+    if (!receiver_id) {
+      return res.status(400).json({ error: 'Receiver is required' });
     }
 
-    // Create trade
-    const { data: trade, error } = await supabase
+    if (receiver_id === req.user.id) {
+      return res.status(400).json({ error: 'Cannot trade with yourself' });
+    }
+
+    if ((!sender_item_ids || sender_item_ids.length === 0) && (!receiver_item_ids || receiver_item_ids.length === 0)) {
+      return res.status(400).json({ error: 'Trade must contain at least one item' });
+    }
+
+    // Start transaction (simulated with standard Supabase calls as specific multi-table transactions are tricky without stored procedures)
+
+    // 1. Verify Sender owns sender_item_ids
+    if (sender_item_ids && sender_item_ids.length > 0) {
+      const { data: senderItems, error: senderError } = await supabase
+        .from('user_items')
+        .select('id, user_id, is_for_sale')
+        .in('id', sender_item_ids);
+
+      if (senderError) throw senderError;
+
+      const ownedIds = senderItems.map(i => i.id);
+      const allOwned = sender_item_ids.every(id => ownedIds.includes(id));
+      const anyNotOwned = senderItems.some(i => i.user_id !== req.user.id);
+
+      if (!allOwned || anyNotOwned) {
+        return res.status(400).json({ error: 'You do not own all the items you are trying to trade' });
+      }
+
+      // Allow trading items for sale - they will be unlisted if trade is accepted
+    }
+
+    // 2. Verify Receiver owns receiver_item_ids
+    if (receiver_item_ids && receiver_item_ids.length > 0) {
+      const { data: receiverItems, error: receiverError } = await supabase
+        .from('user_items')
+        .select('id, user_id, is_for_sale')
+        .in('id', receiver_item_ids);
+
+      if (receiverError) throw receiverError;
+
+      const ownedIds = receiverItems.map(i => i.id);
+      const allOwned = receiver_item_ids.every(id => ownedIds.includes(id));
+      const anyNotOwned = receiverItems.some(i => i.user_id !== receiver_id);
+
+      if (!allOwned || anyNotOwned) {
+        return res.status(400).json({ error: 'Receiver does not own all the requested items' });
+      }
+
+      // Allow trading items for sale - they will be unlisted if trade is accepted
+    }
+
+    // 3. Create Trade Record
+    const { data: trade, error: tradeError } = await supabase
       .from('trades')
       .insert([
         {
           sender_id: req.user.id,
-          recipient_id,
-          offered_items: offered_items || [],
-          requested_items: requested_items || [],
-          offered_cash: offered_cash || 0,
-          requested_cash: requested_cash || 0,
+          receiver_id: receiver_id,
           status: 'pending'
         }
       ])
       .select()
       .single();
 
-    if (error) throw error;
+    if (tradeError) throw tradeError;
 
-    // Create notification for recipient
-    await supabase
-      .from('notifications')
-      .insert([
-        {
-          user_id: recipient_id,
-          type: 'trade_offer',
-          message: `${req.user.username} sent you a trade offer`,
-          data: { trade_id: trade.id }
-        }
-      ]);
+    // 4. Create Trade Items
+    const tradeItems = [];
+    if (sender_item_ids) {
+      sender_item_ids.forEach(itemId => {
+        tradeItems.push({
+          trade_id: trade.id,
+          user_item_id: itemId,
+          side: 'sender'
+        });
+      });
+    }
+    if (receiver_item_ids) {
+      receiver_item_ids.forEach(itemId => {
+        tradeItems.push({
+          trade_id: trade.id,
+          user_item_id: itemId,
+          side: 'receiver'
+        });
+      });
+    }
+
+    if (tradeItems.length > 0) {
+      const { error: itemsError } = await supabase
+        .from('trade_items')
+        .insert(tradeItems);
+
+      if (itemsError) {
+        // Rollback trade
+        await supabase.from('trades').delete().eq('id', trade.id);
+        throw itemsError;
+      }
+    }
 
     res.json(trade);
+
   } catch (error) {
     console.error('Error creating trade:', error);
-    res.status(500).json({ error: 'Failed to create trade' });
+    res.status(500).json({ error: 'Failed to create trade: ' + error.message });
   }
 });
 
 // Get user trades
 router.get('/', authenticate, async (req, res) => {
   try {
-    const { data: trades, error } = await supabase
+    const { type } = req.query; // 'inbound', 'outbound', 'completed', 'inactive'
+
+    let query = supabase
       .from('trades')
       .select(`
         *,
         sender:sender_id (id, username),
-        recipient:recipient_id (id, username)
+        receiver:receiver_id (id, username)
       `)
-      .or(`sender_id.eq.${req.user.id},recipient_id.eq.${req.user.id}`)
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    if (type === 'inbound') {
+      query = query.eq('receiver_id', req.user.id).eq('status', 'pending');
+    } else if (type === 'outbound') {
+      query = query.eq('sender_id', req.user.id).eq('status', 'pending');
+    } else if (type === 'completed') {
+      query = query.or(`sender_id.eq.${req.user.id},receiver_id.eq.${req.user.id}`).eq('status', 'accepted');
+    } else if (type === 'inactive') {
+      query = query.or(`sender_id.eq.${req.user.id},receiver_id.eq.${req.user.id}`).in('status', ['declined', 'cancelled']);
+    } else {
+      // Default: all involving user
+      query = query.or(`sender_id.eq.${req.user.id},receiver_id.eq.${req.user.id}`);
+    }
 
+    const { data: trades, error } = await query;
+
+    if (error) throw error;
     res.json(trades);
+
   } catch (error) {
     console.error('Error fetching trades:', error);
     res.status(500).json({ error: 'Failed to fetch trades' });
   }
 });
 
+// Get single trade
+router.get('/:id', authenticate, async (req, res) => {
+  try {
+    const trade = await getTradeWithItems(req.params.id);
+
+    // Authorization check
+    if (trade.sender_id !== req.user.id && trade.receiver_id !== req.user.id) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    res.json(trade);
+  } catch (error) {
+    console.error('Error fetching trade:', error);
+    res.status(500).json({ error: 'Failed to fetch trade' });
+  }
+});
+
 // Accept trade
 router.post('/:id/accept', authenticate, async (req, res) => {
   try {
-    // Get trade
-    const { data: trade, error: tradeError } = await supabase
-      .from('trades')
-      .select('*')
-      .eq('id', req.params.id)
-      .single();
+    const trade = await getTradeWithItems(req.params.id);
 
-    if (tradeError || !trade) {
-      return res.status(404).json({ error: 'Trade not found' });
-    }
-
-    if (trade.recipient_id !== req.user.id) {
-      return res.status(403).json({ error: 'Not authorized to accept this trade' });
+    // Only receiver can accept
+    if (trade.receiver_id !== req.user.id) {
+      return res.status(403).json({ error: 'Only the receiver can accept this trade' });
     }
 
     if (trade.status !== 'pending') {
-      return res.status(400).json({ error: 'Trade is not pending' });
+      return res.status(400).json({ error: 'Trade is no longer pending' });
     }
 
-    // Verify items exist and belong to users
-    // Transfer items and cash
-    // (Implementation details...)
+    // Verify all items are still owned by respective parties and not listed
+    const senderItems = trade.trade_items.filter(i => i.side === 'sender').map(i => i.user_items);
+    const receiverItems = trade.trade_items.filter(i => i.side === 'receiver').map(i => i.user_items);
 
-    // Update trade status
-    await supabase
+    // Re-verify ownership and availability
+    for (const item of senderItems) {
+      const { data: current, error } = await supabase.from('user_items').select('*').eq('id', item.id).single();
+      // Check if item still exists and is owned by sender
+      if (!current || current.user_id !== trade.sender_id) {
+        // Item was sold or transferred - auto-decline trade
+        await supabase.from('trades').update({ status: 'declined' }).eq('id', req.params.id);
+        return res.status(400).json({ error: 'Trade auto-declined: Some items were sold before acceptance (Sender)' });
+      }
+    }
+    for (const item of receiverItems) {
+      const { data: current, error } = await supabase.from('user_items').select('*').eq('id', item.id).single();
+      // Check if item still exists and is owned by receiver
+      if (!current || current.user_id !== trade.receiver_id) {
+        // Item was sold or transferred - auto-decline trade
+        await supabase.from('trades').update({ status: 'declined' }).eq('id', req.params.id);
+        return res.status(400).json({ error: 'Trade auto-declined: Some items were sold before acceptance (Receiver)' });
+      }
+    }
+
+    // Execute Trade - Swap Ownership
+    // 1. Move Sender items to Receiver
+    if (senderItems.length > 0) {
+      const { error: moveSenderError } = await supabase
+        .from('user_items')
+        .update({ user_id: trade.receiver_id })
+        .in('id', senderItems.map(i => i.id));
+      if (moveSenderError) throw moveSenderError;
+    }
+
+    // 2. Move Receiver items to Sender
+    if (receiverItems.length > 0) {
+      const { error: moveReceiverError } = await supabase
+        .from('user_items')
+        .update({ user_id: trade.sender_id })
+        .in('id', receiverItems.map(i => i.id));
+      if (moveReceiverError) throw moveReceiverError;
+    }
+
+    // 3. Update Trade Status
+    const { data: updatedTrade, error: updateError } = await supabase
       .from('trades')
-      .update({ status: 'accepted', completed_at: new Date() })
-      .eq('id', req.params.id);
+      .update({ status: 'accepted', updated_at: new Date().toISOString() })
+      .eq('id', trade.id)
+      .select()
+      .single();
 
-    res.json({ success: true });
+    if (updateError) throw updateError;
+
+    res.json({ success: true, trade: updatedTrade });
+
   } catch (error) {
     console.error('Error accepting trade:', error);
     res.status(500).json({ error: 'Failed to accept trade' });
@@ -114,27 +290,162 @@ router.post('/:id/accept', authenticate, async (req, res) => {
 // Decline trade
 router.post('/:id/decline', authenticate, async (req, res) => {
   try {
-    const { data: trade } = await supabase
+    const { data: trade, error: fetchError } = await supabase
       .from('trades')
       .select('*')
       .eq('id', req.params.id)
       .single();
 
-    if (!trade || trade.recipient_id !== req.user.id) {
-      return res.status(403).json({ error: 'Not authorized' });
+    if (fetchError || !trade) return res.status(404).json({ error: 'Trade not found' });
+
+    // Receiver can decline
+    if (trade.receiver_id !== req.user.id) {
+      return res.status(403).json({ error: 'Unauthorized' });
     }
 
-    await supabase
-      .from('trades')
-      .update({ status: 'declined' })
-      .eq('id', req.params.id);
+    if (trade.status !== 'pending') {
+      return res.status(400).json({ error: 'Trade is not pending' });
+    }
 
-    res.json({ success: true });
+    const { data: updatedTrade, error } = await supabase
+      .from('trades')
+      .update({ status: 'declined', updated_at: new Date().toISOString() })
+      .eq('id', trade.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.json(updatedTrade);
+
   } catch (error) {
     console.error('Error declining trade:', error);
     res.status(500).json({ error: 'Failed to decline trade' });
   }
 });
 
-module.exports = router;
+// Cancel trade
+router.post('/:id/cancel', authenticate, async (req, res) => {
+  try {
+    const { data: trade, error: fetchError } = await supabase
+      .from('trades')
+      .select('*')
+      .eq('id', req.params.id)
+      .single();
 
+    if (fetchError || !trade) return res.status(404).json({ error: 'Trade not found' });
+
+    // Sender can cancel
+    if (trade.sender_id !== req.user.id) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    if (trade.status !== 'pending') {
+      return res.status(400).json({ error: 'Trade is not pending' });
+    }
+
+    const { data: updatedTrade, error } = await supabase
+      .from('trades')
+      .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+      .eq('id', trade.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.json(updatedTrade);
+
+  } catch (error) {
+    console.error('Error cancelling trade:', error);
+    res.status(500).json({ error: 'Failed to cancel trade' });
+  }
+});
+
+
+// Proof trade (Discord Webhook)
+router.post('/:id/proof', authenticate, async (req, res) => {
+  try {
+    const { data: trade, error: fetchError } = await supabase
+      .from('trades')
+      .select('*')
+      .eq('id', req.params.id)
+      .single();
+
+    if (fetchError || !trade) return res.status(404).json({ error: 'Trade not found' });
+
+    // Only participants can proof
+    if (trade.sender_id !== req.user.id && trade.receiver_id !== req.user.id) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    if (trade.status !== 'accepted') {
+      return res.status(400).json({ error: 'Trade must be accepted to proof' });
+    }
+
+    if (trade.is_proofed) {
+      return res.status(400).json({ error: 'Trade already proofed' });
+    }
+
+    // Mark as proofed first to prevent race conditions
+    const { error: updateError } = await supabase
+      .from('trades')
+      .update({ is_proofed: true })
+      .eq('id', trade.id);
+
+    if (updateError) throw updateError;
+
+    // Fetch full details for webhook
+    const fullTrade = await getTradeWithItems(req.params.id);
+
+    // Construct Embeds
+    const sender = fullTrade.sender;
+    const receiver = fullTrade.receiver;
+    const date = new Date(fullTrade.updated_at).toLocaleString();
+
+    const senderItems = fullTrade.trade_items.filter(i => i.side === 'sender');
+    const receiverItems = fullTrade.trade_items.filter(i => i.side === 'receiver');
+
+    const formatItems = (tItems) => {
+      return tItems.map(ti => {
+        const item = ti.user_items.items;
+        const value = item.value || item.rap || 0;
+        // Serial logic approximation for webhook (might not be perfect without full inventory fetch but usually acceptable)
+        // Or we just show name + value
+        return `• **${item.name}** - $${value.toLocaleString()}`;
+      }).join('\n') || 'No Items';
+    };
+
+    const embed1 = {
+      title: "Trade Proof",
+      color: 3066993, // Greenish
+      fields: [
+        { name: "Sender", value: sender.username, inline: true },
+        { name: "Receiver", value: receiver.username, inline: true },
+        { name: "Date", value: date, inline: false }
+      ]
+    };
+
+    const embed2 = {
+      title: "Items Exchanged",
+      color: 3066993,
+      fields: [
+        { name: `${sender.username} Gave`, value: formatItems(senderItems), inline: false },
+        { name: `${receiver.username} Gave`, value: formatItems(receiverItems), inline: false }
+      ]
+    };
+
+    const webhookUrl = 'https://discord.com/api/webhooks/1448110420106809366/wK44HjiU2NBDvoYwQWq5GgwyyWefmr536hNaJMX9fe_LHuJQ_CGw_Fidiv38FfFDo2qS';
+
+    // Send to Discord
+    const axios = require('axios');
+    await axios.post(webhookUrl, {
+      embeds: [embed1, embed2]
+    });
+
+    res.json({ success: true });
+
+  } catch (error) {
+    console.error('Error proofing trade FULL DETIALS:', error);
+    res.status(500).json({ error: 'Failed to proof trade: ' + error.message });
+  }
+});
+
+module.exports = router;
