@@ -63,19 +63,19 @@ const Profile = () => {
 
   const totalValue = inventory.reduce((sum, item) => {
     const itemData = item.items
-    let itemValue = (itemData?.value !== null && itemData?.value !== undefined) ? itemData.value : 0
-
-    if (itemData?.is_limited || itemData?.is_off_sale || (itemData?.sale_type === 'stock' && itemData?.remaining_stock <= 0)) {
-      // For limited/off-sale items, use reseller price if available
-      // This would need to be fetched separately in a real implementation
-    }
-
+    // VALUE: Strict manual value
+    const itemValue = (itemData?.value !== null && itemData?.value !== undefined) ? itemData.value : 0
     return sum + itemValue
   }, 0)
 
   const totalRAP = inventory.reduce((sum, item) => {
-    const rap = item.items?.rap || item.items?.current_price || 0
-    return sum + rap
+    // RAP: Strict limited RAP
+    const itemData = item.items
+    let itemRap = 0
+    if (itemData?.is_limited) {
+      itemRap = itemData.rap || 0
+    }
+    return sum + itemRap
   }, 0)
 
   if (loading) {

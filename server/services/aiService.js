@@ -379,19 +379,31 @@ const actionList = async (ai, personalityProfile) => {
     const rap = itemToSell.items.rap || itemToSell.items.value || 100;
 
     // Price logic
+    // Scarcity Multiplier: If stock < 200, price increases
+    // Formula: 1x at 200 stock, ~2x at 0 stock.
+    const stock = itemToSell.items.stock_count !== undefined ? itemToSell.items.stock_count : 1000;
+    let scarcityMult = 1.0;
+    if (stock < 200) {
+        scarcityMult = 1 + ((200 - stock) / 200); // e.g. 50 stock => 1 + 0.75 = 1.75x
+    }
+
     let multiplier = 1.0;
     if (ai.personality === 'sniper') multiplier = 1.3;
     else if (ai.personality === 'trader') multiplier = 1.1;
     else multiplier = 0.9 + Math.random() * 0.4;
 
-    const price = Math.max(1, Math.floor(rap * multiplier));
+    // Whales ignore logic and sell cheap? Or expensive?
+    // Let's keep scarcity for everyone.
+
+    const basePrice = rap * multiplier;
+    const finalPrice = Math.max(1, Math.floor(basePrice * scarcityMult));
 
     await supabase.from('user_items').update({
         is_for_sale: true,
-        sale_price: price
+        sale_price: finalPrice
     }).eq('id', itemToSell.id);
 
-    console.log(`[AI] ${ai.username} listed ${itemToSell.items.name} for R$${price}`);
+    console.log(`[AI] ${ai.username} listed ${itemToSell.items.name} (Stock: ${stock}) for R$${finalPrice} (RAP: ${rap})`);
 };
 
 // --- Trade Logic ---

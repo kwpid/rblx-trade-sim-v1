@@ -444,19 +444,23 @@ router.get('/', async (req, res) => {
           const isOutOfStock = itemData.is_off_sale ||
             (itemData.sale_type === 'stock' && itemData.remaining_stock <= 0);
 
+          // VALUE: Only use manual item.value
           let itemValue = (itemData.value !== null && itemData.value !== undefined) ? itemData.value : 0;
 
-          if (itemValue === 0 && (itemData.is_limited || isOutOfStock) && resellerPriceMap.has(userItem.item_id)) {
-            itemValue = resellerPriceMap.get(userItem.item_id);
+          // RAP: Only use RAP for Limited items
+          let itemRAP = 0;
+          if (itemData.is_limited) {
+            itemRAP = rapMap.get(userItem.item_id) || itemData.rap || 0;
           }
 
           totalValue += itemValue;
+          totalRAP += itemRAP;
         });
 
-        return { ...user, inventory_value: totalValue };
+        return { ...user, inventory_value: totalValue, inventory_rap: totalRAP };
       } catch (error) {
         console.error(`Error calculating value for user ${user.id}:`, error);
-        return { ...user, inventory_value: 0 };
+        return { ...user, inventory_value: 0, inventory_rap: 0 };
       }
     }));
 

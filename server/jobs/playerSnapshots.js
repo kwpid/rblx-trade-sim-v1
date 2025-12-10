@@ -100,18 +100,19 @@ const calculateAndSaveSnapshots = async (isNewDay = false) => {
             const isOutOfStock = itemData.is_off_sale ||
               (itemData.sale_type === 'stock' && itemData.remaining_stock <= 0);
 
-            // Only use item.value if it's explicitly set (not null/undefined), otherwise start with 0
+            // VALUE: Only use manual item.value
+            // If item has no assigned value, it contributes 0 to Total Value
             let itemValue = (itemData.value !== null && itemData.value !== undefined) ? itemData.value : 0;
 
-            // If value is NOT set (0), and it's limited/oos, use reseller price as fallback
-            if (itemValue === 0 && (itemData.is_limited || isOutOfStock) && resellerPriceMap.has(userItem.item_id)) {
-              itemValue = resellerPriceMap.get(userItem.item_id);
+            // RAP: Only use RAP for Limited items
+            // If item is not limited, it contributes 0 to Total RAP
+            let itemRAP = 0;
+            if (itemData.is_limited) {
+              // Priority: RAP History Map -> Item Data RAP
+              itemRAP = rapMap.get(userItem.item_id) || itemData.rap || 0;
             }
 
             totalValue += itemValue;
-
-            // Calculate RAP
-            const itemRAP = rapMap.get(userItem.item_id) || itemData.current_price || userItem.purchase_price || 0;
             totalRAP += itemRAP;
           });
         }
