@@ -333,15 +333,22 @@ const ItemDetail = () => {
                 {item.sale_type === 'stock' && <span className="item-limited-u-tag">U</span>}
               </div>
             )}
-            {item.demand && (item.demand === 'high' || item.demand === 'very_high') && (
-              <div className="item-trending-badge" title="Trending / High Demand">🔥</div>
-            )}
-            {item.is_limited && item.stock_count <= 50 && (
-              <div className="item-rare-badge" title="Rare Item: 50 or less stock">💎</div>
-            )}
-            {item.is_projected && (
-              <div className="item-projected-badge" title="Projected: Artificial Price Inflation">⚠️</div>
-            )}
+            {/* Top Right Badges */}
+            <div className="badge-group top-right">
+              {item.demand && (item.demand === 'high' || item.demand === 'very_high') && (
+                <div className="item-trending-badge" title="Trending / High Demand">🔥</div>
+              )}
+            </div>
+
+            {/* Bottom Right Badges */}
+            <div className="badge-group bottom-right">
+              {item.is_projected && (
+                <div className="item-projected-badge" title="Projected: Artificial Price Inflation">⚠️</div>
+              )}
+              {item.is_limited && item.stock_count <= 50 && (
+                <div className="item-rare-badge" title="Rare Item: 50 or less stock">💎</div>
+              )}
+            </div>
             {!item.is_limited && !item.is_off_sale && item.sale_type === 'timer' && new Date(item.sale_end_time) > new Date() && (
               <div className="item-timer-badge">
                 {timeRemaining || 'Calculating...'}

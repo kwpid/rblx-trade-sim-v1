@@ -174,15 +174,22 @@ const Catalog = () => {
                         <div className="new-badge">NEW</div>
                       </>
                     )}
-                    {item.demand && (item.demand === 'high' || item.demand === 'very_high') && (
-                      <div className="trending-badge" title="Trending / High Demand">🔥</div>
-                    )}
-                    {item.is_limited && item.stock_count <= 50 && (
-                      <div className="rare-badge" title="Rare Item: 50 or less stock">💎</div>
-                    )}
-                    {item.is_projected && (
-                      <div className="projected-badge" title="Projected: Artificial Price Inflation">⚠️</div>
-                    )}
+                    {/* Top Right Badges */}
+                    <div className="badge-group top-right">
+                      {item.demand && (item.demand === 'high' || item.demand === 'very_high') && (
+                        <div className="trending-badge" title="Trending / High Demand">🔥</div>
+                      )}
+                    </div>
+
+                    {/* Bottom Right Badges */}
+                    <div className="badge-group bottom-right">
+                      {item.is_projected && (
+                        <div className="projected-badge" title="Projected: Artificial Price Inflation">⚠️</div>
+                      )}
+                      {item.is_limited && item.stock_count <= 50 && (
+                        <div className="rare-badge" title="Rare Item: 50 or less stock">💎</div>
+                      )}
+                    </div>
                   </div>
                   <div className="item-details">
                     <h3>{item.name}</h3>

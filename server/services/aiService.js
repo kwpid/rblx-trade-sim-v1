@@ -151,22 +151,41 @@ const manageAiSessions = async () => {
     }
 
     // 2. Bring some offline users online if we are below target
-    const currentOnlineCount = onlineAis.length - (onlineAis.length - Object.keys(aiSessions).length); // Approx
     const targetOnline = Math.floor(allAis.length * ONLINE_PERCENTAGE);
+    const currentInMemory = Object.keys(aiSessions).length;
 
-    if (Object.keys(aiSessions).length < targetOnline) {
-        const needed = targetOnline - Object.keys(aiSessions).length;
+    // Debug log VERBOSE
+    console.log(`[AI Cycle] Total: ${allAis.length}, DB-Online: ${onlineAis.length}, Mem-Online: ${currentInMemory}, Target: ${targetOnline}`);
+
+    if (currentInMemory < targetOnline) {
+        const needed = targetOnline - currentInMemory;
+        console.log(`[AI Cycle] Need ${needed} more bots. Offline pool: ${offlineAis.length}`);
+
         // Shuffle offline ais
+        if (offlineAis.length === 0) {
+            console.log(`[AI Cycle] No offline bots available to activate.`);
+            return;
+        }
+
         const candidates = offlineAis.sort(() => 0.5 - Math.random()).slice(0, needed + 2); // Pick a few
 
+        let activated = 0;
         for (const ai of candidates) {
             // Start a session
             // Session length: 2 to 15 minutes
             const duration = (Math.random() * 13 + 2) * 60 * 1000;
             aiSessions[ai.id] = { sessionEnd: now + duration };
 
-            await supabase.from('users').update({ is_online: true }).eq('id', ai.id);
+            const { error } = await supabase.from('users').update({ is_online: true }).eq('id', ai.id);
+            if (!error) {
+                activated++;
+                if (activated <= 3) console.log(`[AI] Activating ${ai.username || ai.id}`);
+            } else {
+                console.error(`[AI] Failed to activate ${ai.id}:`, error.message);
+            }
         }
+        if (activated > 0) console.log(`[AI] Brought ${activated} bots online.`);
+        else console.log(`[AI] Activation loop finished but 0 bots activated.`);
     }
 };
 

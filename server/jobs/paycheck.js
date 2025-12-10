@@ -1,26 +1,37 @@
 const cron = require('node-cron');
 const supabase = require('../config/supabase');
 
+const { getOnlineUsers } = require('../middleware/auth');
+
 // Run every minute to give players 250R$ paycheck
 cron.schedule('* * * * *', async () => {
   try {
     const { data: users, error } = await supabase
       .from('users')
-      .select('id, cash');
+      .select('id, cash, is_online');
 
     if (error) {
       console.error('Error fetching users for paycheck:', error);
       return;
     }
 
-    for (const user of users) {
+    const onlineRealUserIds = getOnlineUsers();
+
+    // Filter for online users (AI or Real)
+    const onlineUsers = users.filter(u =>
+      u.is_online === true || onlineRealUserIds.includes(u.id)
+    );
+
+    if (onlineUsers.length === 0) return;
+
+    for (const user of onlineUsers) {
       await supabase
         .from('users')
         .update({ cash: user.cash + 250 })
         .eq('id', user.id);
     }
 
-    console.log(`Paycheck distributed to ${users.length} users`);
+    console.log(`Paycheck distributed to ${onlineUsers.length} online users`);
   } catch (error) {
     console.error('Error in paycheck job:', error);
   }

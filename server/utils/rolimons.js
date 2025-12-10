@@ -10,7 +10,7 @@ async function getItemDetails(itemId) {
         'User-Agent': 'Mozilla/5.0'
       }
     });
-    
+
     if (catalogResponse.data) {
       return {
         name: catalogResponse.data.name || 'Unknown Item',
@@ -23,7 +23,7 @@ async function getItemDetails(itemId) {
       };
     }
   } catch (error) {
-    console.log('Catalog API failed, trying alternatives...');
+    // console.log('Catalog API failed, trying alternatives...');
   }
 
   // Fallback: Try Roblox Economy API
@@ -33,7 +33,7 @@ async function getItemDetails(itemId) {
         'User-Agent': 'Mozilla/5.0'
       }
     });
-    
+
     if (economyResponse.data) {
       return {
         name: economyResponse.data.Name || 'Unknown Item',

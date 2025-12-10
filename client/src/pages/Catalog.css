@@ -222,5 +222,69 @@
     color: var(--roblox-text-primary);
     font-size: 14px;
     font-weight: 600;
-}.projected-badge { position: absolute; bottom: 5px; right: 5px; font-size: 20px; z-index: 10; filter: drop-shadow(0 0 2px rgba(0,0,0,0.8)); cursor: help; }
-.rare-badge { position: absolute; bottom: 5px; right: 35px; font-size: 18px; z-index: 10; filter: drop-shadow(0 0 2px rgba(0,0,0,0.8)); cursor: help; } .trending-badge { position: absolute; top: 35px; right: 6px; font-size: 18px; z-index: 10; filter: drop-shadow(0 0 2px rgba(0,0,0,0.8)); cursor: help; }
+}
+
+.badge-group {
+    position: absolute;
+    display: flex;
+    gap: 4px;
+    z-index: 10;
+}
+
+.badge-group.bottom-right {
+    bottom: 5px;
+    right: 5px;
+    flex-direction: row-reverse;
+    /* Stack from right to left */
+}
+
+.badge-group.top-right {
+    top: 5px;
+    right: 5px;
+    flex-direction: row-reverse;
+}
+
+.projected-badge,
+.rare-badge,
+.trending-badge {
+    position: relative;
+    /* Reset from absolute */
+    font-size: 18px;
+    filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.8));
+    cursor: help;
+    /* Remove manual positioning */
+    top: auto;
+    bottom: auto;
+    right: auto;
+    left: auto;
+}
+
+.projected-badge {
+    position: absolute;
+    bottom: 5px;
+    right: 5px;
+    font-size: 20px;
+    z-index: 10;
+    filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.8));
+    cursor: help;
+}
+
+.rare-badge {
+    position: absolute;
+    bottom: 5px;
+    right: 35px;
+    font-size: 18px;
+    z-index: 10;
+    filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.8));
+    cursor: help;
+}
+
+.trending-badge {
+    position: absolute;
+    top: 35px;
+    right: 6px;
+    font-size: 18px;
+    z-index: 10;
+    filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.8));
+    cursor: help;
+}

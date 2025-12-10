@@ -216,15 +216,22 @@ const Profile = () => {
                             {item.sale_type === 'stock' && <span className="limited-u-tag-inv">U</span>}
                           </div>
                         )}
-                        {item.demand && (item.demand === 'high' || item.demand === 'very_high') && (
-                          <div className="trending-badge-inv" title="Trending / High Demand">🔥</div>
-                        )}
-                        {item.is_limited && item.stock_count <= 50 && (
-                          <div className="rare-badge-inv" title="Rare Item: 50 or less stock">💎</div>
-                        )}
-                        {item.value > 0 && (item.rap || 0) > (item.value * 1.25 + 50) && (
-                          <div className="projected-badge-inv" title="Projected: Artificial Price Inflation">⚠️</div>
-                        )}
+                        {/* Badges Container */}
+                        <div className="badge-group top-right">
+                          {item.demand && (item.demand === 'high' || item.demand === 'very_high') && (
+                            <div className="trending-badge-inv" title="Trending / High Demand">🔥</div>
+                          )}
+                        </div>
+
+                        <div className="badge-group bottom-right">
+                          {item.value > 0 && (item.rap || 0) > (item.value * 1.25 + 50) && (
+                            <div className="projected-badge-inv" title="Projected: Artificial Price Inflation">⚠️</div>
+                          )}
+                          {item.is_limited && item.stock_count <= 50 && (
+                            <div className="rare-badge-inv" title="Rare Item: 50 or less stock">💎</div>
+                          )}
+                        </div>
+                        <img src={item.image_url} alt={item.name} />
                       </div>
                       <div className="inventory-item-name">{item.name}</div>
                       <div className="inventory-item-price">${itemValue.toLocaleString()}</div>

@@ -274,3 +274,35 @@
   display: inline-block;
 }.projected-badge-inv { position: absolute; bottom: 4px; right: 4px; font-size: 16px; z-index: 5; filter: drop-shadow(0 0 2px rgba(0,0,0,0.8)); cursor: help; }
 .rare-badge-inv { position: absolute; bottom: 4px; right: 28px; font-size: 16px; z-index: 5; filter: drop-shadow(0 0 2px rgba(0,0,0,0.8)); cursor: help; } .trending-badge-inv { position: absolute; top: 4px; right: 4px; font-size: 16px; z-index: 5; filter: drop-shadow(0 0 2px rgba(0,0,0,0.8)); cursor: help; }
+
+.badge-group {
+    position: absolute;
+    display: flex;
+    gap: 2px;
+    z-index: 5;
+}
+
+.badge-group.bottom-right {
+    bottom: 4px;
+    right: 4px;
+    flex-direction: row-reverse;
+}
+
+.badge-group.top-right {
+    top: 4px;
+    right: 4px;
+    flex-direction: row-reverse;
+}
+
+.projected-badge-inv,
+.rare-badge-inv,
+.trending-badge-inv {
+    position: relative;
+    font-size: 16px;
+    filter: drop-shadow(0 0 2px rgba(0,0,0,0.8));
+    cursor: help;
+    top: auto;
+    bottom: auto;
+    right: auto;
+    left: auto;
+}
