@@ -451,8 +451,11 @@ router.get('/', async (req, res) => {
           const isOutOfStock = itemData.is_off_sale ||
             (itemData.sale_type === 'stock' && itemData.remaining_stock <= 0);
 
-          // VALUE: Only use manual item.value
-          let itemValue = (itemData.value !== null && itemData.value !== undefined) ? itemData.value : 0;
+          // VALUE: Only use manual item.value AND only if limited
+          let itemValue = 0;
+          if (itemData.is_limited && itemData.value !== null && itemData.value !== undefined) {
+            itemValue = itemData.value;
+          }
 
           // RAP: Only use RAP for Limited items
           let itemRAP = 0;
