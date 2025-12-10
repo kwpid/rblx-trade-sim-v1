@@ -191,6 +191,13 @@ const Profile = () => {
             <div className="inventory-grid">
               {filteredInventory
                 .sort((a, b) => {
+                  const aIsLimited = a.items?.is_limited ? 1 : 0
+                  const bIsLimited = b.items?.is_limited ? 1 : 0
+
+                  if (aIsLimited !== bIsLimited) {
+                    return bIsLimited - aIsLimited // Limiteds first
+                  }
+
                   const aValue = (a.items?.value !== null && a.items?.value !== undefined) ? a.items.value : 0
                   const bValue = (b.items?.value !== null && b.items?.value !== undefined) ? b.items.value : 0
                   return bValue - aValue

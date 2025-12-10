@@ -22,7 +22,7 @@ const Leaderboard = () => {
         endpoint = '/api/users/leaderboard/rap'
       }
 
-      const response = await axios.get(endpoint)
+      const response = await axios.get(`${endpoint}?t=${Date.now()}`)
       setLeaderboard(response.data)
     } catch (error) {
       console.error('Error fetching leaderboard:', error)

@@ -1,0 +1,357 @@
+.event-page {
+    padding: 24px;
+    background: radial-gradient(circle at top, #1a2a40, var(--roblox-bg-primary));
+    min-height: calc(100vh - 56px);
+    margin-top: 56px;
+    color: white;
+    position: relative;
+    overflow-x: hidden;
+}
+
+.event-header {
+    text-align: center;
+    margin-bottom: 40px;
+    position: relative;
+    z-index: 2;
+}
+
+.event-header h1 {
+    font-size: 48px;
+    font-weight: 800;
+    text-transform: uppercase;
+    text-shadow: 0 0 10px rgba(0, 162, 255, 0.8);
+    margin-bottom: 12px;
+}
+
+.countdown {
+    font-size: 18px;
+    color: #ffcc00;
+    font-weight: 600;
+    margin-bottom: 24px;
+}
+
+.tokens-display {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 12px 24px;
+    border-radius: 24px;
+    display: inline-block;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.token-label {
+    font-size: 14px;
+    color: #ccc;
+    margin-right: 8px;
+}
+
+.token-amount {
+    font-size: 24px;
+    font-weight: 800;
+    color: #00ff88;
+}
+
+.section-title {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.section-icon {
+    font-size: 24px;
+}
+
+.challenges-section {
+    margin-bottom: 60px;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 24px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.challenges-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.refresh-btn {
+    background: transparent;
+    border: 1px solid #ff4444;
+    color: #ff4444;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.refresh-btn:hover {
+    background: rgba(255, 68, 68, 0.1);
+}
+
+.challenges-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.challenge-card {
+    background: var(--roblox-bg-secondary);
+    border: 1px solid var(--roblox-border);
+    padding: 20px;
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+}
+
+.challenge-card.completed {
+    border-color: #00ff88;
+    background: linear-gradient(135deg, var(--roblox-bg-secondary), rgba(0, 255, 136, 0.1));
+}
+
+.challenge-desc {
+    font-size: 16px;
+    font-weight: 500;
+    margin-bottom: 12px;
+    line-height: 1.4;
+}
+
+.challenge-progress {
+    margin-bottom: 12px;
+}
+
+.progress-bar {
+    height: 8px;
+    background: #393939;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+
+.progress-fill {
+    height: 100%;
+    background: #00a2ff;
+    transition: width 0.3s ease;
+}
+
+.progress-text {
+    font-size: 12px;
+    color: #aaa;
+    text-align: right;
+}
+
+.challenge-reward {
+    font-size: 14px;
+    color: #ffcc00;
+    font-weight: 700;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.claim-btn {
+    background: #00ff88;
+    color: #004422;
+    border: none;
+    padding: 6px 16px;
+    border-radius: 4px;
+    font-weight: 700;
+    cursor: pointer;
+    animation: pulse 2s infinite;
+}
+
+.claim-btn:hover {
+    filter: brightness(1.1);
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.05);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+.gifts-section {
+    margin-bottom: 40px;
+}
+
+.gifts-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    justify-content: center;
+}
+
+.gift-card {
+    background: var(--roblox-bg-secondary);
+    border: 1px solid var(--roblox-border);
+    padding: 24px;
+    border-radius: 12px;
+    width: 250px;
+    text-align: center;
+    transition: transform 0.2s;
+    cursor: pointer;
+}
+
+.gift-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+}
+
+.gift-icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+}
+
+.gift-name {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.gift-cost {
+    font-size: 16px;
+    color: #00ff88;
+    background: rgba(0, 255, 136, 0.1);
+    padding: 4px 12px;
+    border-radius: 12px;
+    display: inline-block;
+    font-weight: 600;
+}
+
+/* Gift Colors */
+.gift-bronze .gift-icon {
+    color: #cd7f32;
+    text-shadow: 0 0 10px rgba(205, 127, 50, 0.5);
+}
+
+.gift-silver .gift-icon {
+    color: #c0c0c0;
+    text-shadow: 0 0 10px rgba(192, 192, 192, 0.5);
+}
+
+.gift-gold .gift-icon {
+    color: #ffd700;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+
+.gift-festive .gift-icon {
+    color: #ff4444;
+    text-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
+}
+
+.gift-frostbitten {
+    border-color: #00a2ff;
+    background: linear-gradient(135deg, #1a2a40, #2a4a60);
+}
+
+.gift-frostbitten .gift-icon {
+    color: #00a2ff;
+    text-shadow: 0 0 15px rgba(0, 162, 255, 0.8);
+}
+
+.gift-frostbitten .gift-name {
+    color: #00a2ff;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+}
+
+.gift-modal {
+    background: var(--roblox-bg-secondary);
+    padding: 40px;
+    border-radius: 16px;
+    text-align: center;
+    border: 2px solid #00a2ff;
+    animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    max-width: 90%;
+    width: 400px;
+}
+
+@keyframes popIn {
+    from {
+        transform: scale(0.8);
+        opacity: 0;
+    }
+
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.modal-title {
+    font-size: 24px;
+    margin-bottom: 24px;
+}
+
+.modal-btns {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+}
+
+.modal-btn {
+    padding: 10px 24px;
+    border-radius: 8px;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.modal-btn.confirm {
+    background: #00a2ff;
+    color: white;
+}
+
+.modal-btn.confirm:hover {
+    background: #0091e6;
+}
+
+.modal-btn.cancel {
+    background: #393939;
+    color: white;
+}
+
+.modal-btn.cancel:hover {
+    background: #4a4a4a;
+}
+
+.loading {
+    display: flex;
+    justify-content: center;
+    padding: 80px;
+}
+
+.message-box {
+    margin-bottom: 24px;
+    padding: 12px;
+    border-radius: 8px;
+    background: rgba(255, 68, 68, 0.2);
+    border: 1px solid rgba(255, 68, 68, 0.5);
+    color: #ffdbdb;
+}
