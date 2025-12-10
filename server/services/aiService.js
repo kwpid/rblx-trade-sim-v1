@@ -13,31 +13,31 @@ const ACTION_PROBABILITY = 0.4; // 40% chance to act per tick if online
 // Personality Definitions
 const PERSONALITIES = {
     'hoarder': {
-        weights: { buy_new: 3, buy_resale: 3, list_item: 0.5, trade_send: 1, trade_check: 5 },
+        weights: { buy_new: 3, buy_resale: 3, list_item: 0.5, manage_listings: 2, trade_send: 1, trade_check: 5 },
         trade_accept_threshold: 1.5, // Requires 50% overpay
         trade_decline_threshold: 1.2,
         description: 'Buys often, sells rarely, keeps high value items.'
     },
     'trader': {
-        weights: { buy_new: 1, buy_resale: 3, list_item: 8, trade_send: 4, trade_check: 5 },
+        weights: { buy_new: 1, buy_resale: 3, list_item: 8, manage_listings: 6, trade_send: 4, trade_check: 5 },
         trade_accept_threshold: 1.05, // Accepts 5% overpay/fair
         trade_decline_threshold: 0.9,
         description: 'Active in trades and listing, looks for fair/profit trades.'
     },
     'sniper': {
-        weights: { buy_new: 0.5, buy_resale: 5, list_item: 4, trade_send: 2, trade_check: 5 },
+        weights: { buy_new: 0.5, buy_resale: 5, list_item: 4, manage_listings: 4, trade_send: 2, trade_check: 5 },
         trade_accept_threshold: 1.3, // Wants 30% profit
         trade_decline_threshold: 1.0,
         description: 'Looks for underpriced deals and high profit trades.'
     },
     'casual': {
-        weights: { buy_new: 1, buy_resale: 1, list_item: 4, trade_send: 1, trade_check: 3 },
+        weights: { buy_new: 1, buy_resale: 1, list_item: 4, manage_listings: 3, trade_send: 1, trade_check: 3 },
         trade_accept_threshold: 0.95, // Might accept slight loss (-5%)
         trade_decline_threshold: 0.8,
         description: 'Random behavior, not very strict on values.'
     },
     'whale': {
-        weights: { buy_new: 5, buy_resale: 5, list_item: 2, trade_send: 2, trade_check: 3 },
+        weights: { buy_new: 5, buy_resale: 5, list_item: 2, manage_listings: 1, trade_send: 2, trade_check: 3 },
         trade_accept_threshold: 0.9, // Gives away value easily (-10%)
         trade_decline_threshold: 0.7,
         description: 'High balance, buys expensive stuff, carefree with value.'
@@ -229,6 +229,7 @@ const performAction = async (ai) => {
     if (action === 'buy_new') await actionBuyNew(ai);
     else if (action === 'buy_resale') await actionBuyResale(ai, p);
     else if (action === 'list_item') await actionList(ai, p);
+    else if (action === 'manage_listings') await actionManageListings(ai);
     else if (action === 'trade_send') await actionInitiateTrade(ai, p);
     else if (action === 'trade_check') { /* Already handled in priority loop */ }
 };
@@ -452,9 +453,27 @@ const actionList = async (ai, personalityProfile) => {
     }
 
     let multiplier = 1.0;
-    if (ai.personality === 'sniper') multiplier = 1.3;
-    else if (ai.personality === 'trader') multiplier = 1.1;
-    else multiplier = 0.9 + Math.random() * 0.4;
+
+    // Updated Pricing Logic: User requested "sell under value with low chance of going higher"
+    // 80% chance to Undercut/Fair (0.85x - 1.05x)
+    // 20% chance to Overprice slightly (1.05x - 1.3x)
+
+    // Personality Tweaks
+    let bias = 0;
+    if (ai.personality === 'sniper') bias = 0.05; // Snipers sell slightly higher? or lower to flip fast? Maybe higher.
+    if (ai.personality === 'trader') bias = 0.02;
+
+    if (Math.random() < 0.8) {
+        // Normal/Undercut mode
+        multiplier = 0.85 + Math.random() * 0.20 + bias; // 0.85 to 1.05 (roughly)
+    } else {
+        // High/Overprice mode (Low chance)
+        multiplier = 1.05 + Math.random() * 0.25 + bias; // 1.05 to 1.3
+    }
+
+    // if (ai.personality === 'sniper') multiplier = 1.3; // Removed hard overrides to respect new logic
+    // else if (ai.personality === 'trader') multiplier = 1.1; 
+    // else multiplier = 0.9 + Math.random() * 0.4;
 
     // Rarity Multiplier (Super High for Rare/Legendary)
     let isHighTier = false;
@@ -494,6 +513,50 @@ const actionList = async (ai, personalityProfile) => {
     }).eq('id', itemToSell.id);
 
     console.log(`[AI] ${ai.username} listed ${itemToSell.items.name} (Stock: ${stock}) for R$${finalPrice} (RAP: ${rap})`);
+};
+
+const actionManageListings = async (ai) => {
+    // 1. Get Active Listings
+    const { data: listings } = await supabase
+        .from('user_items')
+        .select('*')
+        .eq('user_id', ai.id)
+        .eq('is_for_sale', true);
+
+    if (!listings || listings.length === 0) return;
+
+    // 2. Pick one random listing to manage
+    const listing = listings[Math.floor(Math.random() * listings.length)];
+
+    // 3. Decision
+    const roll = Math.random();
+
+    if (roll < 0.3) {
+        // DELIST (30%)
+        // User said: "ensure ai can take off their listings"
+        await supabase
+            .from('user_items')
+            .update({ is_for_sale: false, sale_price: null })
+            .eq('id', listing.id);
+
+        console.log(`[AI] ${ai.username} DELISTED ${listing.id}`);
+
+    } else if (roll < 0.7) {
+        // DISCOUNT (40%)
+        // Reduce price by 5-15% to help it sell
+        const discountFactor = 0.85 + Math.random() * 0.10; // 0.85 to 0.95
+        const newPrice = Math.floor(listing.sale_price * discountFactor);
+
+        if (newPrice > 0 && newPrice !== listing.sale_price) {
+            await supabase
+                .from('user_items')
+                .update({ sale_price: newPrice })
+                .eq('id', listing.id);
+
+            console.log(`[AI] ${ai.username} LOWERED price of ${listing.id} to R$${newPrice}`);
+        }
+    }
+    // Else 30%: Do nothing (leave as is)
 };
 
 // --- Trade Logic ---
