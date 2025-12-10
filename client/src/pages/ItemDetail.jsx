@@ -9,7 +9,7 @@ import './ItemDetail.css'
 const ItemDetail = () => {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, refreshUser } = useAuth()
   const [item, setItem] = useState(null)
   const [rapHistory, setRapHistory] = useState([])
   const [resellers, setResellers] = useState([])
@@ -162,6 +162,8 @@ const ItemDetail = () => {
       // Also refresh owned items
       const ownedResponse = await axios.get(`/api/users/me/owns/${id}`);
       setOwnedItems(ownedResponse.data || []);
+      // Refresh User Balance (Global)
+      refreshUser();
 
     } catch (error) {
       showPopup(error.response?.data?.error || 'Failed to purchase item', 'error')
@@ -191,6 +193,7 @@ const ItemDetail = () => {
       // Also refresh owned items
       const ownedResponse = await axios.get(`/api/users/me/owns/${id}`);
       setOwnedItems(ownedResponse.data || []);
+      refreshUser();
     } catch (error) {
       showPopup(error.response?.data?.error || 'Failed to purchase item', 'error')
     }
@@ -329,6 +332,9 @@ const ItemDetail = () => {
                 <span className="item-limited-tag">LIMITED</span>
                 {item.sale_type === 'stock' && <span className="item-limited-u-tag">U</span>}
               </div>
+            )}
+            {item.is_projected && (
+              <div className="item-projected-badge" title="Projected: Artificial Price Inflation">⚠️</div>
             )}
             {!item.is_limited && !item.is_off_sale && item.sale_type === 'timer' && new Date(item.sale_end_time) > new Date() && (
               <div className="item-timer-badge">

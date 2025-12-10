@@ -21,7 +21,21 @@ router.get('/', async (req, res) => {
       throw error;
     }
 
-    res.json(items || []);
+    const itemsWithProjected = (items || []).map(item => {
+      // Calculate projected status
+      // Logic: If RAP > Value * 1.25 (25% inflated), and Value > 0
+      // We add a small buffer (50) to ignore very cheap items fluctuating
+      const rap = item.rap || 0;
+      const val = item.value || 0;
+      const isProjected = val > 0 && rap > (val * 1.25 + 50);
+
+      return {
+        ...item,
+        is_projected: isProjected
+      };
+    });
+
+    res.json(itemsWithProjected);
   } catch (error) {
     console.error('Error fetching items:', error);
     res.status(500).json({ error: 'Failed to fetch items', details: error.message });
@@ -195,6 +209,12 @@ router.get('/:id', async (req, res) => {
         .eq('id', item.id);
       item.is_limited = true;
     }
+
+    // Calculate projected
+    const rap = item.rap || 0;
+    const val = item.value || 0;
+    // Condition: RAP > Value * 1.25 + 50
+    item.is_projected = val > 0 && rap > (val * 1.25 + 50);
 
     res.json(item);
   } catch (error) {

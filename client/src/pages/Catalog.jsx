@@ -22,12 +22,12 @@ const Catalog = () => {
       const response = await axios.get('/api/items')
       const itemsData = response.data
       setItems(itemsData)
-      
+
       // Fetch reseller prices for limited items and out-of-stock items
-      const itemsNeedingResellers = itemsData.filter(item => 
+      const itemsNeedingResellers = itemsData.filter(item =>
         item.is_limited || item.is_off_sale || (item.sale_type === 'stock' && item.remaining_stock <= 0)
       )
-      
+
       const pricePromises = itemsNeedingResellers.map(async (item) => {
         try {
           const res = await axios.get(`/api/items/${item.id}/resellers`)
@@ -39,7 +39,7 @@ const Catalog = () => {
           return { itemId: item.id, price: null }
         }
       })
-      
+
       const prices = await Promise.all(pricePromises)
       const priceMap = {}
       prices.forEach(({ itemId, price }) => {
@@ -93,7 +93,7 @@ const Catalog = () => {
     }
     return `$${(item.current_price || 0).toLocaleString()}`
   }
-  
+
   const hasNoResellers = (item) => {
     if (item.is_limited || item.is_off_sale || (item.sale_type === 'stock' && item.remaining_stock <= 0)) {
       const resellerPrice = resellerPrices[item.id]
@@ -145,17 +145,17 @@ const Catalog = () => {
             {paginatedItems.map(item => {
               const price = getItemPrice(item)
               const noResellers = hasNoResellers(item)
-              
+
               const imageUrl = item.image_url || `https://www.roblox.com/asset-thumbnail/image?assetId=${item.roblox_item_id}&width=420&height=420&format=png`
               const isInStock = !item.is_limited && !item.is_off_sale && item.sale_type === 'stock' && item.remaining_stock > 0
               const isTimerActive = !item.is_limited && !item.is_off_sale && item.sale_type === 'timer' && new Date(item.sale_end_time) > new Date()
               const wasTimer = item.is_limited && item.sale_type === 'timer'
               const wasStock = item.is_limited && item.sale_type === 'stock'
-              
+
               return (
                 <Link key={item.id} to={`/catalog/${item.id}`} className="catalog-item-card">
                   <div className="item-image-wrapper">
-                    <img 
+                    <img
                       src={imageUrl}
                       alt={item.name}
                     />
@@ -173,6 +173,9 @@ const Catalog = () => {
                         <div className="timer-badge">🕐</div>
                         <div className="new-badge">NEW</div>
                       </>
+                    )}
+                    {item.is_projected && (
+                      <div className="projected-badge" title="Projected: Artificial Price Inflation">⚠️</div>
                     )}
                   </div>
                   <div className="item-details">

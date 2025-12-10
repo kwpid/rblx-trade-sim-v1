@@ -5,7 +5,7 @@ const supabase = require('../config/supabase');
 const calculateAndSaveSnapshots = async (isNewDay = false) => {
   try {
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
-    
+
     // Get all users
     const { data: users, error: usersError } = await supabase
       .from('users')
@@ -57,8 +57,8 @@ const calculateAndSaveSnapshots = async (isNewDay = false) => {
           const resellerPriceMap = new Map();
           if (resellers) {
             resellers.forEach(reseller => {
-              if (!resellerPriceMap.has(reseller.item_id) || 
-                  resellerPriceMap.get(reseller.item_id) > reseller.sale_price) {
+              if (!resellerPriceMap.has(reseller.item_id) ||
+                resellerPriceMap.get(reseller.item_id) > reseller.sale_price) {
                 resellerPriceMap.set(reseller.item_id, reseller.sale_price);
               }
             });
@@ -73,7 +73,7 @@ const calculateAndSaveSnapshots = async (isNewDay = false) => {
                 .eq('item_id', itemId)
                 .order('timestamp', { ascending: false })
                 .limit(1);
-              
+
               if (rapHistory && rapHistory.length > 0) {
                 return { itemId, rap: rapHistory[0].rap_value };
               }
@@ -97,17 +97,17 @@ const calculateAndSaveSnapshots = async (isNewDay = false) => {
             if (!itemData) return;
 
             // Calculate value
-            const isOutOfStock = itemData.is_off_sale || 
+            const isOutOfStock = itemData.is_off_sale ||
               (itemData.sale_type === 'stock' && itemData.remaining_stock <= 0);
-            
+
             // Only use item.value if it's explicitly set (not null/undefined), otherwise start with 0
             let itemValue = (itemData.value !== null && itemData.value !== undefined) ? itemData.value : 0;
-            
-            // If out of stock or limited, use reseller price if available
-            if ((itemData.is_limited || isOutOfStock) && resellerPriceMap.has(userItem.item_id)) {
+
+            // If value is NOT set (0), and it's limited/oos, use reseller price as fallback
+            if (itemValue === 0 && (itemData.is_limited || isOutOfStock) && resellerPriceMap.has(userItem.item_id)) {
               itemValue = resellerPriceMap.get(userItem.item_id);
             }
-            
+
             totalValue += itemValue;
 
             // Calculate RAP

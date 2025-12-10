@@ -232,7 +232,7 @@ router.get('/leaderboard/value', async (req, res) => {
             // Only use item.value if it's explicitly set (not null/undefined), otherwise start with 0
             let itemValue = (itemData.value !== null && itemData.value !== undefined) ? itemData.value : 0;
 
-            if ((itemData.is_limited || isOutOfStock) && resellerPriceMap.has(userItem.item_id)) {
+            if (itemValue === 0 && (itemData.is_limited || isOutOfStock) && resellerPriceMap.has(userItem.item_id)) {
               itemValue = resellerPriceMap.get(userItem.item_id);
             }
 
@@ -446,7 +446,7 @@ router.get('/', async (req, res) => {
 
           let itemValue = (itemData.value !== null && itemData.value !== undefined) ? itemData.value : 0;
 
-          if ((itemData.is_limited || isOutOfStock) && resellerPriceMap.has(userItem.item_id)) {
+          if (itemValue === 0 && (itemData.is_limited || isOutOfStock) && resellerPriceMap.has(userItem.item_id)) {
             itemValue = resellerPriceMap.get(userItem.item_id);
           }
 

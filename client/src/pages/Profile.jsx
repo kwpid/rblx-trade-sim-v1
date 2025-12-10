@@ -216,6 +216,9 @@ const Profile = () => {
                             {item.sale_type === 'stock' && <span className="limited-u-tag-inv">U</span>}
                           </div>
                         )}
+                        {item.value > 0 && (item.rap || 0) > (item.value * 1.25 + 50) && (
+                          <div className="projected-badge-inv" title="Projected: Artificial Price Inflation">⚠️</div>
+                        )}
                       </div>
                       <div className="inventory-item-name">{item.name}</div>
                       <div className="inventory-item-price">${itemValue.toLocaleString()}</div>

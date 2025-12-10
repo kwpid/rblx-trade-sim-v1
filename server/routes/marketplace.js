@@ -96,7 +96,8 @@ router.get('/deals', async (req, res) => {
           price: price,
           rap: rap,
           discount: discountPercent,
-          rarity: listing.items.rarity
+          rarity: listing.items.rarity,
+          is_projected: (listing.items.value > 0 && listing.items.rap > (listing.items.value * 1.25 + 50))
         };
       })
       .sort((a, b) => b.discount - a.discount) // Sort by best discount

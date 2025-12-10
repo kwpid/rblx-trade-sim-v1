@@ -2,17 +2,43 @@ const supabase = require('../config/supabase');
 
 // Constants
 const AI_COUNT_TARGET = 50;
-const ONLINE_PERCENTAGE = 0.3; // 30% online
+const ONLINE_PERCENTAGE = 0.3; // 30% target online
 const TICK_RATE = 5000; // 5 seconds
 const ACTION_PROBABILITY = 0.4; // 40% chance to act per tick if online
 
-const PERSONALITIES = [
-    'hoarder', // Buys often, sells rarely, keeps high value
-    'trader',  // Active in trades and listing
-    'sniper',  // Looks for deals (under RAP)
-    'casual',  // Random behavior
-    'whale'    // High balance, buys expensive stuff
-];
+// Personality Definitions
+const PERSONALITIES = {
+    'hoarder': {
+        weights: { buy_new: 3, buy_resale: 3, list_item: 0.1, trade_send: 1, trade_check: 5 },
+        trade_accept_threshold: 1.5, // Requires 50% overpay
+        trade_decline_threshold: 1.2,
+        description: 'Buys often, sells rarely, keeps high value items.'
+    },
+    'trader': {
+        weights: { buy_new: 1, buy_resale: 3, list_item: 3, trade_send: 4, trade_check: 5 },
+        trade_accept_threshold: 1.05, // Accepts 5% overpay/fair
+        trade_decline_threshold: 0.9,
+        description: 'Active in trades and listing, looks for fair/profit trades.'
+    },
+    'sniper': {
+        weights: { buy_new: 0.5, buy_resale: 5, list_item: 1, trade_send: 2, trade_check: 5 },
+        trade_accept_threshold: 1.3, // Wants 30% profit
+        trade_decline_threshold: 1.0,
+        description: 'Looks for underpriced deals and high profit trades.'
+    },
+    'casual': {
+        weights: { buy_new: 1, buy_resale: 1, list_item: 1, trade_send: 1, trade_check: 3 },
+        trade_accept_threshold: 0.95, // Might accept slight loss (-5%)
+        trade_decline_threshold: 0.8,
+        description: 'Random behavior, not very strict on values.'
+    },
+    'whale': {
+        weights: { buy_new: 5, buy_resale: 5, list_item: 0.5, trade_send: 2, trade_check: 3 },
+        trade_accept_threshold: 0.9, // Gives away value easily (-10%)
+        trade_decline_threshold: 0.7,
+        description: 'High balance, buys expensive stuff, carefree with value.'
+    }
+};
 
 const NAMES = [
     "CoolGamer123", "TradeMaster_99", "RobloxLegend", "BloxBuilder", "NoobSlayer", "ProTraderX", "RichieRich",
@@ -26,6 +52,8 @@ const NAMES = [
 
 // Service State
 let isRunning = false;
+// Simple in-memory session tracking: map of userId -> { sessionEnd: number (timestamp) }
+const aiSessions = {};
 
 // Initialization
 const initAiUsers = async () => {
@@ -46,25 +74,27 @@ const initAiUsers = async () => {
         const needed = AI_COUNT_TARGET - count;
         console.log(`Creating ${needed} new AI users...`);
 
+        const pKeys = Object.keys(PERSONALITIES);
+
         for (let i = 0; i < needed; i++) {
             const name = NAMES[Math.floor(Math.random() * NAMES.length)] + Math.floor(Math.random() * 1000);
-            const personality = PERSONALITIES[Math.floor(Math.random() * PERSONALITIES.length)];
-            const startingCash = personality === 'whale' ? 1000000 : Math.floor(Math.random() * 50000) + 1000;
+            const personalityKey = pKeys[Math.floor(Math.random() * pKeys.length)];
+            const startingCash = personalityKey === 'whale' ? 1000000 : Math.floor(Math.random() * 50000) + 1000;
 
             await supabase.from('users').insert([{
                 username: name,
                 email: `${name.toLowerCase()}@ai.local`,
                 password: 'ai_password_secure', // Placeholder, they don't log in
                 is_ai: true,
-                cash: startingCash,
-                personality: personality,
+                cash: startingCash, // Use cash column
+                personality: personalityKey,
                 is_admin: false,
                 created_at: new Date()
             }]);
         }
     }
 
-    // Reset online status
+    // Reset online status on boot
     await supabase.from('users').update({ is_online: false }).eq('is_ai', true);
     console.log('AI Users initialized.');
 };
@@ -74,8 +104,8 @@ const runAiLoop = async () => {
     if (!isRunning) return;
 
     try {
-        // 1. Manage Online Status
-        await updateOnlineStatus();
+        // 1. Manage Online Status (Sessions)
+        await manageAiSessions();
 
         // 2. Perform Actions for Online AI
         const { data: onlineAis } = await supabase
@@ -84,8 +114,12 @@ const runAiLoop = async () => {
             .eq('is_ai', true)
             .eq('is_online', true);
 
-        if (onlineAis) {
+        if (onlineAis && onlineAis.length > 0) {
             for (const ai of onlineAis) {
+                // Check incoming trades PRIORITY action
+                await checkIncomingTrades(ai);
+
+                // Perform random action
                 if (Math.random() < ACTION_PROBABILITY) {
                     await performAction(ai);
                 }
@@ -98,45 +132,47 @@ const runAiLoop = async () => {
     setTimeout(runAiLoop, TICK_RATE);
 };
 
-const updateOnlineStatus = async () => {
-    // Randomly flip some users online/offline
-    // Ideally we want ~30% online
+const manageAiSessions = async () => {
     const { data: allAis } = await supabase.from('users').select('id, is_online').eq('is_ai', true);
     if (!allAis) return;
 
-    for (const ai of allAis) {
-        // 10% chance to change state
-        if (Math.random() < 0.1) {
-            // Bias towards target percentage
-            const target = Math.random() < ONLINE_PERCENTAGE;
-            if (ai.is_online !== target) {
-                await supabase.from('users').update({ is_online: target }).eq('id', ai.id);
-            }
+    const now = Date.now();
+    const onlineAis = allAis.filter(u => u.is_online);
+    const offlineAis = allAis.filter(u => !u.is_online);
+
+    // 1. Check for expired sessions
+    for (const ai of onlineAis) {
+        if (!aiSessions[ai.id] || aiSessions[ai.id].sessionEnd < now) {
+            // Session expired, go offline
+            await supabase.from('users').update({ is_online: false }).eq('id', ai.id);
+            delete aiSessions[ai.id];
+            // 5% chance to immediately requeue for a new session (crazy addiction)
+        }
+    }
+
+    // 2. Bring some offline users online if we are below target
+    const currentOnlineCount = onlineAis.length - (onlineAis.length - Object.keys(aiSessions).length); // Approx
+    const targetOnline = Math.floor(allAis.length * ONLINE_PERCENTAGE);
+
+    if (Object.keys(aiSessions).length < targetOnline) {
+        const needed = targetOnline - Object.keys(aiSessions).length;
+        // Shuffle offline ais
+        const candidates = offlineAis.sort(() => 0.5 - Math.random()).slice(0, needed + 2); // Pick a few
+
+        for (const ai of candidates) {
+            // Start a session
+            // Session length: 2 to 15 minutes
+            const duration = (Math.random() * 13 + 2) * 60 * 1000;
+            aiSessions[ai.id] = { sessionEnd: now + duration };
+
+            await supabase.from('users').update({ is_online: true }).eq('id', ai.id);
         }
     }
 };
 
 const performAction = async (ai) => {
-    // Weighted selection based on personality
-    let weights = { buy_new: 1, buy_resale: 1, list_item: 1, trade: 1 };
-
-    switch (ai.personality) {
-        case 'hoarder':
-            weights = { buy_new: 3, buy_resale: 3, list_item: 0.1, trade: 1 };
-            break;
-        case 'trader':
-            weights = { buy_new: 1, buy_resale: 3, list_item: 3, trade: 4 };
-            break;
-        case 'sniper':
-            weights = { buy_new: 0.5, buy_resale: 5, list_item: 1, trade: 3 };
-            break;
-        case 'whale':
-            weights = { buy_new: 5, buy_resale: 5, list_item: 0.5, trade: 2 };
-            break;
-        case 'casual': // Random behavior
-            weights = { buy_new: 1, buy_resale: 1, list_item: 1, trade: 1 };
-            break;
-    }
+    const p = PERSONALITIES[ai.personality] || PERSONALITIES['casual'];
+    const weights = p.weights;
 
     const totalWeight = Object.values(weights).reduce((a, b) => a + b, 0);
     let random = Math.random() * totalWeight;
@@ -150,10 +186,12 @@ const performAction = async (ai) => {
         }
     }
 
+    // execute
     if (action === 'buy_new') await actionBuyNew(ai);
-    else if (action === 'buy_resale') await actionBuyResale(ai);
-    else if (action === 'list_item') await actionList(ai);
-    else if (action === 'trade') await actionTrade(ai);
+    else if (action === 'buy_resale') await actionBuyResale(ai, p);
+    else if (action === 'list_item') await actionList(ai, p);
+    else if (action === 'trade_send') await actionInitiateTrade(ai, p);
+    else if (action === 'trade_check') { /* Already handled in priority loop */ }
 };
 
 // --- Actions ---
@@ -175,13 +213,10 @@ const actionBuyNew = async (ai) => {
     // Check stock if applicable
     if (item.sale_type === 'stock' && item.remaining_stock <= 0) return;
 
-    // Simulate Purchase (reuse logic or direct DB)
-    // Direct DB is cleaner for service than calling own API
-
     // Deduct cash
     await supabase.from('users').update({ cash: ai.cash - item.current_price }).eq('id', ai.id);
 
-    // Calculate Serial Number
+    // Calculate Serial Number (Simulated)
     const { count: existingCount } = await supabase
         .from('user_items')
         .select('*', { count: 'exact', head: true })
@@ -218,9 +253,8 @@ const actionBuyNew = async (ai) => {
     console.log(`[AI] ${ai.username} bought new item: ${item.name}`);
 };
 
-const actionBuyResale = async (ai) => {
+const actionBuyResale = async (ai, personalityProfile) => {
     // Fetch random resale listings
-    // Sniper looks for deals < RAP
     let query = supabase
         .from('user_items')
         .select('*, items:item_id(*)')
@@ -233,11 +267,21 @@ const actionBuyResale = async (ai) => {
 
     let target = null;
     if (ai.personality === 'sniper') {
-        target = listings.find(l => l.sale_price < (l.items.rap || 0) * 0.9); // 10% under RAP
+        target = listings.find(l => l.sale_price < (l.items.rap || 0) * 0.85); // 15% under RAP
+    } else {
+        // Others check value logic gently
+        target = listings.find(l => {
+            const val = l.items.rap || l.items.value || 0;
+            if (val === 0) return true;
+            // Don't buy stupidly overpriced things unless whale
+            if (ai.personality !== 'whale' && l.sale_price > val * 1.5) return false;
+            return true;
+        });
     }
 
     if (!target) {
-        target = listings[Math.floor(Math.random() * listings.length)];
+        // Fallback random if not super strict
+        if (ai.personality !== 'sniper') target = listings[Math.floor(Math.random() * listings.length)];
     }
 
     if (!target || target.user_id === ai.id) return; // Don't buy own
@@ -245,13 +289,13 @@ const actionBuyResale = async (ai) => {
     // Buy Logic
     const sellerId = target.user_id;
     const price = target.sale_price;
-    const adminFee = Math.floor(price * 0.2); // 20% tax
-    const sellerAmount = price - adminFee; // Simple calculation here
+    const adminFee = Math.floor(price * 0.3); // 30% tax
+    const sellerAmount = price - adminFee;
 
-    // 1. Deduct Buyer (AI)
+    // 1. Deduct Buyer
     await supabase.from('users').update({ cash: ai.cash - price }).eq('id', ai.id);
 
-    // 2. Credit Seller (fetch current cash first to be safe, or use RPC increment if avail, but standard update is OK here)
+    // 2. Credit Seller
     const { data: seller } = await supabase.from('users').select('cash').eq('id', sellerId).single();
     if (seller) {
         await supabase.from('users').update({ cash: seller.cash + sellerAmount }).eq('id', sellerId);
@@ -266,34 +310,16 @@ const actionBuyResale = async (ai) => {
     }).eq('id', target.id);
 
     // 4. Update RAP
-    // Need custom logic or duplicate from marketplace.js
-    // For simplicity, naive avg
     const oldRap = target.items.rap || 0;
-    // VERY simple moving average for simulation
     const newRap = oldRap === 0 ? price : Math.floor((oldRap * 9 + price) / 10);
-
     await supabase.from('items').update({ rap: newRap }).eq('id', target.items.id);
 
     // 5. Logs
-    // Transaction
     await supabase.from('transactions').insert([
-        {
-            user_id: ai.id,
-            type: 'buy',
-            amount: price,
-            item_id: target.items.id,
-            related_user_id: sellerId
-        },
-        {
-            user_id: sellerId,
-            type: 'sell',
-            amount: price,
-            item_id: target.items.id,
-            related_user_id: ai.id
-        }
+        { user_id: ai.id, type: 'buy', amount: price, item_id: target.items.id, related_user_id: sellerId },
+        { user_id: sellerId, type: 'sell', amount: price, item_id: target.items.id, related_user_id: ai.id }
     ]);
 
-    // RAP Log
     await supabase.from('rap_change_log').insert([{
         item_id: target.items.id,
         old_rap: oldRap,
@@ -304,8 +330,8 @@ const actionBuyResale = async (ai) => {
     console.log(`[AI] ${ai.username} bought resale: ${target.items.name} for R$${price}`);
 };
 
-const actionList = async (ai) => {
-    if (ai.personality === 'hoarder') return; // Hoarders don't sell
+const actionList = async (ai, personalityProfile) => {
+    if (ai.personality === 'hoarder') return;
 
     // Find unlisted limiteds
     const { data: myItems } = await supabase
@@ -325,9 +351,9 @@ const actionList = async (ai) => {
 
     // Price logic
     let multiplier = 1.0;
-    if (ai.personality === 'sniper') multiplier = 1.2; // Sell for profit
-    else if (ai.personality === 'trader') multiplier = 1.0; // Fair price
-    else multiplier = 0.9 + Math.random() * 0.4; // Random 0.9 - 1.3
+    if (ai.personality === 'sniper') multiplier = 1.3;
+    else if (ai.personality === 'trader') multiplier = 1.1;
+    else multiplier = 0.9 + Math.random() * 0.4;
 
     const price = Math.max(1, Math.floor(rap * multiplier));
 
@@ -338,6 +364,176 @@ const actionList = async (ai) => {
 
     console.log(`[AI] ${ai.username} listed ${itemToSell.items.name} for R$${price}`);
 };
+
+// --- Trade Logic ---
+
+const checkIncomingTrades = async (ai) => {
+    // 50% chance to ignore checking (simulates not looking at trades constantly)
+    if (Math.random() < 0.5) return;
+
+    const { data: trades } = await supabase
+        .from('trades')
+        .select(`
+            *,
+            trade_items (
+                id, side,
+                user_items (
+                    id, item_id,
+                    items ( id, name, rap, value )
+                )
+            )
+        `)
+        .eq('receiver_id', ai.id)
+        .eq('status', 'pending');
+
+    if (!trades || trades.length === 0) return;
+
+    // Process one trade per tick max
+    const trade = trades[0];
+    const p = PERSONALITIES[ai.personality] || PERSONALITIES['casual'];
+
+    // Valuation
+    let givingValue = 0;
+    let receivingValue = 0;
+
+    trade.trade_items.forEach(ti => {
+        const itemVal = ti.user_items.items.value || ti.user_items.items.rap || 0;
+        if (ti.side === 'receiver') { // Items AI gives (Receiver side of trade items are items owned by Receiver)
+            givingValue += itemVal;
+        } else { // Items AI receives (Sender side)
+            receivingValue += itemVal;
+        }
+    });
+
+    // Decision
+    const ratio = receivingValue / (givingValue || 1); // Avoid div/0
+
+    // Log thought
+    // console.log(`[AI] ${ai.username} evaluating trade #${trade.id}. Give: ${givingValue}, Get: ${receivingValue}, Ratio: ${ratio.toFixed(2)}`);
+
+    if (ratio >= p.trade_accept_threshold) {
+        // Accept
+        await acceptTrade(trade, ai);
+    } else if (ratio < p.trade_decline_threshold) {
+        // Decline
+        await declineTrade(trade, ai);
+    } else {
+        // "Thinking" zone - small chance to decline, small chance to counter (if implemented), or just ignore (leave pending)
+        if (Math.random() < 0.3) {
+            await declineTrade(trade, ai);
+        }
+        // Counter logic effectively is 'decline' for now, or just leave it pending to annoy user
+    }
+};
+
+const acceptTrade = async (trade, ai) => {
+    // We need to re-verify ownership like the API does, but assuming state hasn't changed in milliseconds
+    // Simplified execution for AI service
+    try {
+        const senderItems = trade.trade_items.filter(i => i.side === 'sender').map(i => i.user_items);
+        const receiverItems = trade.trade_items.filter(i => i.side === 'receiver').map(i => i.user_items);
+
+        // 1. Move Items
+        if (senderItems.length > 0) {
+            await supabase.from('user_items').update({ user_id: trade.receiver_id }).in('id', senderItems.map(i => i.id));
+        }
+        if (receiverItems.length > 0) {
+            await supabase.from('user_items').update({ user_id: trade.sender_id }).in('id', receiverItems.map(i => i.id));
+        }
+
+        // 2. Update Trade
+        await supabase.from('trades').update({ status: 'accepted', updated_at: new Date() }).eq('id', trade.id);
+
+        console.log(`[AI] ${ai.username} ACCEPTED trade from user ${trade.sender_id}`);
+    } catch (err) {
+        console.error(`[AI] Failed to execute accept trade ${trade.id}`, err);
+    }
+};
+
+const declineTrade = async (trade, ai) => {
+    await supabase.from('trades').update({ status: 'declined', updated_at: new Date() }).eq('id', trade.id);
+    console.log(`[AI] ${ai.username} DECLINED trade from user ${trade.sender_id}`);
+};
+
+const actionInitiateTrade = async (ai, p) => {
+    // 1. Find a target (Human or AI) who has something we want
+    // Simplified: Find a random limited item owned by someone else
+    const { data: randomItems } = await supabase
+        .from('user_items')
+        .select('*, items:item_id(*)')
+        .not('user_id', 'eq', ai.id)
+        .eq('items.is_limited', true)
+        .limit(10); // fetch a few candidates
+
+    if (!randomItems || randomItems.length === 0) return;
+
+    // Pick something we want
+    const targetItem = randomItems[Math.floor(Math.random() * randomItems.length)];
+    const targetUser = targetItem.user_id;
+
+    // Don't spam same user? (omitted for simplicity)
+
+    // 2. Select what to give
+    // Find our own items >= val * 0.9 (try to lowball slightly or match)
+    const targetVal = targetItem.items.rap || 0;
+
+    const { data: myItems } = await supabase
+        .from('user_items')
+        .select('*, items:item_id(*)')
+        .eq('user_id', ai.id)
+        .eq('is_for_sale', false) // Use unlisted items for trading
+        .eq('items.is_limited', true);
+
+    if (!myItems || myItems.length === 0) return;
+
+    // Try to find a combination of 1-3 items close to value
+    // Super naive knapsack: just pick random items until value is close
+    let offerItems = [];
+    let currentOfferVal = 0;
+
+    // Shuffle my items
+    const shuffled = myItems.sort(() => 0.5 - Math.random());
+
+    for (const item of shuffled) {
+        if (currentOfferVal > targetVal * 1.2) break; // Don't overpay too much
+        offerItems.push(item);
+        currentOfferVal += (item.items.rap || 0);
+        if (currentOfferVal >= targetVal * 0.9) break; // Good enough
+    }
+
+    if (offerItems.length === 0) return;
+
+    // Check if offer is "fair" enough for us to send based on personality
+    const ratio = currentOfferVal / targetVal;
+
+    // If we are sniper, we only offer if ratio < 0.9 (we pay less)
+    // If we are whale, we might pay ratio > 1.2
+
+    // Actually send it
+    const { data: trade, error } = await supabase
+        .from('trades')
+        .insert([{
+            sender_id: ai.id,
+            receiver_id: targetUser,
+            status: 'pending'
+        }])
+        .select()
+        .single();
+
+    if (error) return;
+
+    // Insert Trade Items
+    const tradeItems = [];
+    offerItems.forEach(i => {
+        tradeItems.push({ trade_id: trade.id, user_item_id: i.id, side: 'sender' });
+    });
+    tradeItems.push({ trade_id: trade.id, user_item_id: targetItem.id, side: 'receiver' });
+
+    await supabase.from('trade_items').insert(tradeItems);
+
+    console.log(`[AI] ${ai.username} SENT trade to user ${targetUser} (Offer: ${Math.floor(currentOfferVal)}, Ask: ${targetVal})`);
+};
+
 
 module.exports = {
     start: () => {

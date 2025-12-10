@@ -83,7 +83,8 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     logout,
-    loading
+    loading,
+    refreshUser: () => verifyToken(localStorage.getItem('token'))
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
