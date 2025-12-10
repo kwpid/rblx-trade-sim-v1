@@ -400,7 +400,7 @@ router.get('/', async (req, res) => {
           // RAP: Only use RAP for Limited items
           let itemRAP = 0;
           if (itemData.is_limited) {
-            itemRAP = rapMap.get(userItem.item_id) || itemData.rap || 0;
+            itemRAP = itemData.rap || 0;
           }
 
           totalValue += itemValue;
