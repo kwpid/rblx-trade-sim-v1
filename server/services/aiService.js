@@ -370,6 +370,13 @@ const actionBuyResale = async (ai, personalityProfile) => {
         await supabase.from('users').update({ cash: seller.cash + sellerAmount }).eq('id', sellerId);
     }
 
+    // 2.5 Credit Admin (Tax)
+    // ID: 0c55d336-0bf7-49bf-9a90-1b4ba4e13679
+    const { data: admin } = await supabase.from('users').select('cash').eq('id', '0c55d336-0bf7-49bf-9a90-1b4ba4e13679').single();
+    if (admin) {
+        await supabase.from('users').update({ cash: admin.cash + adminFee }).eq('id', '0c55d336-0bf7-49bf-9a90-1b4ba4e13679');
+    }
+
     // 3. Transfer Item
     await supabase.from('user_items').update({
         user_id: ai.id,

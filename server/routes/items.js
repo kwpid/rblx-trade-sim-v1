@@ -226,6 +226,24 @@ router.get('/:id', async (req, res) => {
       item.value = 0;
     }
 
+    // Calculate Hoarded Stats
+    const { count: totalCopies } = await supabase
+      .from('user_items')
+      .select('*', { count: 'exact', head: true })
+      .eq('item_id', item.id);
+
+    const { count: hoardedCopies } = await supabase
+      .from('user_items')
+      .select(`
+            *,
+            users!inner(personality)
+        `, { count: 'exact', head: true })
+      .eq('item_id', item.id)
+      .eq('users.personality', 'hoarder');
+
+    item.total_copies = totalCopies || 0;
+    item.hoarded_count = hoardedCopies || 0;
+
     res.json(item);
   } catch (error) {
     console.error('Error fetching item:', error);

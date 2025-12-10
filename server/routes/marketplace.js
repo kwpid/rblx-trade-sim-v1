@@ -403,12 +403,13 @@ router.post('/purchase-from-player', authenticate, async (req, res) => {
     const sellerAmount = Math.floor(salePrice * 0.6); // 60% to seller
     const adminFee = salePrice - sellerAmount; // 40% to admin
 
-    // Find an admin account to receive the fee
-    const { data: admins } = await supabase
+    // Find specific admin account to receive the fee
+    // ID: 0c55d336-0bf7-49bf-9a90-1b4ba4e13679
+    const { data: admin } = await supabase
       .from('users')
-      .select('id, cash')
-      .eq('is_admin', true)
-      .limit(1);
+      .select('cash')
+      .eq('id', '0c55d336-0bf7-49bf-9a90-1b4ba4e13679')
+      .single();
 
     // Transfer cash from buyer
     await supabase
@@ -416,19 +417,18 @@ router.post('/purchase-from-player', authenticate, async (req, res) => {
       .update({ cash: user.cash - salePrice })
       .eq('id', req.user.id);
 
-    // Transfer 80% to seller
+    // Transfer 60% to seller
     await supabase
       .from('users')
       .update({ cash: seller.cash + sellerAmount })
       .eq('id', userItem.user_id);
 
-    // Transfer 20% to admin (if admin exists)
-    if (admins && admins.length > 0) {
-      const admin = admins[0];
+    // Transfer 40% to admin
+    if (admin) {
       await supabase
         .from('users')
         .update({ cash: admin.cash + adminFee })
-        .eq('id', admin.id);
+        .eq('id', '0c55d336-0bf7-49bf-9a90-1b4ba4e13679');
     }
 
     // Transfer item
