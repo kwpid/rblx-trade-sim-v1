@@ -26,11 +26,15 @@ router.get('/', async (req, res) => {
       // Logic: If RAP > Value * 1.25 (25% inflated), and Value > 0
       // We add a small buffer (50) to ignore very cheap items fluctuating
       const rap = item.rap || 0;
-      const val = item.value || 0;
-      const isProjected = val > 0 && rap > (val * 1.25 + 50);
+      const realValue = item.value || 0; // Internal true value
+      const isProjected = realValue > 0 && rap > (realValue * 1.25 + 50);
+
+      // Mask value for non-limiteds (Pre-defined value hidden from public)
+      const displayValue = item.is_limited ? realValue : 0;
 
       return {
         ...item,
+        value: displayValue, // Override with masked value
         is_projected: isProjected
       };
     });
@@ -215,6 +219,11 @@ router.get('/:id', async (req, res) => {
     const val = item.value || 0;
     // Condition: RAP > Value * 1.25 + 50
     item.is_projected = val > 0 && rap > (val * 1.25 + 50);
+
+    // Mask value for non-limiteds
+    if (!item.is_limited) {
+      item.value = 0;
+    }
 
     res.json(item);
   } catch (error) {

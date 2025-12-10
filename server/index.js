@@ -25,6 +25,7 @@ require('./jobs/playerSnapshots');
 const authRoutes = require('./routes/auth');
 const itemRoutes = require('./routes/items');
 const marketplaceRoutes = require('./routes/marketplace');
+const eventRoutes = require('./routes/event');
 const userRoutes = require('./routes/users');
 const tradeRoutes = require('./routes/trades');
 const systemRoutes = require('./routes/system');
@@ -34,6 +35,7 @@ const transactionRoutes = require('./routes/transactions');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/items', itemRoutes);
+app.use('/api/event', eventRoutes);
 app.use('/api/marketplace', marketplaceRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/trades', tradeRoutes);

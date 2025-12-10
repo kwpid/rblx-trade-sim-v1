@@ -1,7 +1,11 @@
 const supabase = require('../config/supabase');
+const { execSync } = require('child_process');
+const EVENT_ITEMS = require('../config/eventItems');
+
+let isDevBranch = false;
 
 // Constants
-const AI_COUNT_TARGET = 50;
+const AI_COUNT_TARGET = 100;
 const ONLINE_PERCENTAGE = 0.3; // 30% target online
 const TICK_RATE = 5000; // 5 seconds
 const ACTION_PROBABILITY = 0.4; // 40% chance to act per tick if online
@@ -9,31 +13,31 @@ const ACTION_PROBABILITY = 0.4; // 40% chance to act per tick if online
 // Personality Definitions
 const PERSONALITIES = {
     'hoarder': {
-        weights: { buy_new: 3, buy_resale: 3, list_item: 0.1, trade_send: 1, trade_check: 5 },
+        weights: { buy_new: 3, buy_resale: 3, list_item: 0.5, trade_send: 1, trade_check: 5 },
         trade_accept_threshold: 1.5, // Requires 50% overpay
         trade_decline_threshold: 1.2,
         description: 'Buys often, sells rarely, keeps high value items.'
     },
     'trader': {
-        weights: { buy_new: 1, buy_resale: 3, list_item: 3, trade_send: 4, trade_check: 5 },
+        weights: { buy_new: 1, buy_resale: 3, list_item: 8, trade_send: 4, trade_check: 5 },
         trade_accept_threshold: 1.05, // Accepts 5% overpay/fair
         trade_decline_threshold: 0.9,
         description: 'Active in trades and listing, looks for fair/profit trades.'
     },
     'sniper': {
-        weights: { buy_new: 0.5, buy_resale: 5, list_item: 1, trade_send: 2, trade_check: 5 },
+        weights: { buy_new: 0.5, buy_resale: 5, list_item: 4, trade_send: 2, trade_check: 5 },
         trade_accept_threshold: 1.3, // Wants 30% profit
         trade_decline_threshold: 1.0,
         description: 'Looks for underpriced deals and high profit trades.'
     },
     'casual': {
-        weights: { buy_new: 1, buy_resale: 1, list_item: 1, trade_send: 1, trade_check: 3 },
+        weights: { buy_new: 1, buy_resale: 1, list_item: 4, trade_send: 1, trade_check: 3 },
         trade_accept_threshold: 0.95, // Might accept slight loss (-5%)
         trade_decline_threshold: 0.8,
         description: 'Random behavior, not very strict on values.'
     },
     'whale': {
-        weights: { buy_new: 5, buy_resale: 5, list_item: 0.5, trade_send: 2, trade_check: 3 },
+        weights: { buy_new: 5, buy_resale: 5, list_item: 2, trade_send: 2, trade_check: 3 },
         trade_accept_threshold: 0.9, // Gives away value easily (-10%)
         trade_decline_threshold: 0.7,
         description: 'High balance, buys expensive stuff, carefree with value.'
@@ -99,9 +103,15 @@ const initAiUsers = async () => {
     console.log('AI Users initialized.');
 };
 
-// Main Loop
 const runAiLoop = async () => {
     if (!isRunning) return;
+
+    if (isDevBranch) {
+        // AI Disabled Loop
+        // console.log('[AI] Disabled on dev branch.');
+        setTimeout(runAiLoop, TICK_RATE * 2);
+        return;
+    }
 
     try {
         // 1. Manage Online Status (Sessions)
@@ -294,16 +304,39 @@ const actionBuyResale = async (ai, personalityProfile) => {
     const { data: listings } = await query;
     if (!listings || listings.length === 0) return;
 
+    // Helper to get effective valuation (handling projected items)
+    const getEffectiveValue = (item) => {
+        const rap = item.rap || 0;
+        const val = item.value || rap; // If no manual value, assume fair is RAP
+
+        // Check "Projected": If RAP is significantly higher than Value (if value exists and isn't just a copy of RAP)
+        // Or if we just use a heuristic: RAP > Value * 1.3?
+        // Let's assume 'value' column is the "True Value" or "Safe Value". 
+        // If the item is projected, we should treat it as much less.
+
+        // If RAP > Value * 1.25, it's likely projected.
+        // User said: "RAP = reduce by 50–70%" for projected.
+        if (val > 0 && rap > val * 1.25) {
+            return Math.floor(rap * 0.3); // Severe penalty for projected items
+        }
+        return val;
+    };
+
     let target = null;
     if (ai.personality === 'sniper') {
-        target = listings.find(l => l.sale_price < (l.items.rap || 0) * 0.85); // 15% under RAP
+        target = listings.find(l => {
+            const effectiveRap = getEffectiveValue(l.items);
+            return l.sale_price < effectiveRap * 0.85; // 15% under effective RAP
+        });
     } else {
         // Others check value logic gently
         target = listings.find(l => {
-            const val = l.items.rap || l.items.value || 0;
-            if (val === 0) return true;
-            // Don't buy stupidly overpriced things unless whale
-            if (ai.personality !== 'whale' && l.sale_price > val * 1.5) return false;
+            const effectiveVal = getEffectiveValue(l.items);
+            if (effectiveVal === 0) return true;
+            // Don't buy stupidly overpriced things
+            if (ai.personality !== 'whale' && l.sale_price > effectiveVal * 1.5) return false;
+            // Also ensure we aren't just buying projecteds at "normal" price
+            // If it is projected, effectiveVal is low, so sale_price (likely high) will be > effectiveVal * 1.5, so we skip. Good.
             return true;
         });
     }
@@ -318,7 +351,7 @@ const actionBuyResale = async (ai, personalityProfile) => {
     // Buy Logic
     const sellerId = target.user_id;
     const price = target.sale_price;
-    const adminFee = Math.floor(price * 0.3); // 30% tax
+    const adminFee = Math.floor(price * 0.4); // 40% tax
     const sellerAmount = price - adminFee;
 
     // 1. Deduct Buyer
@@ -376,7 +409,30 @@ const actionList = async (ai, personalityProfile) => {
     if (limiteds.length === 0) return;
 
     const itemToSell = limiteds[Math.floor(Math.random() * limiteds.length)];
-    const rap = itemToSell.items.rap || itemToSell.items.value || 100;
+
+    // Check Rarity (Hold Rares/Legendaries more often)
+    // EVENT_ITEMS might be undefined if file issues, so safeguard
+    if (EVENT_ITEMS) {
+        const isRare = (EVENT_ITEMS.RARE && EVENT_ITEMS.RARE.includes(itemToSell.items.roblox_item_id)) ||
+            (EVENT_ITEMS.LEGENDARY && EVENT_ITEMS.LEGENDARY.includes(itemToSell.items.roblox_item_id)) ||
+            (EVENT_ITEMS.RARE && EVENT_ITEMS.RARE.includes(itemToSell.items.id)) ||
+            (EVENT_ITEMS.LEGENDARY && EVENT_ITEMS.LEGENDARY.includes(itemToSell.items.id)); // Check both ID types just in case
+
+        // If Rare/Legendary, 80% chance to SKIP selling (HODL)
+        if (isRare && Math.random() < 0.8) {
+            return;
+        }
+    }
+
+    // Base valuation: Use RAP, but fall back to Pre-defined Value if RAP is 0 (new limited)
+    // or if RAP is extremely low (e.g. < 100) and Value is set (prevent selling glitched 0 RAP items for nothing)
+    let refValue = itemToSell.items.rap || 0;
+    if (refValue === 0 || (itemToSell.items.value && refValue < 100)) {
+        refValue = itemToSell.items.value || 0;
+    }
+    if (refValue === 0) refValue = 100; // Fallback
+
+    const rap = refValue;
 
     // Price logic
     // Scarcity Multiplier: If stock < 200, price increases
@@ -437,10 +493,21 @@ const checkIncomingTrades = async (ai) => {
     let givingValue = 0;
     let receivingValue = 0;
 
+    // Helper (same as above, duplication but safe for now)
+    const getEffectiveValue = (item) => {
+        const rap = item.rap || 0;
+        const val = item.value || rap;
+        if (val > 0 && rap > val * 1.25) {
+            return Math.floor(rap * 0.3); // Penalty for projected
+        }
+        return val; // Prefer Value over RAP usually
+    };
+
     trade.trade_items.forEach(ti => {
         if (!ti.user_items || !ti.user_items.items) return;
-        const itemVal = ti.user_items.items.value || ti.user_items.items.rap || 0;
-        if (ti.side === 'receiver') { // Items AI gives (Receiver side of trade items are items owned by Receiver)
+        const itemVal = getEffectiveValue(ti.user_items.items);
+
+        if (ti.side === 'receiver') { // Items AI gives (Receiver side)
             givingValue += itemVal;
         } else { // Items AI receives (Sender side)
             receivingValue += itemVal;
@@ -581,6 +648,19 @@ const actionInitiateTrade = async (ai, p) => {
 
 module.exports = {
     start: () => {
+        try {
+            const branch = execSync('git rev-parse --abbrev-ref HEAD').toString().trim();
+            if (branch !== 'main' && branch !== 'master') {
+                console.log(`[AI] Dev branch detected (${branch}). AI Actions DISABLED.`);
+                isDevBranch = true;
+            } else {
+                console.log(`[AI] Production branch detected (${branch}). AI Actions ENABLED.`);
+                isDevBranch = false;
+            }
+        } catch (e) {
+            console.log('[AI] Branch detection failed (no git?), assuming Production/Enabled.');
+        }
+
         isRunning = true;
         initAiUsers().then(() => runAiLoop());
     },

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const supabase = require('../config/supabase');
 const { authenticate } = require('../middleware/auth');
+const { updateChallengeProgress, CHALLENGE_TYPES } = require('../utils/eventHelper');
 
 // Helper to get trade details
 async function getTradeWithItems(tradeId) {
@@ -278,6 +279,50 @@ router.post('/:id/accept', authenticate, async (req, res) => {
       .single();
 
     if (updateError) throw updateError;
+
+    // 4. Update Event Progress
+    // Sender (who sent the trade request originally)
+    // - Trade Count
+    updateChallengeProgress(trade.sender_id, CHALLENGE_TYPES.TRADE_COUNT, 1);
+    // - Trade Unique (TODO: stricter tracking, simplified count for now)
+    updateChallengeProgress(trade.sender_id, CHALLENGE_TYPES.TRADE_UNIQUE, 1);
+
+    // Receiver (who accepted)
+    // - Trade Count
+    updateChallengeProgress(trade.receiver_id, CHALLENGE_TYPES.TRADE_COUNT, 1);
+    updateChallengeProgress(trade.receiver_id, CHALLENGE_TYPES.TRADE_UNIQUE, 1);
+
+    // Calculate Values for Value Challenges
+    // Sender gave Items -> check if any single item met the "Trade item worth X" criteria?
+    // "Trade an item worth 5000+" usually means if you GIVE that item.
+    senderItems.forEach(ui => {
+      const val = ui.items ? (ui.items.value || 0) : 0;
+      updateChallengeProgress(trade.sender_id, CHALLENGE_TYPES.TRADE_VALUE, val);
+      // Profit check is hard without history data on what they bought it for, maybe skip for now or use RAP diff?
+      // Task said: "Make a trade with profit > 2500"
+      // Profit = Value Received - Value Given
+    });
+
+    receiverItems.forEach(ui => {
+      const val = ui.items ? (ui.items.value || 0) : 0;
+      updateChallengeProgress(trade.receiver_id, CHALLENGE_TYPES.TRADE_VALUE, val);
+    });
+
+    // Calc Totals for Profit
+    const senderValueGiven = senderItems.reduce((acc, i) => acc + (i.items?.value || 0), 0);
+    const receiverValueGiven = receiverItems.reduce((acc, i) => acc + (i.items?.value || 0), 0);
+
+    // Sender Profit = Received - Given
+    const senderProfit = receiverValueGiven - senderValueGiven;
+    if (senderProfit > 0) {
+      updateChallengeProgress(trade.sender_id, CHALLENGE_TYPES.TRADE_PROFIT, senderProfit);
+    }
+
+    // Receiver Profit = Received (from sender) - Given
+    const receiverProfit = senderValueGiven - receiverValueGiven;
+    if (receiverProfit > 0) {
+      updateChallengeProgress(trade.receiver_id, CHALLENGE_TYPES.TRADE_PROFIT, receiverProfit);
+    }
 
     res.json({ success: true, trade: updatedTrade });
 

@@ -194,39 +194,45 @@ const ValueChanges = () => {
               </div>
             ) : (
               <div className="rap-changes-list">
-                {rapChangeHistory.map(log => (
-                  <div key={log.id} className="rap-change-card">
-                    <Link to={`/catalog/${log.items?.id}`} className="rap-card-left">
-                      <div className="rap-card-img">
-                        <img src={log.items?.image_url} alt={log.items?.name} />
-                      </div>
-                      <div className="rap-card-info">
-                        <h3>{log.items?.name}</h3>
-                        <div className="rap-card-date">{formatDate(log.created_at)}</div>
-                      </div>
-                    </Link>
-                    <div className="rap-card-stats">
-                      <div className="rap-stat-col">
-                        <span className="rap-stat-label">Purchase Price</span>
-                        <span className="rap-stat-val">R${formatValue(log.purchase_price)}</span>
-                      </div>
-                      <div className="rap-stat-col">
-                        <span className="rap-stat-label">Old RAP</span>
-                        <span className="rap-stat-val">R${formatValue(log.old_rap)}</span>
-                      </div>
-                      <div className="rap-arrow">→</div>
-                      <div className="rap-stat-col">
-                        <span className="rap-stat-label">New RAP</span>
-                        <span
-                          className="rap-stat-val"
-                          style={{ color: getValueChangeColor(log.old_rap, log.new_rap) }}
-                        >
-                          R${formatValue(log.new_rap)}
-                        </span>
+                {rapChangeHistory.map(log => {
+                  const isStock = !log.seller;
+                  return (
+                    <div key={log.id} className="rap-change-card">
+                      <Link to={`/catalog/${log.items?.id}`} className="rap-card-left">
+                        <div className="rap-card-img">
+                          <img src={log.items?.image_url} alt={log.items?.name} />
+                        </div>
+                        <div className="rap-card-info">
+                          <h3>{log.items?.name || 'Unknown Item'}</h3>
+                          <div className="rap-card-date">{formatDate(log.created_at)}</div>
+                        </div>
+                      </Link>
+                      <div className="rap-card-stats">
+                        <div className="rap-stat-col">
+                          <span className="rap-stat-label">Price</span>
+                          <span className="rap-stat-val">R${formatValue(log.amount)}</span>
+                        </div>
+                        <div className="rap-stat-col">
+                          <span className="rap-stat-label">Seller</span>
+                          {isStock ? (
+                            <span className="rap-stat-val" style={{ color: '#aaa', fontStyle: 'italic' }}>System (Stock)</span>
+                          ) : (
+                            <Link to={`/players/${log.seller?.id}`} className="rap-stat-val user-link">
+                              {log.seller?.username || 'Unknown'}
+                            </Link>
+                          )}
+                        </div>
+                        <div className="rap-arrow">→</div>
+                        <div className="rap-stat-col">
+                          <span className="rap-stat-label">Buyer</span>
+                          <Link to={`/players/${log.buyer?.id}`} className="rap-stat-val user-link">
+                            {log.buyer?.username || 'Unknown'}
+                          </Link>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

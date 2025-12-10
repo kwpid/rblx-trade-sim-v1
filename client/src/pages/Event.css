@@ -1,0 +1,596 @@
+.event-page {
+    padding: 24px;
+    background: var(--roblox-bg-primary);
+    /* Removed gradient */
+    min-height: calc(100vh - 56px);
+    margin-top: 56px;
+    color: white;
+    position: relative;
+    overflow-x: hidden;
+}
+
+.event-header {
+    text-align: center;
+    margin-bottom: 40px;
+    position: relative;
+    z-index: 2;
+}
+
+.event-header h1 {
+    font-size: 48px;
+    font-weight: 800;
+    text-transform: uppercase;
+    text-shadow: 0 0 10px rgba(0, 162, 255, 0.8);
+    margin-bottom: 12px;
+}
+
+.countdown {
+    font-size: 18px;
+    color: #ffcc00;
+    font-weight: 600;
+    margin-bottom: 24px;
+}
+
+.tokens-display {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 12px 24px;
+    border-radius: 24px;
+    display: inline-block;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.token-label {
+    font-size: 14px;
+    color: #ccc;
+    margin-right: 8px;
+}
+
+.token-amount {
+    font-size: 24px;
+    font-weight: 800;
+    color: #00ff88;
+}
+
+.section-title {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.section-icon {
+    font-size: 24px;
+}
+
+.challenges-section {
+    margin-bottom: 60px;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 24px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.challenges-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.refresh-btn {
+    background: transparent;
+    border: 1px solid #ff4444;
+    color: #ff4444;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.refresh-btn:hover {
+    background: rgba(255, 68, 68, 0.1);
+}
+
+.challenges-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.challenge-card {
+    background: var(--roblox-bg-secondary);
+    border: 1px solid var(--roblox-border);
+    padding: 16px 24px;
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    justify-content: space-between;
+}
+
+.challenge-card.completed {
+    border-color: #00ff88;
+    background: linear-gradient(90deg, var(--roblox-bg-secondary), rgba(0, 255, 136, 0.05));
+}
+
+.challenge-desc {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.4;
+    flex: 1;
+    /* Takes remaining space */
+    color: #fff;
+    text-align: left;
+}
+
+.challenge-progress {
+    width: 250px;
+    /* Fixed width for progress section */
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.progress-bar {
+    height: 10px;
+    background: #393939;
+    border-radius: 5px;
+    overflow: hidden;
+    width: 100%;
+}
+
+.progress-fill {
+    height: 100%;
+    background: #00a2ff;
+    transition: width 0.3s ease;
+}
+
+.progress-text {
+    font-size: 12px;
+    color: #aaa;
+    text-align: center;
+}
+
+.challenge-reward {
+    font-size: 14px;
+    color: #ffcc00;
+    font-weight: 700;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    min-width: 100px;
+    gap: 8px;
+}
+
+.claim-btn {
+    background: #00ff88;
+    color: #004422;
+    border: none;
+    padding: 6px 20px;
+    border-radius: 4px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+    animation: pulse 2s infinite;
+}
+
+.claim-btn:hover {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.05);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+.gifts-section {
+    margin-bottom: 40px;
+}
+
+.gifts-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    justify-content: center;
+}
+
+.gift-card {
+    background: var(--roblox-bg-secondary);
+    border: 1px solid var(--roblox-border);
+    padding: 24px;
+    border-radius: 12px;
+    width: 250px;
+    text-align: center;
+    transition: transform 0.2s;
+    cursor: pointer;
+}
+
+.gift-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+}
+
+.gift-icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+}
+
+.gift-name {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.gift-cost {
+    font-size: 16px;
+    color: #00ff88;
+    background: rgba(0, 255, 136, 0.1);
+    padding: 4px 12px;
+    border-radius: 12px;
+    display: inline-block;
+    font-weight: 600;
+}
+
+/* Gift Colors */
+.gift-bronze .gift-icon {
+    color: #cd7f32;
+    text-shadow: 0 0 10px rgba(205, 127, 50, 0.5);
+}
+
+.gift-silver .gift-icon {
+    color: #c0c0c0;
+    text-shadow: 0 0 10px rgba(192, 192, 192, 0.5);
+}
+
+.gift-gold .gift-icon {
+    color: #ffd700;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+
+.gift-festive .gift-icon {
+    color: #ff4444;
+    text-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
+}
+
+.gift-frostbitten {
+    border-color: #00a2ff;
+    background: linear-gradient(135deg, #1a2a40, #2a4a60);
+}
+
+.gift-frostbitten .gift-icon {
+    color: #00a2ff;
+    text-shadow: 0 0 15px rgba(0, 162, 255, 0.8);
+}
+
+.gift-frostbitten .gift-name {
+    color: #00a2ff;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+}
+
+.gift-modal {
+    background: var(--roblox-bg-secondary);
+    padding: 0;
+    border-radius: 16px;
+    text-align: center;
+    border: 2px solid #00a2ff;
+    animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    max-width: 95%;
+    width: 650px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.gift-header {
+    background: rgba(0, 162, 255, 0.1);
+    padding: 24px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.gift-icon-large {
+    font-size: 48px;
+    margin-bottom: 8px;
+}
+
+.gift-header h2 {
+    margin: 0;
+    font-size: 28px;
+}
+
+.cost-pill {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 4px 12px;
+    border-radius: 12px;
+    display: inline-block;
+    color: #00ff88;
+    font-weight: 600;
+    margin-top: 8px;
+}
+
+.gift-contents {
+    padding: 24px;
+    max-height: 300px;
+    overflow-y: auto;
+    text-align: left;
+}
+
+.gift-contents h3 {
+    margin-top: 0;
+    margin-bottom: 16px;
+    color: #ccc;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.contents-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+}
+
+.content-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 8px;
+    border-radius: 8px;
+    border: 1px solid #444;
+}
+
+.content-item img {
+    width: 40px;
+    height: 40px;
+    object-fit: cover;
+    border-radius: 4px;
+    background: #000;
+}
+
+.item-name {
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 120px;
+}
+
+.item-chance {
+    font-size: 12px;
+    color: #aaa;
+}
+
+.modal-btns {
+    padding: 24px;
+    background: rgba(0, 0, 0, 0.1);
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+/* Rolling / Roulette */
+.rolling-container {
+    padding: 40px 0;
+    min-height: 300px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: #0d1117;
+}
+
+.roulette-window {
+    width: 100%;
+    height: 140px;
+    overflow: hidden;
+    position: relative;
+    background: #161b22;
+    border-top: 2px solid #00a2ff;
+    border-bottom: 2px solid #00a2ff;
+    margin-bottom: 20px;
+}
+
+.roulette-marker {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: #ffcc00;
+    transform: translateX(-50%);
+    z-index: 10;
+    box-shadow: 0 0 10px #ffcc00;
+}
+
+.roulette-strip {
+    display: flex;
+    height: 100%;
+    align-items: center;
+    padding-left: 50%;
+    /* Start at center? handled by JS */
+    will-change: transform;
+}
+
+.roulette-card {
+    width: 120px;
+    height: 120px;
+    background: #21262d;
+    border: 2px solid #444;
+    margin: 0 5px;
+    border-radius: 8px;
+    flex-shrink: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.roulette-card img {
+    width: 100px;
+    height: 100px;
+    object-fit: contain;
+}
+
+.gift-contents-list .item-image {
+    width: 60px;
+    height: 60px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    /* Added for overlay */
+}
+
+.gift-contents-list .item-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.limited-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: rgba(255, 0, 0, 0.8);
+    color: white;
+    font-size: 0.6rem;
+    font-weight: bold;
+    text-align: center;
+    padding: 2px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.rolling-text {
+    font-size: 18px;
+    color: #00a2ff;
+    font-weight: 700;
+    animation: flash 1s infinite;
+}
+
+@keyframes flash {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.win-display {
+    text-align: center;
+    animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+}
+
+.win-card {
+    background: #1a2a40;
+    padding: 24px;
+    border-radius: 12px;
+    margin: 24px auto;
+    width: 200px;
+    display: inline-block;
+}
+
+.win-card img {
+    width: 150px;
+    height: 150px;
+    object-fit: contain;
+    margin-bottom: 12px;
+}
+
+.win-card h2 {
+    font-size: 18px;
+    margin-bottom: 4px;
+}
+
+.gift-hover-hint {
+    font-size: 12px;
+    color: #00a2ff;
+    margin-top: 8px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.gift-card:hover .gift-hover-hint {
+    opacity: 1;
+}
+
+@keyframes popIn {
+    from {
+        transform: scale(0.8);
+        opacity: 0;
+    }
+
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.modal-btn {
+    padding: 10px 24px;
+    border-radius: 8px;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.modal-btn.confirm {
+    background: #00a2ff;
+    color: white;
+}
+
+.modal-btn.confirm:hover {
+    background: #0091e6;
+}
+
+.modal-btn.cancel {
+    background: #393939;
+    color: white;
+}
+
+.modal-btn.cancel:hover {
+    background: #4a4a4a;
+}
