@@ -477,9 +477,7 @@ router.post('/purchase-from-player', authenticate, async (req, res) => {
       item_id: userItem.item_id,
       old_rap: userItem.items.rap || 0,
       new_rap: newRap,
-      purchase_price: salePrice,
-      buyer_id: req.user.id,
-      seller_id: userItem.user_id
+      purchase_price: salePrice
     }]);
 
     // Track Event: Buy (Buyer)

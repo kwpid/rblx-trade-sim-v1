@@ -337,10 +337,13 @@ const actionBuyResale = async (ai, personalityProfile) => {
         target = listings.find(l => {
             const effectiveVal = getEffectiveValue(l.items);
             if (effectiveVal === 0) return true;
-            // Don't buy stupidly overpriced things
-            if (ai.personality !== 'whale' && l.sale_price > effectiveVal * 1.5) return false;
-            // Also ensure we aren't just buying projecteds at "normal" price
-            // If it is projected, effectiveVal is low, so sale_price (likely high) will be > effectiveVal * 1.5, so we skip. Good.
+            // Don't buy overpriced things
+            // STRICTER: Max 10% overpay for normal bots
+            if (ai.personality !== 'whale' && l.sale_price > effectiveVal * 1.1) return false;
+
+            // Whales can overpay a bit more, but not infinite (cap at 1.3x)
+            if (ai.personality === 'whale' && l.sale_price > effectiveVal * 1.3) return false;
+
             return true;
         });
     }
@@ -390,9 +393,7 @@ const actionBuyResale = async (ai, personalityProfile) => {
         item_id: target.items.id,
         old_rap: oldRap,
         new_rap: newRap,
-        purchase_price: price,
-        buyer_id: ai.id,
-        seller_id: sellerId
+        purchase_price: price
     }]);
 
     console.log(`[AI] ${ai.username} bought resale: ${target.items.name} for R$${price}`);
@@ -446,29 +447,23 @@ const actionList = async (ai, personalityProfile) => {
     const stock = itemToSell.items.stock_count !== undefined ? itemToSell.items.stock_count : 1000;
     let scarcityMult = 1.0;
     if (stock < 200) {
-        // Reduced scarcity effect for normal items to prevent projection
-        const rawScarcity = 1 + ((200 - stock) / 200);
-        // We defer applying this until we know if it's High Tier or not
-        scarcityMult = rawScarcity;
+        // Scarcity ONLY applies to High Tier / Events now to prevent projection of normal items
+        // We defer applying this until we know if it's High Tier
     }
 
     let multiplier = 1.0;
 
     // Updated Pricing Logic: User requested "sell under value with low chance of going higher"
-    // 80% chance to Undercut/Fair (0.85x - 1.05x)
-    // 20% chance to Overprice slightly (1.05x - 1.3x)
+    // 90% chance to Undercut/Fair (0.8x - 1.0x)
+    // 10% chance to slight profit (1.0x - 1.1x)
+    // NO MORE HIGH MULTIPLIERS FOR NORMAL ITEMS
 
-    // Personality Tweaks
-    let bias = 0;
-    if (ai.personality === 'sniper') bias = 0.05; // Snipers sell slightly higher? or lower to flip fast? Maybe higher.
-    if (ai.personality === 'trader') bias = 0.02;
-
-    if (Math.random() < 0.8) {
+    if (Math.random() < 0.9) {
         // Normal/Undercut mode
-        multiplier = 0.85 + Math.random() * 0.20 + bias; // 0.85 to 1.05 (roughly)
+        multiplier = 0.8 + Math.random() * 0.2; // 0.8 to 1.0
     } else {
-        // High/Overprice mode (Low chance)
-        multiplier = 1.05 + Math.random() * 0.25 + bias; // 1.05 to 1.3
+        // Slight profit
+        multiplier = 1.0 + Math.random() * 0.1; // 1.0 to 1.1
     }
 
     // if (ai.personality === 'sniper') multiplier = 1.3; // Removed hard overrides to respect new logic
@@ -490,18 +485,20 @@ const actionList = async (ai, personalityProfile) => {
         // Check if it's actually valuable (RAP > 100k?). If it's a "Rare" cheap item, maybe just 10x.
         // If it's a big item, 10m+.
         if (rap > 100000) {
-            const massivePrice = 10000000 + Math.floor(Math.random() * 50000000); // 10m - 60m
-            // But wait, if RAP is 500k, 10m is 20x.
-            // If RAP is 10m, 10m is 1x.
-            // Let's us a multiplier of 10x minimum for high tier.
             multiplier = 10 + Math.random() * 20; // 10x to 30x
+        } else {
             multiplier = 5 + Math.random() * 5; // 5x to 10x for cheaper rares
+        }
+
+        // Apply scarcity ONLY for high tier
+        if (stock < 200) {
+            scarcityMult = 1 + ((200 - stock) / 200);
         }
     } else {
         // CAP for Normal Items to prevent Projection
-        // Max multiplier ~1.3x, max scarcity ~1.3x => Total ~1.7x max
-        multiplier = Math.min(multiplier, 1.3);
-        scarcityMult = Math.min(scarcityMult, 1.3);
+        // ABSOLUTE HARD CAP: 1.1x
+        multiplier = Math.min(multiplier, 1.1);
+        scarcityMult = 1.0; // Force no scarcity for normal items
     }
 
     const basePrice = rap * multiplier;
@@ -519,7 +516,7 @@ const actionManageListings = async (ai) => {
     // 1. Get Active Listings
     const { data: listings } = await supabase
         .from('user_items')
-        .select('*')
+        .select('*, items:item_id(*)') // Select items data for RAP check
         .eq('user_id', ai.id)
         .eq('is_for_sale', true);
 
@@ -531,20 +528,23 @@ const actionManageListings = async (ai) => {
     // 3. Decision
     const roll = Math.random();
 
-    if (roll < 0.3) {
-        // DELIST (30%)
-        // User said: "ensure ai can take off their listings"
+    // Check if item is grossly overpriced (Projected prevention)
+    const rap = listing.items?.rap || 0;
+    const isOverpriced = rap > 0 && listing.sale_price > rap * 1.5;
+
+    if (isOverpriced || roll < 0.3) {
+        // DELIST (30% or if overpriced)
         await supabase
             .from('user_items')
             .update({ is_for_sale: false, sale_price: null })
             .eq('id', listing.id);
 
-        console.log(`[AI] ${ai.username} DELISTED ${listing.id}`);
+        console.log(`[AI] ${ai.username} DELISTED ${listing.id} (Overpriced: ${isOverpriced})`);
 
-    } else if (roll < 0.7) {
-        // DISCOUNT (40%)
-        // Reduce price by 5-15% to help it sell
-        const discountFactor = 0.85 + Math.random() * 0.10; // 0.85 to 0.95
+    } else if (roll < 0.8) { // Increased discount chance to 50% (0.3 to 0.8)
+        // DISCOUNT
+        // Reduce price by 10-20%
+        const discountFactor = 0.80 + Math.random() * 0.10; // 0.80 to 0.90
         const newPrice = Math.floor(listing.sale_price * discountFactor);
 
         if (newPrice > 0 && newPrice !== listing.sale_price) {
@@ -556,7 +556,7 @@ const actionManageListings = async (ai) => {
             console.log(`[AI] ${ai.username} LOWERED price of ${listing.id} to R$${newPrice}`);
         }
     }
-    // Else 30%: Do nothing (leave as is)
+    // Else 20% (0.8 to 1.0): Do nothing (leave as is)
 };
 
 // --- Trade Logic ---
