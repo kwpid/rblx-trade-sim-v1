@@ -442,71 +442,77 @@ const ItemDetail = () => {
         </div>
 
 
-        {chartData.length > 0 && (
-          <div className="chart-section">
-            <h2 className="chart-title">RAP History</h2>
-            <div className="chart-legend">
-              <div className="legend-item">
-                <span className="legend-dot price"></span>
-                <span>Avg Price</span>
+        <div className="chart-section">
+          <h2 className="chart-title">RAP History</h2>
+          {chartData.length > 0 ? (
+            <>
+              <div className="chart-legend">
+                <div className="legend-item">
+                  <span className="legend-dot price"></span>
+                  <span>Avg Price</span>
+                </div>
               </div>
+              <ResponsiveContainer width="100%" height={250}>
+                <ComposedChart data={rapHistory}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#4a4a4a" />
+                  <XAxis
+                    dataKey="date"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: '#8c8c8c', fontSize: 12 }}
+                  />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: '#00a2ff', fontSize: 12 }}
+                    tickFormatter={(value) => {
+                      if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`
+                      if (value >= 1000) return `$${(value / 1000).toFixed(1)}K`
+                      return `$${value.toLocaleString()}`
+                    }}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: '#232527',
+                      border: '1px solid #3d3f41',
+                      borderRadius: '8px',
+                      color: '#f5f5f5',
+                      padding: '12px'
+                    }}
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload;
+                        return (
+                          <div style={{ backgroundColor: '#232527', border: '1px solid #3d3f41', borderRadius: '8px', padding: '12px' }}>
+                            <p style={{ margin: '0 0 8px 0', fontWeight: 'bold', color: '#fff' }}>{data.date}</p>
+                            <p style={{ margin: '4px 0', color: '#00a2ff' }}>RAP: ${data.rap?.toLocaleString()}</p>
+                            {data.sales > 0 && (
+                              <p style={{ margin: '4px 0', color: '#8c8c8c' }}>Sales: {data.sales}</p>
+                            )}
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey="rap"
+                    stroke="#00a2ff"
+                    name="RAP"
+                    dot={rapHistory.length < 2 ? { r: 5, strokeWidth: 0, fill: '#00a2ff' } : false}
+                    strokeWidth={2}
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </>
+          ) : (
+            <div className="no-chart-data">
+              <p>No RAP history recorded for this item yet.</p>
             </div>
-            <ResponsiveContainer width="100%" height={250}>
-              <ComposedChart data={rapHistory}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#4a4a4a" />
-                <XAxis
-                  dataKey="date"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: '#8c8c8c', fontSize: 12 }}
-                />
-                <YAxis
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fill: '#00a2ff', fontSize: 12 }}
-                  tickFormatter={(value) => {
-                    if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`
-                    if (value >= 1000) return `$${(value / 1000).toFixed(1)}K`
-                    return `$${value.toLocaleString()}`
-                  }}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#232527',
-                    border: '1px solid #3d3f41',
-                    borderRadius: '8px',
-                    color: '#f5f5f5',
-                    padding: '12px'
-                  }}
-                  content={({ active, payload }) => {
-                    if (active && payload && payload.length) {
-                      const data = payload[0].payload;
-                      return (
-                        <div style={{ backgroundColor: '#232527', border: '1px solid #3d3f41', borderRadius: '8px', padding: '12px' }}>
-                          <p style={{ margin: '0 0 8px 0', fontWeight: 'bold', color: '#fff' }}>{data.date}</p>
-                          <p style={{ margin: '4px 0', color: '#00a2ff' }}>RAP: ${data.rap?.toLocaleString()}</p>
-                          {data.sales > 0 && (
-                            <p style={{ margin: '4px 0', color: '#8c8c8c' }}>Sales: {data.sales}</p>
-                          )}
-                        </div>
-                      );
-                    }
-                    return null;
-                  }}
-                />
-                <Legend />
-                <Line
-                  type="monotone"
-                  dataKey="rap"
-                  stroke="#00a2ff"
-                  name="RAP"
-                  dot={false}
-                  strokeWidth={2}
-                />
-              </ComposedChart>
-            </ResponsiveContainer>
-          </div>
-        )}
+          )}
+        </div>
 
         <div className="resellers-section">
           <h2 className="resellers-title">Resellers</h2>

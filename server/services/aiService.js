@@ -389,7 +389,9 @@ const actionBuyResale = async (ai, personalityProfile) => {
         item_id: target.items.id,
         old_rap: oldRap,
         new_rap: newRap,
-        purchase_price: price
+        purchase_price: price,
+        buyer_id: ai.id,
+        seller_id: sellerId
     }]);
 
     console.log(`[AI] ${ai.username} bought resale: ${target.items.name} for R$${price}`);
@@ -443,7 +445,10 @@ const actionList = async (ai, personalityProfile) => {
     const stock = itemToSell.items.stock_count !== undefined ? itemToSell.items.stock_count : 1000;
     let scarcityMult = 1.0;
     if (stock < 200) {
-        scarcityMult = 1 + ((200 - stock) / 200); // e.g. 50 stock => 1 + 0.75 = 1.75x
+        // Reduced scarcity effect for normal items to prevent projection
+        const rawScarcity = 1 + ((200 - stock) / 200);
+        // We defer applying this until we know if it's High Tier or not
+        scarcityMult = rawScarcity;
     }
 
     let multiplier = 1.0;
@@ -471,9 +476,13 @@ const actionList = async (ai, personalityProfile) => {
             // If RAP is 10m, 10m is 1x.
             // Let's us a multiplier of 10x minimum for high tier.
             multiplier = 10 + Math.random() * 20; // 10x to 30x
-        } else {
             multiplier = 5 + Math.random() * 5; // 5x to 10x for cheaper rares
         }
+    } else {
+        // CAP for Normal Items to prevent Projection
+        // Max multiplier ~1.3x, max scarcity ~1.3x => Total ~1.7x max
+        multiplier = Math.min(multiplier, 1.3);
+        scarcityMult = Math.min(scarcityMult, 1.3);
     }
 
     const basePrice = rap * multiplier;

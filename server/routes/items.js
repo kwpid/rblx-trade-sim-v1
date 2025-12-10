@@ -148,7 +148,10 @@ router.get('/rap-changes', async (req, res) => {
       .from('rap_change_log')
       .select(`
         *,
-        items:item_id (id, name, image_url, roblox_item_id)
+        amount:purchase_price,
+        items:item_id (id, name, image_url, roblox_item_id),
+        buyer:buyer_id (id, username),
+        seller:seller_id (id, username)
       `)
       .order('created_at', { ascending: false })
       .limit(50);
