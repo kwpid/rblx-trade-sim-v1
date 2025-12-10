@@ -133,46 +133,59 @@ const runAiLoop = async () => {
 };
 
 const manageAiSessions = async () => {
-    const { data: allAis } = await supabase.from('users').select('id, is_online').eq('is_ai', true);
+    const { data: allAis } = await supabase.from('users').select('id, username, is_online').eq('is_ai', true);
     if (!allAis) return;
 
     const now = Date.now();
-    const onlineAis = allAis.filter(u => u.is_online);
-    const offlineAis = allAis.filter(u => !u.is_online);
 
-    // 1. Check for expired sessions
-    for (const ai of onlineAis) {
-        if (!aiSessions[ai.id] || aiSessions[ai.id].sessionEnd < now) {
-            // Session expired, go offline
-            await supabase.from('users').update({ is_online: false }).eq('id', ai.id);
-            delete aiSessions[ai.id];
-            // 5% chance to immediately requeue for a new session (crazy addiction)
+    // SYNC: Iterate ALL memory sessions to check expiry AND enforce DB online status
+    const sessionIds = Object.keys(aiSessions);
+    let activeMemoryCount = 0;
+
+    for (const id of sessionIds) {
+        const session = aiSessions[id];
+        const user = allAis.find(u => u.id === id);
+
+        if (!user) {
+            // User deleted? Remove session
+            delete aiSessions[id];
+            continue;
+        }
+
+        if (session.sessionEnd < now) {
+            // Expired
+            await supabase.from('users').update({ is_online: false }).eq('id', id);
+            delete aiSessions[id];
+            // console.log(`[AI] Session ended for ${user.username}`);
+        } else {
+            activeMemoryCount++;
+            // HEARTBEAT: If DB says offline, force it online
+            if (!user.is_online) {
+                // console.log(`[AI] Resyncing online status for ${user.username}`);
+                supabase.from('users').update({ is_online: true }).eq('id', id).then(); // Fire and forget fix
+            }
         }
     }
 
-    // 2. Bring some offline users online if we are below target
+    // 2. Spawn new sessions if needed
+    const onlineAis = allAis.filter(u => u.is_online); // Re-evaluate conceptually, but we rely on memory for spawning decisions
+    const offlineAis = allAis.filter(u => !aiSessions[u.id]); // Offline = Not in memory session
+
     const targetOnline = Math.floor(allAis.length * ONLINE_PERCENTAGE);
-    const currentInMemory = Object.keys(aiSessions).length;
 
     // Debug log VERBOSE
-    console.log(`[AI Cycle] Total: ${allAis.length}, DB-Online: ${onlineAis.length}, Mem-Online: ${currentInMemory}, Target: ${targetOnline}`);
+    // console.log(`[AI Cycle] Total: ${allAis.length}, DB-Online: ${onlineAis.length}, Mem-Online: ${activeMemoryCount}, Target: ${targetOnline}`);
 
-    if (currentInMemory < targetOnline) {
-        const needed = targetOnline - currentInMemory;
-        console.log(`[AI Cycle] Need ${needed} more bots. Offline pool: ${offlineAis.length}`);
+    if (activeMemoryCount < targetOnline) {
+        const needed = targetOnline - activeMemoryCount;
 
         // Shuffle offline ais
-        if (offlineAis.length === 0) {
-            console.log(`[AI Cycle] No offline bots available to activate.`);
-            return;
-        }
+        if (offlineAis.length === 0) return;
 
-        const candidates = offlineAis.sort(() => 0.5 - Math.random()).slice(0, needed + 2); // Pick a few
+        const candidates = offlineAis.sort(() => 0.5 - Math.random()).slice(0, needed + 2);
 
         let activated = 0;
         for (const ai of candidates) {
-            // Start a session
-            // Session length: 2 to 15 minutes
             const duration = (Math.random() * 13 + 2) * 60 * 1000;
             aiSessions[ai.id] = { sessionEnd: now + duration };
 
@@ -180,12 +193,9 @@ const manageAiSessions = async () => {
             if (!error) {
                 activated++;
                 if (activated <= 3) console.log(`[AI] Activating ${ai.username || ai.id}`);
-            } else {
-                console.error(`[AI] Failed to activate ${ai.id}:`, error.message);
             }
         }
         if (activated > 0) console.log(`[AI] Brought ${activated} bots online.`);
-        else console.log(`[AI] Activation loop finished but 0 bots activated.`);
     }
 };
 
