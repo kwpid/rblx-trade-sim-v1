@@ -21,6 +21,7 @@ import PrivateRoute from './components/PrivateRoute'
 import TopBar from './components/TopBar'
 import NotificationContainer from './components/NotificationContainer'
 import PaycheckNotification from './components/PaycheckNotification'
+import VersionManager from './components/VersionManager'
 import './App.css'
 
 function App() {
@@ -58,6 +59,7 @@ function App() {
                     </div>
                     <NotificationContainer />
                     <PaycheckNotification />
+                    <VersionManager />
                   </PrivateRoute>
                 }
               />

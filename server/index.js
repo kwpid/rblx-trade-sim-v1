@@ -22,14 +22,25 @@ require('./jobs/paycheck');
 require('./jobs/playerSnapshots');
 
 // Routes
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/items', require('./routes/items'));
-app.use('/api/marketplace', require('./routes/marketplace'));
-app.use('/api/users', require('./routes/users'));
-app.use('/api/trades', require('./routes/trades'));
-app.use('/api/admin', require('./routes/admin'));
-app.use('/api/notifications', require('./routes/notifications'));
-app.use('/api/transactions', require('./routes/transactions'));
+const authRoutes = require('./routes/auth');
+const itemRoutes = require('./routes/items');
+const marketplaceRoutes = require('./routes/marketplace');
+const userRoutes = require('./routes/users');
+const tradeRoutes = require('./routes/trades');
+const systemRoutes = require('./routes/system');
+const adminRoutes = require('./routes/admin');
+const notificationRoutes = require('./routes/notifications');
+const transactionRoutes = require('./routes/transactions');
+
+app.use('/api/auth', authRoutes);
+app.use('/api/items', itemRoutes);
+app.use('/api/marketplace', marketplaceRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/trades', tradeRoutes);
+app.use('/api/system', systemRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/transactions', transactionRoutes);
 
 // Serve static files from React app in production
 if (process.env.NODE_ENV === 'production') {

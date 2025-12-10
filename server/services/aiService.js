@@ -397,6 +397,7 @@ const checkIncomingTrades = async (ai) => {
     let receivingValue = 0;
 
     trade.trade_items.forEach(ti => {
+        if (!ti.user_items || !ti.user_items.items) return;
         const itemVal = ti.user_items.items.value || ti.user_items.items.rap || 0;
         if (ti.side === 'receiver') { // Items AI gives (Receiver side of trade items are items owned by Receiver)
             givingValue += itemVal;
@@ -469,6 +470,7 @@ const actionInitiateTrade = async (ai, p) => {
 
     // Pick something we want
     const targetItem = randomItems[Math.floor(Math.random() * randomItems.length)];
+    if (!targetItem || !targetItem.items) return;
     const targetUser = targetItem.user_id;
 
     // Don't spam same user? (omitted for simplicity)
@@ -495,6 +497,7 @@ const actionInitiateTrade = async (ai, p) => {
     const shuffled = myItems.sort(() => 0.5 - Math.random());
 
     for (const item of shuffled) {
+        if (!item.items) continue;
         if (currentOfferVal > targetVal * 1.2) break; // Don't overpay too much
         offerItems.push(item);
         currentOfferVal += (item.items.rap || 0);

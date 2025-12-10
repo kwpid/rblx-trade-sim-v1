@@ -273,3 +273,4 @@
   box-shadow: 0 0 0 1px #00b06f;
   display: inline-block;
 }.projected-badge-inv { position: absolute; bottom: 4px; right: 4px; font-size: 16px; z-index: 5; filter: drop-shadow(0 0 2px rgba(0,0,0,0.8)); cursor: help; }
+.rare-badge-inv { position: absolute; bottom: 4px; right: 28px; font-size: 16px; z-index: 5; filter: drop-shadow(0 0 2px rgba(0,0,0,0.8)); cursor: help; } .trending-badge-inv { position: absolute; top: 4px; right: 4px; font-size: 16px; z-index: 5; filter: drop-shadow(0 0 2px rgba(0,0,0,0.8)); cursor: help; }
