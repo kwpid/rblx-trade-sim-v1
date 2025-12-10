@@ -61,7 +61,6 @@ function App() {
                       </Routes>
                     </div>
                     <NotificationContainer />
-                    <PaycheckNotification />
                     <VersionManager />
                   </PrivateRoute>
                 }

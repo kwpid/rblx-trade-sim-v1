@@ -91,7 +91,7 @@ const Profile = () => {
             <div className="profile-info">
               <div className="profile-name-container">
                 <h1>{profileUser?.username || user?.username}</h1>
-                {profileUser?.is_online && <div className="online-indicator"></div>}
+                {(profileUser?.is_online || (user && profileUser?.id === user.id)) && <div className="online-indicator"></div>}
               </div>
               <div className="profile-stats-new">
                 <div className="stat-row">

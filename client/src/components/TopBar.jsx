@@ -12,6 +12,7 @@ const TopBar = () => {
   const [cash, setCash] = useState(user?.cash || 0)
   const [inboundCount, setInboundCount] = useState(0)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [paycheckTimer, setPaycheckTimer] = useState(60)
 
   useEffect(() => {
     setIsMenuOpen(false)
@@ -24,9 +25,24 @@ const TopBar = () => {
       setCash(user.cash)
       fetchUserCash()
       fetchInboundTrades()
-      // Poll every 30s
-      const interval = setInterval(fetchInboundTrades, 30000)
-      return () => clearInterval(interval)
+      // Poll trades every 30s
+      const tradeInterval = setInterval(fetchInboundTrades, 30000)
+
+      // Paycheck Timer (60s loop matches backend/simulated cycle)
+      const timerInterval = setInterval(() => {
+        setPaycheckTimer(prev => {
+          if (prev <= 1) {
+            fetchUserCash() // Refresh cash when timer hits 0
+            return 60
+          }
+          return prev - 1
+        })
+      }, 1000)
+
+      return () => {
+        clearInterval(tradeInterval)
+        clearInterval(timerInterval)
+      }
     }
   }, [user])
 
@@ -114,6 +130,10 @@ const TopBar = () => {
           <div className="cash-display">
             <span className="cash-label">Cash:</span>
             <span className="cash-amount">R${formatCash(cash)}</span>
+          </div>
+          <div className="paycheck-display" title="Next Paycheck">
+            <span className="paycheck-icon">💰</span>
+            <span className="paycheck-timer">{paycheckTimer}s</span>
           </div>
           <div className="user-info">
             <span>{user?.username}</span>

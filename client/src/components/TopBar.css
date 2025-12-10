@@ -332,3 +332,26 @@
     display: flex;
   }
 }
+
+.paycheck-display {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: var(--roblox-bg-tertiary);
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--roblox-border);
+  color: var(--roblox-green);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.paycheck-icon {
+  font-size: 14px;
+}
+
+@media (max-width: 768px) {
+  .paycheck-display {
+    padding: 6px 8px;
+  }
+}
