@@ -1,7 +1,7 @@
 const express = require('express');
+const { authenticate, requireAdmin } = require('../middleware/auth');
 const router = express.Router();
 const supabase = require('../config/supabase');
-const { authenticate } = require('../middleware/auth');
 const { updateChallengeProgress, CHALLENGE_TYPES } = require('../utils/eventHelper');
 
 // Helper function to update daily RAP snapshot
@@ -509,9 +509,7 @@ router.post('/purchase-from-player', authenticate, async (req, res) => {
   }
 });
 
-const { authenticate, requireAdmin } = require('../middleware/auth');
 
-// ... existing code ...
 
 // Admin: Force Delist Item
 router.post('/admin-delist', authenticate, requireAdmin, async (req, res) => {
