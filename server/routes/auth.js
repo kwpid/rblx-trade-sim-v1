@@ -77,7 +77,17 @@ router.post('/register', async (req, res) => {
       { expiresIn: '7d' }
     );
 
-    res.json({ token, user: { id: user.id, username: user.username, email: user.email, cash: user.cash, is_admin: user.is_admin } });
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        cash: user.cash,
+        is_admin: user.is_admin,
+        tos_accepted: user.tos_accepted
+      }
+    });
   } catch (error) {
     console.error('Register error:', error);
     res.status(500).json({ error: 'Registration failed' });
@@ -117,7 +127,17 @@ router.post('/login', async (req, res) => {
       { expiresIn: '7d' }
     );
 
-    res.json({ token, user: { id: user.id, username: user.username, email: user.email, cash: user.cash, is_admin: user.is_admin } });
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        cash: user.cash,
+        is_admin: user.is_admin,
+        tos_accepted: user.tos_accepted
+      }
+    });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Login failed' });
@@ -133,10 +153,10 @@ router.get('/verify', async (req, res) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-    
+
     const { data: user } = await supabase
       .from('users')
-      .select('id, username, email, cash, is_admin')
+      .select('id, username, email, cash, is_admin, tos_accepted')
       .eq('id', decoded.userId)
       .single();
 
