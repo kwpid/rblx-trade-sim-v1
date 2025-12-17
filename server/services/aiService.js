@@ -460,24 +460,12 @@ const actionList = async (ai, personalityProfile) => {
 
     let multiplier = 1.0;
 
-    // Updated Pricing Logic: User requested "sell under value with low chance of going higher"
-    // 90% chance to Undercut/Fair (0.8x - 1.0x)
-    // 10% chance to slight profit (1.0x - 1.1x)
-    // NO MORE HIGH MULTIPLIERS FOR NORMAL ITEMS
+    // Updated Pricing Logic: Tiered based on Value
+    // 1. Low Value (< 100k)
+    // 2. Medium Value (100k - 500k)
+    // 3. High Value (> 500k)
 
-    if (Math.random() < 0.9) {
-        // Normal/Undercut mode
-        multiplier = 0.8 + Math.random() * 0.2; // 0.8 to 1.0
-    } else {
-        // Slight profit
-        multiplier = 1.0 + Math.random() * 0.1; // 1.0 to 1.1
-    }
-
-    // if (ai.personality === 'sniper') multiplier = 1.3; // Removed hard overrides to respect new logic
-    // else if (ai.personality === 'trader') multiplier = 1.1; 
-    // else multiplier = 0.9 + Math.random() * 0.4;
-
-    // Rarity Multiplier (Super High for Rare/Legendary)
+    // Rarity Multiplier (Super High for Rare/Legendary checks first)
     let isHighTier = false;
     if (EVENT_ITEMS) {
         isHighTier = (EVENT_ITEMS.RARE && EVENT_ITEMS.RARE.includes(itemToSell.items.roblox_item_id)) ||
@@ -486,26 +474,49 @@ const actionList = async (ai, personalityProfile) => {
             (EVENT_ITEMS.LEGENDARY && EVENT_ITEMS.LEGENDARY.includes(itemToSell.items.id));
     }
 
-    // If High Tier, sell for huge profit (5x - 20x RAP) or Fixed High Amount (10M+)?
-    // User said: "rare + high value items, they ll sell for like 10m+ or something"
     if (isHighTier) {
-        // Check if it's actually valuable (RAP > 100k?). If it's a "Rare" cheap item, maybe just 10x.
-        // If it's a big item, 10m+.
+        // High Tier / Event Items Logic (Extremely high value)
         if (rap > 100000) {
             multiplier = 10 + Math.random() * 20; // 10x to 30x
         } else {
             multiplier = 5 + Math.random() * 5; // 5x to 10x for cheaper rares
         }
-
         // Apply scarcity ONLY for high tier
         if (stock < 200) {
             scarcityMult = 1 + ((200 - stock) / 200);
         }
     } else {
-        // CAP for Normal Items to prevent Projection
-        // ABSOLUTE HARD CAP: 1.1x
-        multiplier = Math.min(multiplier, 1.1);
-        scarcityMult = 1.0; // Force no scarcity for normal items
+        // Normal Items Tiered Logic
+        if (rap > 500000) {
+            // HIGH VALUE (> 500k)
+            // 80% chance to NOT sell at all (HODL)
+            if (Math.random() < 0.8) return;
+
+            // If selling, SELL HIGH (1.5x - 3.0x)
+            multiplier = 1.5 + Math.random() * 1.5;
+
+        } else if (rap > 100000) {
+            // MEDIUM VALUE (100k - 500k)
+            // 50% Fair/Slight Profit (0.98x - 1.1x)
+            // 50% Moderate Profit (1.1x - 1.3x)
+            if (Math.random() < 0.5) {
+                multiplier = 0.98 + Math.random() * 0.12;
+            } else {
+                multiplier = 1.1 + Math.random() * 0.2;
+            }
+
+        } else {
+            // LOW VALUE (< 100k)
+            // 70% Fair (0.95x - 1.05x)
+            // 30% Slight Profit (1.05x - 1.15x)
+            if (Math.random() < 0.7) {
+                multiplier = 0.95 + Math.random() * 0.1;
+            } else {
+                multiplier = 1.05 + Math.random() * 0.1;
+            }
+        }
+
+        scarcityMult = 1.0; // No extra scarcity mult for normal items, handled by base multiplier
     }
 
     const basePrice = rap * multiplier;
@@ -548,11 +559,29 @@ const actionManageListings = async (ai) => {
 
         console.log(`[AI] ${ai.username} DELISTED ${listing.id} (Overpriced: ${isOverpriced})`);
 
-    } else if (roll < 0.8) { // Increased discount chance to 50% (0.3 to 0.8)
-        // DISCOUNT
-        // Reduce price by 10-20%
-        const discountFactor = 0.80 + Math.random() * 0.10; // 0.80 to 0.90
+    } else if (roll < 0.6) { // Reduced discount chance from 0.8 (50% range) to 0.6 (30% range)
+        // DISCOUNT LOGIC - TIERED
+        // Only discount if item is NOT High Value (> 500k)
+
+        let discountFactor = 1.0;
+
+        if (rap > 500000) {
+            // High Value: DO NOT DISCOUNT. Leave as is.
+            return;
+        } else if (rap > 100000) {
+            // Medium Value: Very small discount (1-3%)
+            discountFactor = 0.97 + Math.random() * 0.02; // 0.97 to 0.99
+        } else {
+            // Low Value: Small discount (2-5%)
+            discountFactor = 0.95 + Math.random() * 0.03; // 0.95 to 0.98
+        }
+
         const newPrice = Math.floor(listing.sale_price * discountFactor);
+
+        // SAFETY: Never discount below 90% of RAP to prevent crash
+        if (rap > 0 && newPrice < rap * 0.9) {
+            return;
+        }
 
         if (newPrice > 0 && newPrice !== listing.sale_price) {
             await supabase
@@ -563,7 +592,7 @@ const actionManageListings = async (ai) => {
             console.log(`[AI] ${ai.username} LOWERED price of ${listing.id} to R$${newPrice}`);
         }
     }
-    // Else 20% (0.8 to 1.0): Do nothing (leave as is)
+    // Else 40% (0.6 to 1.0): Do nothing (leave as is)
 };
 
 // --- Trade Logic ---
@@ -669,84 +698,157 @@ const declineTrade = async (trade, ai) => {
 };
 
 const actionInitiateTrade = async (ai, p) => {
-    // 1. Find a target (Human or AI) who has something we want
-    // Simplified: Find a random limited item owned by someone else
-    const { data: randomItems } = await supabase
+    // 1. Target Selection Strategy
+    // 30% chance to specifically target REAL PLAYERS (is_ai = false) to ensure they get activity
+    const targetRealPlayers = Math.random() < 0.3;
+
+    let query = supabase
         .from('user_items')
-        .select('*, items:item_id(*)')
+        .select(`
+            *, 
+            items:item_id(*), 
+            users!inner(id, is_ai, username)
+        `)
         .not('user_id', 'eq', ai.id)
-        .eq('items.is_limited', true)
-        .limit(10); // fetch a few candidates
+        .eq('is_for_sale', false) // Target unlisted items (stash)
+        .eq('items.is_limited', true);
 
-    if (!randomItems || randomItems.length === 0) return;
+    if (targetRealPlayers) {
+        query = query.eq('users.is_ai', false);
+    }
 
-    // Pick something we want
-    const targetItem = randomItems[Math.floor(Math.random() * randomItems.length)];
-    if (!targetItem || !targetItem.items) return;
-    const targetUser = targetItem.user_id;
+    // Fetch a batch to choose from
+    const { data: candidates, error } = await query.limit(50);
 
-    // Don't spam same user? (omitted for simplicity)
+    if (error || !candidates || candidates.length === 0) return;
 
-    // 2. Select what to give
-    // Find our own items >= val * 0.9 (try to lowball slightly or match)
-    const targetVal = targetItem.items.rap || 0;
+    // Filter Candidates: Remove bad items (Projected)
+    const validCandidates = candidates.filter(c => {
+        const rap = c.items.rap || 0;
+        const val = c.items.value || rap;
+        // Avoid projected items unless we are a sniper (looking for victims) or it's just a great deal
+        // Safe bet: Don't buy if RAP > 1.3x Value
+        if (p.description !== 'sniper' && val > 0 && rap > val * 1.3) return false;
+        return true;
+    });
 
+    if (validCandidates.length === 0) return;
+
+    // Pick a Target Item
+    const targetItem = validCandidates[Math.floor(Math.random() * validCandidates.length)];
+    const targetUser = targetItem.users;
+
+    // 2. Valuation & Strategy
+    // Helper to get effective valuation (handling projected items)
+    const getEffectiveValue = (item) => {
+        const rap = item.rap || 0;
+        const val = item.value || rap;
+        if (val > 0 && rap > val * 1.25) return Math.floor(val * 0.5); // Penalty for projected
+        return val;
+    };
+
+    const targetVal = getEffectiveValue(targetItem.items);
+    if (targetVal < 100) return; // Don't trade for junk
+
+    // 3. Select Our Offer Items
     const { data: myItems } = await supabase
         .from('user_items')
         .select('*, items:item_id(*)')
         .eq('user_id', ai.id)
-        .eq('is_for_sale', false) // Use unlisted items for trading
+        .eq('is_for_sale', false)
         .eq('items.is_limited', true);
 
     if (!myItems || myItems.length === 0) return;
 
-    // Try to find a combination of 1-3 items close to value
-    // Super naive knapsack: just pick random items until value is close
+    // Strategy:
+    // Upgrade: We give multiple items for 1 Big Item -> We must OVERPAY (~1.1x)
+    // Downgrade: We give 1 Big Item for multiple -> We expect OVERPAY (Offer ~0.9x)
+    // Equal: 1 for 1 -> Fair (~1.0x)
+
     let offerItems = [];
-    let currentOfferVal = 0;
+    let offerVal = 0;
 
-    // Shuffle my items
-    const shuffled = myItems.sort(() => 0.5 - Math.random());
+    // Sort my items by value desc
+    const mySortedItems = myItems.map(i => ({ ...i, effVal: getEffectiveValue(i.items) }))
+        .sort((a, b) => b.effVal - a.effVal);
 
-    for (const item of shuffled) {
-        if (!item.items) continue;
-        if (currentOfferVal > targetVal * 1.2) break; // Don't overpay too much
+    // Try to find a match
+    // Goal Value depends on strategy
+    // Let's assume we want to Upgrade if possible (clear inventory space) OR Downgrade if we have a huge item we want to split.
+
+    // Simple Strategy: Try to build a package close to Target Value with a Target Ratio
+    let targetRatio = 1.0;
+
+    // Adjust based on personalities/trends
+    const stock = targetItem.items.stock_count || 1000;
+    const isRare = stock < 500;
+
+    // Base Willingness
+    if (ai.personality === 'sniper') targetRatio = 0.85; // Lowball
+    else if (ai.personality === 'whale') targetRatio = 1.2; // Generous
+    else targetRatio = 1.0; // Fair
+
+    // Modifiers
+    if (isRare) targetRatio += 0.1; // Pay more for rares
+
+    let goalValue = targetVal * targetRatio;
+
+    // Knapsack-ish: Fill bucket
+    for (const item of mySortedItems) {
+        // Don't add if it exceeds goal significantly
+        if (offerVal + item.effVal > goalValue * 1.1) continue;
+
         offerItems.push(item);
-        currentOfferVal += (item.items.rap || 0);
-        if (currentOfferVal >= targetVal * 0.9) break; // Good enough
+        offerVal += item.effVal;
+
+        if (offerVal >= goalValue * 0.95) break; // Close enough
     }
 
-    if (offerItems.length === 0) return;
+    // Check if offer is valid
+    if (offerVal < goalValue * 0.9) return; // Couldn't find enough items
+    if (offerVal > goalValue * 1.2) return; // Don't overpay massively (unless intended, but logic above prevents add)
 
-    // Check if offer is "fair" enough for us to send based on personality
-    const ratio = currentOfferVal / targetVal;
+    // Upgrade/Downgrade Logic Check
+    // If we are giving 4 items for 1, and only offering 1.0x, it might be declined.
+    // Ensure we aren't "lowballing" on an Upgrade trade essentially.
+    if (offerItems.length > 1 && offerVal < targetVal * 1.05 && ai.personality !== 'sniper') {
+        // We are upgrading but not overpaying? Abort to avoid spamming bad trades.
+        return;
+    }
 
-    // If we are sniper, we only offer if ratio < 0.9 (we pay less)
-    // If we are whale, we might pay ratio > 1.2
+    // 4. Send Trade
+    // Check existing pending trades between users to avoid spam
+    const { count: existing } = await supabase
+        .from('trades')
+        .select('id', { count: 'exact', head: true })
+        .eq('sender_id', ai.id)
+        .eq('receiver_id', targetUser.id)
+        .eq('status', 'pending');
 
-    // Actually send it
-    const { data: trade, error } = await supabase
+    if (existing > 0) return;
+
+    const { data: trade, error: tradeError } = await supabase
         .from('trades')
         .insert([{
             sender_id: ai.id,
-            receiver_id: targetUser,
+            receiver_id: targetUser.id,
             status: 'pending'
         }])
         .select()
         .single();
 
-    if (error) return;
+    if (tradeError) return;
 
     // Insert Trade Items
-    const tradeItems = [];
+    const tradeItemsPayload = [];
     offerItems.forEach(i => {
-        tradeItems.push({ trade_id: trade.id, user_item_id: i.id, side: 'sender' });
+        tradeItemsPayload.push({ trade_id: trade.id, user_item_id: i.id, side: 'sender' });
     });
-    tradeItems.push({ trade_id: trade.id, user_item_id: targetItem.id, side: 'receiver' });
+    tradeItemsPayload.push({ trade_id: trade.id, user_item_id: targetItem.id, side: 'receiver' });
 
-    await supabase.from('trade_items').insert(tradeItems);
+    await supabase.from('trade_items').insert(tradeItemsPayload);
 
-    console.log(`[AI] ${ai.username} SENT trade to user ${targetUser} (Offer: ${Math.floor(currentOfferVal)}, Ask: ${targetVal})`);
+    console.log(`[AI] ${ai.username} SENT trade to ${targetUser.username} (${targetUser.is_ai ? 'AI' : 'PLAYER'}). Offer: ${offerVal} (x${offerItems.length}) vs Ask: ${targetVal} (Item: ${targetItem.items.name})`);
 };
 
 
