@@ -43,12 +43,22 @@ const Profile = () => {
     try {
       setPortfolioLoading(true)
       const response = await axios.get(`/api/users/${targetUserId}/snapshots`)
+
+      // Filter out data before Dec 17, 2025 as requested
+      const cutoffDate = new Date('2025-12-17');
+      cutoffDate.setHours(0, 0, 0, 0); // Normalize to start of day
+
       // Transform snapshots data to match chart format
-      const formattedData = response.data.map(snapshot => ({
-        date: new Date(snapshot.snapshot_date).toLocaleDateString(),
-        value: snapshot.total_value || 0,
-        rap: snapshot.total_rap || 0
-      }))
+      const formattedData = response.data
+        .filter(snapshot => {
+          const snapDate = new Date(snapshot.snapshot_date);
+          return snapDate >= cutoffDate;
+        })
+        .map(snapshot => ({
+          date: new Date(snapshot.snapshot_date).toLocaleDateString(),
+          value: snapshot.total_value || 0,
+          rap: snapshot.total_rap || 0
+        }))
       setPortfolioData(formattedData)
     } catch (error) {
       console.error('Error fetching portfolio:', error)
