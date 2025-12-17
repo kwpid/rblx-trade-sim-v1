@@ -25,7 +25,7 @@ import NotificationContainer from './components/NotificationContainer'
 import PaycheckNotification from './components/PaycheckNotification'
 import VersionManager from './components/VersionManager'
 import BannedOverlay from './components/BannedOverlay'
-import TosModal from './components/TosModal'
+import Footer from './components/Footer'
 import TermsOfService from './pages/TermsOfService'
 import './App.css'
 
@@ -67,7 +67,7 @@ function App() {
                     <NotificationContainer />
                     <VersionManager />
                     <BannedOverlay />
-                    <TosModal />
+                    <Footer />
                   </PrivateRoute>
                 }
               />

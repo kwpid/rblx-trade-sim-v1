@@ -24,7 +24,7 @@ const BAN_DURATIONS = [
 ];
 
 const ModerationModal = ({ userId, username, onClose, onSuccess }) => {
-    const [activeTab, setActiveTab] = useState('warn'); // warn, ban, wipe
+    const [activeTab, setActiveTab] = useState('warn'); // warn, ban, wipe, unban
     const [reason, setReason] = useState(MODERATION_REASONS[0]);
     const [customReason, setCustomReason] = useState('');
     const [duration, setDuration] = useState(BAN_DURATIONS[0].value);
@@ -47,6 +47,13 @@ const ModerationModal = ({ userId, username, onClose, onSuccess }) => {
                 duration: activeTab === 'ban' ? duration : null,
                 wipe: activeTab === 'ban' && wipeInventory
             };
+
+            // Unban logic usually doesn't need a reason field to be mandatory if we want to be quick, 
+            // but for logging it's good. We'll reuse the reason state.
+            if (activeTab === 'unban') {
+                payload.action = 'unban';
+                // reason is already set
+            }
 
             await axios.post('/api/admin/moderate', payload);
 
@@ -82,6 +89,12 @@ const ModerationModal = ({ userId, username, onClose, onSuccess }) => {
                         onClick={() => setActiveTab('ban')}
                     >
                         Ban
+                    </button>
+                    <button
+                        className={`tab-btn ${activeTab === 'unban' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('unban')}
+                    >
+                        Unban
                     </button>
                     {/* Wipe is separate logic usually coupled with ban, but user asked for "warn, ban, wipe" options. 
               Implementing standalone Wipe is risky but if requested... 

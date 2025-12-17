@@ -323,3 +323,27 @@
 .moderate-btn-large:hover {
   background-color: #e60000;
 }
+
+/* Banned Banner */
+.banned-banner {
+  background-color: #ff3333;
+  color: white;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  text-align: center;
+  border: 1px solid #cc0000;
+  box-shadow: 0 4px 10px rgba(255, 0, 0, 0.2);
+}
+
+.banned-banner h2 {
+  margin: 0 0 5px 0;
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.banned-banner p {
+  margin: 0;
+  font-size: 16px;
+  opacity: 0.9;
+}

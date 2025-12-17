@@ -1,67 +1,33 @@
+/* Fix modal positioning to be a centered popup */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.75);
+    z-index: 10000;
+    /* High z-index to sit on top of everything */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(2px);
+}
+
 .moderation-modal {
     background-color: #232527;
     width: 500px;
     max-width: 90%;
     border-radius: 8px;
     border: 1px solid #393b3d;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
     display: flex;
     flex-direction: column;
-}
-
-.modal-header {
-    padding: 15px 20px;
-    border-bottom: 1px solid #393b3d;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.modal-header h2 {
-    color: white;
+    /* Remove any margins that might cause bottom alignment */
     margin: 0;
-    font-size: 20px;
 }
 
-.close-btn {
-    background: none;
-    border: none;
-    color: #888;
-    font-size: 24px;
-    cursor: pointer;
-}
-
-.close-btn:hover {
-    color: white;
-}
-
-.modal-tabs {
-    display: flex;
-    background-color: #1a1a1a;
-    padding: 0 20px;
-}
-
-.tab-btn {
-    flex: 1;
-    background: none;
-    border: none;
-    border-bottom: 2px solid transparent;
-    color: #888;
-    padding: 15px 0;
-    cursor: pointer;
-    font-weight: 500;
-    transition: all 0.2s;
-}
-
-.tab-btn.active {
-    color: white;
-    border-bottom-color: #00a2ff;
-}
-
-.tab-btn:hover:not(.active) {
-    color: #bbb;
-}
-
+/* Ensure modal content area handles overflow if needed, but flex column usually fine */
 .modal-content {
     padding: 20px;
     display: flex;

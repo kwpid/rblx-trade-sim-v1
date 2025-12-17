@@ -97,6 +97,15 @@ const Profile = () => {
   return (
     <div className="profile">
       <div className="container">
+
+        {/* Banned User Banner */}
+        {profileUser?.banned_until && new Date(profileUser.banned_until) > new Date() && (
+          <div className="banned-banner">
+            <h2>⛔ USER IS BANNED</h2>
+            <p>This user has been suspended until {new Date(profileUser.banned_until).toLocaleDateString()} {new Date(profileUser.banned_until).toLocaleTimeString()}</p>
+          </div>
+        )}
+
         {/* User Info Card */}
         <div className="profile-header-card">
           <div className="profile-left">
