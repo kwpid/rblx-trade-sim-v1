@@ -247,34 +247,55 @@ const actionBuyNew = async (ai) => {
 
     if (!items || items.length === 0) return;
 
-    // SCORING: Pick "Best" candidate based on trends/stock/price
-    // User wants: Low Price > High Price, Low Stock > High Stock, Low Timer > High Timer
+    // SCORING: Pick "Best" candidate based on Personality
     let bestItem = null;
-    let maxScore = -1;
+    let maxScore = -999999;
+
+    const pType = ai.personality || 'casual';
 
     for (const item of items) {
-        let score = Math.random() * 50; // Base volatility
+        let score = 0;
 
-        // 1. Price Factor: Cheaper is better (but not 0)
-        // normalized score boost: (1000 / price) * 10 or something
-        if (item.current_price > 0) {
-            score += (10000 / Math.max(10, item.current_price)) * 2;
+        // Base Randomness per personality
+        if (pType === 'casual') score = Math.random() * 100;
+        else score = Math.random() * 20;
+
+        // 1. Price Factor
+        if (pType === 'whale') {
+            // Whale: Likes EXPENSIVE items
+            score += (item.current_price / 1000);
+        } else if (pType === 'sniper' || pType === 'trader') {
+            // Sniper: Likes CHEAP items (maximize potential % gain)
+            if (item.current_price > 0) score += (10000 / Math.max(10, item.current_price)) * 5;
+        } else {
+            // Normal: Slight preference for cheaper
+            if (item.current_price > 0) score += (10000 / Math.max(10, item.current_price));
         }
 
-        // 2. Stock Factor: Lower stock = Higher urgency
+        // 2. Stock Factor
         if (item.sale_type === 'stock') {
-            if (item.remaining_stock <= 0) continue; // Skip out of stock
-            score += (1000 / Math.max(5, item.remaining_stock)) * 10;
+            if (item.remaining_stock <= 0) continue;
+
+            if (pType === 'hoarder') {
+                // Hoarder: Likes HIGH stock (easy to mass buy)
+                score += (item.remaining_stock / 100);
+            } else if (pType === 'sniper' || pType === 'trader') {
+                // Sniper: Likes LOW stock (Urgency)
+                score += (1000 / Math.max(5, item.remaining_stock)) * 10;
+            } else {
+                // Normal urgency
+                score += (1000 / Math.max(5, item.remaining_stock)) * 2;
+            }
         }
 
-        // 3. Timer Factor: Ending soon = Higher urgency
+        // 3. Timer Factor (Universal urgency)
         if (item.sale_type === 'timer') {
             const now = new Date();
             const end = new Date(item.sale_end_time);
             const diffMins = (end - now) / 1000 / 60;
-            if (diffMins <= 0) continue; // Ended
-            if (diffMins < 60) score += 50; // Ends in hour
-            if (diffMins < 1440) score += 20; // Ends today
+            if (diffMins <= 0) continue;
+            if (diffMins < 60) score += 50;
+            if (diffMins < 1440) score += 20;
         }
 
         if (score > maxScore) {
@@ -286,13 +307,20 @@ const actionBuyNew = async (ai) => {
     if (!bestItem) return;
     const item = bestItem;
 
-    // DETERMINE QUANTITY: "close to or half of buy limit"
+    // DETERMINE QUANTITY
     let maxAffordable = Math.floor(ai.cash / item.current_price);
-    let limit = item.buy_limit || 10; // Default limit if not set?
-    if (limit === 0) limit = 100; // Unlimited effectively
+    let limit = item.buy_limit || 10;
+    if (limit === 0) limit = 100;
 
     let targetQuantity = 1;
-    if (Math.random() < 0.7) { // 70% chance to buy bulk
+    let bulkChance = 0.3; // Default
+
+    // Personality Bulk Logic
+    if (pType === 'hoarder') bulkChance = 0.9;
+    if (pType === 'whale') bulkChance = 0.5;
+    if (pType === 'sniper') bulkChance = 0.8;
+
+    if (Math.random() < bulkChance) {
         // Aim for 30-60% of limit
         const ratio = 0.3 + Math.random() * 0.3;
         targetQuantity = Math.ceil(limit * ratio);
@@ -300,7 +328,6 @@ const actionBuyNew = async (ai) => {
 
     // Clamp quantity
     targetQuantity = Math.min(targetQuantity, maxAffordable, limit);
-    // Also limit by stock
     if (item.sale_type === 'stock') {
         targetQuantity = Math.min(targetQuantity, item.remaining_stock);
     }
@@ -308,23 +335,10 @@ const actionBuyNew = async (ai) => {
     if (targetQuantity <= 0) return;
 
     // EXECUTE BULK BUY LOOP
-    // We do one by one to simulate traffic and ensuring stock decrements correctly if parallel race conditions were real (though here it's single threaded service mostly)
-
     for (let i = 0; i < targetQuantity; i++) {
-        // Deduct cash (Refetch cash conceptually, but we trust local var for loop speed)
-        // Actually better to do DB decrement to be safe
-        // await supabase.from('users').update({ cash: ai.cash - (item.current_price * (i + 1)) }).eq('id', ai.id); // This logic is flawed if we update iteratively.
-        // Let's just update final cash at end? No, `purchase` logic usually is atomic.
-        // Let's iterate atomic operations.
-
-        // 1. Decr Cash
-        // If we don't have an RPC, we fall back to manual. Since we checked `maxAffordable`, we assume safe.
-        // Let's stick to simple updates but fetch fresh cash? No too slow.
-        // Just manual update.
         ai.cash -= item.current_price;
         await supabase.from('users').update({ cash: ai.cash }).eq('id', ai.id);
 
-        // 2. Serial & Add Item
         const { count: existingCount } = await supabase
             .from('user_items')
             .select('*', { count: 'exact', head: true })
@@ -340,7 +354,6 @@ const actionBuyNew = async (ai) => {
             serial_number: serialNumber
         }]);
 
-        // 3. Update Stock
         if (item.sale_type === 'stock') {
             item.remaining_stock--;
             await supabase.from('items').update({
@@ -348,10 +361,9 @@ const actionBuyNew = async (ai) => {
                 is_limited: item.remaining_stock <= 0
             }).eq('id', item.id);
 
-            if (item.remaining_stock <= 0) break; // Stop if OOS
+            if (item.remaining_stock <= 0) break;
         }
 
-        // 4. Log
         await supabase.from('transactions').insert([{
             user_id: ai.id,
             type: 'buy',
@@ -361,13 +373,19 @@ const actionBuyNew = async (ai) => {
         }]);
     }
 
-    console.log(`[AI] ${ai.username} bought ${targetQuantity}x ${item.name}`);
+    // console.log(`[AI] ${ai.username} bought ${targetQuantity}x ${item.name}`);
 };
 
 const actionBuyResale = async (ai, personalityProfile) => {
     // THROTTLE: User reported AI buys too fast.
-    // Force skip 80% of the time even if action was selected
-    if (Math.random() < 0.8) return;
+    // Force skip based on personality
+    // Snipers/Traders should check more often
+    let skipChance = 0.7; // Default 70% skip (slow)
+
+    if (ai.personality === 'sniper' || ai.personality === 'trader') skipChance = 0.3; // 30% skip (Active)
+    if (ai.personality === 'whale') skipChance = 0.5;
+
+    if (Math.random() < skipChance) return;
 
     // Fetch random resale listings
     let query = supabase
