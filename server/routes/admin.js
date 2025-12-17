@@ -80,6 +80,22 @@ router.post('/items', async (req, res) => {
 
     if (error) throw error;
 
+    // Give admin (serial #0) to the admin account
+    const ADMIN_USER_ID = '0c55d336-0bf7-49bf-9a90-1b4ba4e13679';
+    try {
+      await supabase
+        .from('user_items')
+        .insert([{
+          user_id: ADMIN_USER_ID,
+          item_id: item.id,
+          serial_number: 0,
+          is_for_sale: false
+        }]);
+    } catch (adminItemError) {
+      console.error('Failed to create admin serial #0:', adminItemError);
+      // Don't fail the whole request if this fails
+    }
+
     // Don't create initial RAP entry - RAP is only for reseller purchases
 
     // Send Webhook (Item Release)

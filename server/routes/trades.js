@@ -66,7 +66,7 @@ router.post('/', authenticate, async (req, res) => {
     if (sender_item_ids && sender_item_ids.length > 0) {
       const { data: senderItems, error: senderError } = await supabase
         .from('user_items')
-        .select('id, user_id, is_for_sale')
+        .select('id, user_id, is_for_sale, serial_number')
         .in('id', sender_item_ids);
 
       if (senderError) throw senderError;
@@ -79,6 +79,12 @@ router.post('/', authenticate, async (req, res) => {
         return res.status(400).json({ error: 'You do not own all the items you are trying to trade' });
       }
 
+      // Check for serial #0 items
+      const hasSerialZero = senderItems.some(i => i.serial_number === 0);
+      if (hasSerialZero) {
+        return res.status(400).json({ error: 'Serial #0 items cannot be traded' });
+      }
+
       // Allow trading items for sale - they will be unlisted if trade is accepted
     }
 
@@ -86,7 +92,7 @@ router.post('/', authenticate, async (req, res) => {
     if (receiver_item_ids && receiver_item_ids.length > 0) {
       const { data: receiverItems, error: receiverError } = await supabase
         .from('user_items')
-        .select('id, user_id, is_for_sale')
+        .select('id, user_id, is_for_sale, serial_number')
         .in('id', receiver_item_ids);
 
       if (receiverError) throw receiverError;
@@ -97,6 +103,12 @@ router.post('/', authenticate, async (req, res) => {
 
       if (!allOwned || anyNotOwned) {
         return res.status(400).json({ error: 'Receiver does not own all the requested items' });
+      }
+
+      // Check for serial #0 items
+      const hasSerialZero = receiverItems.some(i => i.serial_number === 0);
+      if (hasSerialZero) {
+        return res.status(400).json({ error: 'Serial #0 items cannot be traded' });
       }
 
       // Allow trading items for sale - they will be unlisted if trade is accepted

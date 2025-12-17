@@ -181,9 +181,12 @@ const leaderboardCache = {
 // Get leaderboard by cash
 router.get('/leaderboard', async (req, res) => {
   try {
+    const ADMIN_USER_ID = '0c55d336-0bf7-49bf-9a90-1b4ba4e13679';
+
     const { data: users, error } = await supabase
       .from('users')
       .select('id, username, cash')
+      .neq('id', ADMIN_USER_ID) // Exclude admin
       .order('cash', { ascending: false })
       .limit(10);
 
@@ -199,20 +202,24 @@ router.get('/leaderboard', async (req, res) => {
 // Get leaderboard by value
 router.get('/leaderboard/value', async (req, res) => {
   try {
-    // 1. Get All Users
+    const ADMIN_USER_ID = '0c55d336-0bf7-49bf-9a90-1b4ba4e13679';
+
+    // 1. Get All Users (excluding admin)
     const { data: users, error: usersError } = await supabase
       .from('users')
-      .select('id, username');
+      .select('id, username')
+      .neq('id', ADMIN_USER_ID); // Exclude admin
 
     if (usersError) throw usersError;
 
-    // 2. Fetch All User Items - each row is one item copy
+    // 2. Fetch All User Items - each row is one item copy (excluding admin's items)
     const { data: allItems, error: itemsError } = await supabase
       .from('user_items')
       .select(`
         user_id,
         items:item_id (value)
       `)
+      .neq('user_id', ADMIN_USER_ID) // Exclude admin's items
       .not('items', 'is', null);
 
     if (itemsError) throw itemsError;
@@ -253,14 +260,17 @@ router.get('/leaderboard/value', async (req, res) => {
 // Get leaderboard by RAP
 router.get('/leaderboard/rap', async (req, res) => {
   try {
-    // 1. Get All Users
+    const ADMIN_USER_ID = '0c55d336-0bf7-49bf-9a90-1b4ba4e13679';
+
+    // 1. Get All Users (excluding admin)
     const { data: users, error: usersError } = await supabase
       .from('users')
-      .select('id, username');
+      .select('id, username')
+      .neq('id', ADMIN_USER_ID); // Exclude admin
 
     if (usersError) throw usersError;
 
-    // 2. Fetch All User Items - each row is one item copy
+    // 2. Fetch All User Items - each row is one item copy (excluding admin's items)
     const { data: allItems, error: itemsError } = await supabase
       .from('user_items')
       .select(`
@@ -270,6 +280,7 @@ router.get('/leaderboard/rap', async (req, res) => {
             is_limited
         )
       `)
+      .neq('user_id', ADMIN_USER_ID) // Exclude admin's items
       .not('items', 'is', null);
 
     if (itemsError) throw itemsError;

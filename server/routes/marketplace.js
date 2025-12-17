@@ -202,12 +202,16 @@ router.post('/purchase', authenticate, async (req, res) => {
       .eq('id', req.user.id);
 
     // Calculate Serial Number
+    // Admin (0c55d336-0bf7-49bf-9a90-1b4ba4e13679) has serial #0
+    // Regular users start at serial #1
     const { count: existingCount } = await supabase
       .from('user_items')
       .select('*', { count: 'exact', head: true })
       .eq('item_id', item.id);
 
-    const serialNumber = (existingCount || 0) + 1;
+    // Serial numbers: admin=0, then 1, 2, 3...
+    // existingCount includes admin's serial #0, so regular users start at existingCount
+    const serialNumber = existingCount || 1;
 
     // Add item to user inventory
     const { data: userItem, error: userItemError } = await supabase
@@ -336,6 +340,11 @@ router.post('/list', authenticate, async (req, res) => {
 
     if (!itemData || !itemData.is_limited) {
       return res.status(400).json({ error: 'You can only sell limited items' });
+    }
+
+    // Prevent serial #0 from being listed
+    if (userItem.serial_number === 0) {
+      return res.status(400).json({ error: 'Serial #0 items cannot be listed for sale' });
     }
 
     // Update user item

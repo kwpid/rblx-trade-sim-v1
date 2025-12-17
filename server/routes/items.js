@@ -17,10 +17,10 @@ router.get('/', async (req, res) => {
     // Apply sorting
     switch (sort) {
       case 'price_high':
-        query = query.order('current_price', { ascending: false });
-        break;
       case 'price_low':
-        query = query.order('current_price', { ascending: true });
+        // For price sorting, we need to handle resale prices for limited items
+        // First, fetch all items without sorting
+        query = query.order('created_at', { ascending: false });
         break;
       case 'value_high':
         query = query.order('value', { ascending: false });
@@ -66,6 +66,39 @@ router.get('/', async (req, res) => {
         is_projected: isProjected
       };
     });
+
+    // Handle price sorting with resale prices
+    if (sort === 'price_low' || sort === 'price_high') {
+      // Fetch resale prices for limited/out-of-stock items
+      const itemsNeedingResellers = itemsWithProjected.filter(item =>
+        item.is_limited || item.is_off_sale || (item.sale_type === 'stock' && item.remaining_stock <= 0)
+      );
+
+      const resellerPriceMap = {};
+
+      // Fetch resale prices in parallel
+      await Promise.all(itemsNeedingResellers.map(async (item) => {
+        const { data: resellers } = await supabase
+          .from('user_items')
+          .select('sale_price')
+          .eq('item_id', item.id)
+          .eq('is_for_sale', true)
+          .order('sale_price', { ascending: true })
+          .limit(1);
+
+        if (resellers && resellers.length > 0) {
+          resellerPriceMap[item.id] = resellers[0].sale_price;
+        }
+      }));
+
+      // Sort by effective price (resale price for limiteds, current_price for others)
+      itemsWithProjected.sort((a, b) => {
+        const priceA = resellerPriceMap[a.id] || a.current_price || 0;
+        const priceB = resellerPriceMap[b.id] || b.current_price || 0;
+
+        return sort === 'price_low' ? priceA - priceB : priceB - priceA;
+      });
+    }
 
     res.json(itemsWithProjected);
   } catch (error) {
