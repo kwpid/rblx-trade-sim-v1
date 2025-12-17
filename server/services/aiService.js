@@ -286,6 +286,10 @@ const actionBuyNew = async (ai) => {
                 // Normal urgency
                 score += (1000 / Math.max(5, item.remaining_stock)) * 2;
             }
+        } else {
+            // Non-stock items (unlimited/timer) get a base score boost
+            // so they're not ignored
+            score += 50;
         }
 
         // 3. Timer Factor (Universal urgency)
@@ -373,7 +377,7 @@ const actionBuyNew = async (ai) => {
         }]);
     }
 
-    // console.log(`[AI] ${ai.username} bought ${targetQuantity}x ${item.name}`);
+    console.log(`[AI] ${ai.username} bought ${targetQuantity}x ${item.name}`);
 };
 
 const actionBuyResale = async (ai, personalityProfile) => {
@@ -596,6 +600,17 @@ const actionList = async (ai, personalityProfile) => {
 
     const itemToSell = limiteds[Math.floor(Math.random() * limiteds.length)];
 
+    // Check Stock Rarity FIRST (items with <50 stock are considered rare)
+    const stock = itemToSell.items.stock_count !== undefined ? itemToSell.items.stock_count : 1000;
+    if (stock < 50) {
+        // 90% chance to HODL (don't sell rare items)
+        if (Math.random() < 0.9) {
+            return;
+        }
+        // If we do sell (10% chance), it's a "joke" listing at extreme prices
+        // This will be handled in pricing logic below
+    }
+
     // Check Rarity (Hold Rares/Legendaries more often)
     // EVENT_ITEMS might be undefined if file issues, so safeguard
     if (EVENT_ITEMS) {
@@ -623,7 +638,7 @@ const actionList = async (ai, personalityProfile) => {
     // Price logic
     // Scarcity Multiplier: If stock < 200, price increases
     // Formula: 1x at 200 stock, ~2x at 0 stock.
-    const stock = itemToSell.items.stock_count !== undefined ? itemToSell.items.stock_count : 1000;
+    // (stock already declared above)
     let scarcityMult = 1.0;
     if (stock < 200) {
         // Scarcity ONLY applies to High Tier / Events now to prevent projection of normal items
@@ -646,7 +661,13 @@ const actionList = async (ai, personalityProfile) => {
             (EVENT_ITEMS.LEGENDARY && EVENT_ITEMS.LEGENDARY.includes(itemToSell.items.id));
     }
 
-    if (isHighTier) {
+    // LOW STOCK JOKE PRICING (overrides everything else)
+    if (stock < 50) {
+        // If we got here, AI decided to list (10% chance from earlier check)
+        // Price it as a "joke" - extremely high
+        multiplier = 5 + Math.random() * 10; // 5x to 15x RAP
+        scarcityMult = 1.0;
+    } else if (isHighTier) {
         // High Tier / Event Items Logic (Extremely high value)
         if (rap > 100000) {
             multiplier = 10 + Math.random() * 20; // 10x to 30x
