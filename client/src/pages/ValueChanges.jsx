@@ -7,6 +7,7 @@ const ValueChanges = () => {
   const [activeTab, setActiveTab] = useState('value') // 'value' or 'rap'
   const [valueChangeHistory, setValueChangeHistory] = useState([])
   const [rapChangeHistory, setRapChangeHistory] = useState([])
+  const [newLimiteds, setNewLimiteds] = useState([])
   const [filteredHistory, setFilteredHistory] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -24,9 +25,12 @@ const ValueChanges = () => {
         const response = await axios.get('/api/items/value-changes')
         setValueChangeHistory(response.data)
         setFilteredHistory(response.data)
-      } else {
+      } else if (activeTab === 'rap') {
         const response = await axios.get('/api/items/rap-changes')
         setRapChangeHistory(response.data)
+      } else if (activeTab === 'limiteds') {
+        const response = await axios.get('/api/items/new-limiteds')
+        setNewLimiteds(response.data)
       }
     } catch (error) {
       console.error('Error fetching history:', error)
@@ -37,7 +41,7 @@ const ValueChanges = () => {
 
   // Effect for filtering Value Change History
   useEffect(() => {
-    if (activeTab === 'rap') return
+    if (activeTab === 'rap' || activeTab === 'limiteds') return
 
     let filtered = valueChangeHistory
 
@@ -97,7 +101,7 @@ const ValueChanges = () => {
         <div className="value-changes-header">
           <h1>Market Changes</h1>
           <p className="value-changes-description">
-            Track recent updates to item values and RAP.
+            Track recent updates to item values, RAP, and new limiteds.
           </p>
         </div>
 
@@ -113,6 +117,12 @@ const ValueChanges = () => {
             onClick={() => setActiveTab('rap')}
           >
             RAP Changes
+          </button>
+          <button
+            className={`vc-tab ${activeTab === 'limiteds' ? 'active' : ''}`}
+            onClick={() => setActiveTab('limiteds')}
+          >
+            New Limiteds
           </button>
         </div>
 
@@ -195,7 +205,6 @@ const ValueChanges = () => {
             ) : (
               <div className="rap-changes-list">
                 {rapChangeHistory.map(log => {
-                  const isStock = !log.seller;
                   return (
                     <div key={log.id} className="rap-change-card">
                       <Link to={`/catalog/${log.items?.id}`} className="rap-card-left">
@@ -209,30 +218,49 @@ const ValueChanges = () => {
                       </Link>
                       <div className="rap-card-stats">
                         <div className="rap-stat-col">
-                          <span className="rap-stat-label">Price</span>
-                          <span className="rap-stat-val">R${formatValue(log.amount)}</span>
+                          <span className="rap-stat-label">Previous RAP</span>
+                          <span className="rap-stat-val">R${formatValue(log.old_rap)}</span>
                         </div>
+                        <div className="rap-arrow" style={{ color: getValueChangeColor(log.old_rap, log.new_rap) }}>→</div>
                         <div className="rap-stat-col">
-                          <span className="rap-stat-label">Seller</span>
-                          {isStock ? (
-                            <span className="rap-stat-val" style={{ color: '#aaa', fontStyle: 'italic' }}>System (Stock)</span>
-                          ) : (
-                            <Link to={`/players/${log.seller?.id}`} className="rap-stat-val user-link">
-                              {log.seller?.username || 'Unknown'}
-                            </Link>
-                          )}
-                        </div>
-                        <div className="rap-arrow">→</div>
-                        <div className="rap-stat-col">
-                          <span className="rap-stat-label">Buyer</span>
-                          <Link to={`/players/${log.buyer?.id}`} className="rap-stat-val user-link">
-                            {log.buyer?.username || 'Unknown'}
-                          </Link>
+                          <span className="rap-stat-label">New RAP</span>
+                          <span className="rap-stat-val" style={{ color: getValueChangeColor(log.old_rap, log.new_rap) }}>R${formatValue(log.new_rap)}</span>
                         </div>
                       </div>
                     </div>
                   );
                 })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'limiteds' && (
+          <div className="rap-changes-section">
+            {loading ? (
+              <div className="loading"><div className="spinner"></div></div>
+            ) : newLimiteds.length === 0 ? (
+              <div className="empty-state"><p>No limiteds found.</p></div>
+            ) : (
+              <div className="rap-changes-list">
+                {newLimiteds.map(item => (
+                  <div key={item.id} className="rap-change-card">
+                    <Link to={`/catalog/${item.id}`} className="rap-card-left">
+                      <div className="rap-card-img">
+                        <img src={item.image_url} alt={item.name} />
+                      </div>
+                      <div className="rap-card-info">
+                        <h3>{item.name}</h3>
+                      </div>
+                    </Link>
+                    <div className="rap-card-stats">
+                      <div className="rap-stat-col">
+                        <span className="rap-stat-label">Went Limited</span>
+                        <span className="rap-stat-val">{formatDate(item.created_at)}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>

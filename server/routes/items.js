@@ -45,7 +45,25 @@ router.get('/', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch items', details: error.message });
   }
 });
+// Get recent limiteds
+router.get('/new-limiteds', async (req, res) => {
+  try {
+    const { data: items, error } = await supabase
+      .from('items')
+      .select('*')
+      .eq('is_limited', true)
+      .order('created_at', { ascending: false })
+      .limit(50);
 
+    if (error) throw error;
+    res.json(items);
+  } catch (error) {
+    console.error('Error fetching new limiteds:', error);
+    res.status(500).json({ error: 'Failed' });
+  }
+});
+
+// Get item RAP history (must come before /:id)
 // Get item RAP history (must come before /:id)
 router.get('/:id/rap-history', async (req, res) => {
   try {
