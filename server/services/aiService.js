@@ -6,9 +6,9 @@ let isDevBranch = false;
 
 // Constants
 const AI_COUNT_TARGET = 100;
-const ONLINE_PERCENTAGE = 0.3; // 30% target online
+const ONLINE_PERCENTAGE = 1.0; // 100% target online (All bots active)
 const TICK_RATE = 5000; // 5 seconds
-const ACTION_PROBABILITY = 0.4; // 40% chance to act per tick if online
+const ACTION_PROBABILITY = 0.5; // 50% chance to act per tick if online
 
 // Personality Definitions
 const PERSONALITIES = {
