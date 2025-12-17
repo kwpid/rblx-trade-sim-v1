@@ -23,11 +23,15 @@ const ValueChanges = () => {
     try {
       if (activeTab === 'value') {
         const response = await axios.get('/api/items/value-changes')
-        setValueChangeHistory(response.data)
-        setFilteredHistory(response.data)
+        // Reverse to show newest first (backend returns oldest first for charts)
+        const reversedData = [...response.data].reverse()
+        setValueChangeHistory(reversedData)
+        setFilteredHistory(reversedData)
       } else if (activeTab === 'rap') {
         const response = await axios.get('/api/items/rap-changes')
-        setRapChangeHistory(response.data)
+        // Reverse to show newest first
+        const reversedData = [...response.data].reverse()
+        setRapChangeHistory(reversedData)
       } else if (activeTab === 'limiteds') {
         const response = await axios.get('/api/items/new-limiteds')
         setNewLimiteds(response.data)

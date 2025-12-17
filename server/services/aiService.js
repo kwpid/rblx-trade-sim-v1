@@ -1019,8 +1019,8 @@ const declineTrade = async (trade, ai) => {
 
 const actionInitiateTrade = async (ai, p) => {
     // 1. Target Selection Strategy
-    // 30% chance to specifically target REAL PLAYERS (is_ai = false) to ensure they get activity
-    const targetRealPlayers = Math.random() < 0.3;
+    // INCREASED: 60% chance to specifically target REAL PLAYERS (is_ai = false) to ensure they get activity
+    const targetRealPlayers = Math.random() < 0.6;
 
     let query = supabase
         .from('user_items')
@@ -1055,8 +1055,25 @@ const actionInitiateTrade = async (ai, p) => {
 
     if (validCandidates.length === 0) return;
 
-    // Pick a Target Item
-    const targetItem = validCandidates[Math.floor(Math.random() * validCandidates.length)];
+    // IMPROVED: Pick a Target Item with preference for higher value items
+    // This helps AI trade with players who have expensive inventories
+    let targetItem;
+
+    // 70% chance to prefer high-value items (helps target wealthy players)
+    if (Math.random() < 0.7) {
+        // Sort by value and pick from top 30%
+        const sortedByValue = validCandidates
+            .map(c => ({ ...c, effVal: c.items?.value || c.items?.rap || 0 }))
+            .sort((a, b) => b.effVal - a.effVal);
+
+        const topCount = Math.max(1, Math.floor(sortedByValue.length * 0.3));
+        const topItems = sortedByValue.slice(0, topCount);
+        targetItem = topItems[Math.floor(Math.random() * topItems.length)];
+    } else {
+        // 30% chance for random selection (maintains variety)
+        targetItem = validCandidates[Math.floor(Math.random() * validCandidates.length)];
+    }
+
     const targetUser = targetItem.users;
 
     // 2. Valuation & Strategy
@@ -1133,6 +1150,11 @@ const actionInitiateTrade = async (ai, p) => {
 
     let goalValue = targetVal * targetRatio;
 
+    // IMPROVED: For high-value items, be more flexible with offer building
+    // This helps AI trade with players who have expensive inventories
+    const isHighValueTarget = targetVal > 20000;
+    const maxOverpayTolerance = isHighValueTarget ? 1.3 : 1.1; // Allow 30% overpay for expensive items
+
     // Knapsack-ish: Fill bucket
     for (const item of mySortedItems) {
         // PREVENT SAME ITEM 1:1 TRADES
@@ -1141,8 +1163,8 @@ const actionInitiateTrade = async (ai, p) => {
             continue;
         }
 
-        // Don't add if it exceeds goal significantly
-        if (offerVal + item.effVal > goalValue * 1.1) continue;
+        // Don't add if it exceeds goal significantly (more tolerance for high-value items)
+        if (offerVal + item.effVal > goalValue * maxOverpayTolerance) continue;
 
         offerItems.push(item);
         offerVal += item.effVal;
@@ -1151,8 +1173,10 @@ const actionInitiateTrade = async (ai, p) => {
     }
 
     // Check if offer is valid
-    if (offerVal < goalValue * 0.9) return; // Couldn't find enough items
-    if (offerVal > goalValue * 1.2) return; // Don't overpay massively (unless intended, but logic above prevents add)
+    // IMPROVED: More lenient for high-value items
+    const minOfferRatio = isHighValueTarget ? 0.85 : 0.9;
+    if (offerVal < goalValue * minOfferRatio) return; // Couldn't find enough items
+    if (offerVal > goalValue * maxOverpayTolerance) return; // Don't overpay massively
 
     // PREVENT 1:1 + ADDED ITEM (unfair trades)
     // If we have exactly 1 item on each side, ensure it's not the same item

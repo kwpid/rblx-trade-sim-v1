@@ -109,15 +109,25 @@ router.get('/', async (req, res) => {
 // Get recent limiteds
 router.get('/new-limiteds', async (req, res) => {
   try {
+    // Fetch limiteds and sort by when they became limited
+    // Use created_at as fallback if updated_at is null
     const { data: items, error } = await supabase
       .from('items')
       .select('*')
       .eq('is_limited', true)
-      .order('updated_at', { ascending: false })
+      .order('created_at', { ascending: false })
       .limit(50);
 
     if (error) throw error;
-    res.json(items);
+
+    // Sort by updated_at if available, otherwise use created_at
+    const sortedItems = items.sort((a, b) => {
+      const dateA = new Date(a.updated_at || a.created_at);
+      const dateB = new Date(b.updated_at || b.created_at);
+      return dateB - dateA; // Newest first
+    });
+
+    res.json(sortedItems);
   } catch (error) {
     console.error('Error fetching new limiteds:', error);
     res.status(500).json({ error: 'Failed' });
