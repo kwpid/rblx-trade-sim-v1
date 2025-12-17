@@ -347,5 +347,129 @@ router.delete('/items/:id', async (req, res) => {
   }
 });
 
+// Moderate user (Warn, Ban, Wipe)
+router.post('/moderate', async (req, res) => {
+  try {
+    const { userId, action, reason, duration, wipe } = req.body;
+    const moderatorId = req.user.id;
+    const ADMIN_USER_ID = '0c55d336-0bf7-49bf-9a90-1b4ba4e13679';
+
+    if (!userId || !action || !reason) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    // prevent self-moderation or moderating other admins (optional safety)
+    if (userId === moderatorId) {
+      return res.status(400).json({ error: 'Cannot moderate yourself' });
+    }
+
+    let bannedUntil = null;
+    let durationHours = null;
+
+    if (action === 'ban') {
+      if (duration === 'perm') {
+        bannedUntil = new Date('9999-12-31').toISOString(); // Effectively perm
+        durationHours = -1; // Flag for perm
+      } else {
+        const hours = parseInt(duration);
+        if (!isNaN(hours)) {
+          durationHours = hours;
+          bannedUntil = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+        } else {
+          return res.status(400).json({ error: 'Invalid duration for ban' });
+        }
+      }
+    }
+
+    // Database updates within a transaction-like flow (sequential)
+
+    // 1. Log the action
+    const { error: logError } = await supabase
+      .from('moderation_logs')
+      .insert([{
+        user_id: userId,
+        action: action,
+        reason: reason,
+        duration_hours: durationHours,
+        expires_at: bannedUntil,
+        moderator_id: moderatorId
+      }]);
+
+    if (logError) throw logError;
+
+    // 2. Perform Action specific updates
+    if (action === 'warn') {
+      // Increment warning count
+      // We need to fetch current count first or use rpc if available, but simple fetch-update is fine for now
+      const { data: user } = await supabase.from('users').select('warnings_count').eq('id', userId).single();
+      const newCount = (user?.warnings_count || 0) + 1;
+
+      await supabase.from('users').update({ warnings_count: newCount }).eq('id', userId);
+
+    } else if (action === 'ban') {
+      // Update banned_until
+      await supabase.from('users').update({ banned_until: bannedUntil }).eq('id', userId);
+
+      // Handle Wipe if requested and applicable
+      // Wipe is optional and only available/requested logic usually for long bans
+      if (wipe) {
+        // Transfer all items to admin
+        // Update user_items where user_id = userId -> set user_id = ADMIN_USER_ID
+        // We also need to ensure they are off-sale so they don't pollute the market immediately
+        const { error: wipeError } = await supabase
+          .from('user_items')
+          .update({
+            user_id: ADMIN_USER_ID,
+            is_for_sale: false
+          })
+          .eq('user_id', userId);
+
+        if (wipeError) {
+          console.error("Wipe failed:", wipeError);
+          // Log this failure?
+        } else {
+          // Log wipe action separately or implied? 
+          // Logic says "wipe option", usually accompanies the ban. 
+          // Let's add a separate log entry for the wipe to be clear
+          await supabase.from('moderation_logs').insert([{
+            user_id: userId,
+            action: 'wipe',
+            reason: `Wipe associated with ban. Reason: ${reason}`,
+            moderator_id: moderatorId
+          }]);
+        }
+      }
+    } else if (action === 'unban') {
+      await supabase.from('users').update({ banned_until: null }).eq('id', userId);
+    }
+
+    res.json({ success: true });
+
+  } catch (error) {
+    console.error('Error moderating user:', error);
+    res.status(500).json({ error: 'Failed to moderate user' });
+  }
+});
+
+// Get moderation logs for a user
+router.get('/moderation-logs/:userId', async (req, res) => {
+  try {
+    const { data: logs, error } = await supabase
+      .from('moderation_logs')
+      .select(`
+                *,
+                moderator:moderator_id (username)
+            `)
+      .eq('user_id', req.params.userId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    res.json(logs);
+  } catch (error) {
+    console.error('Error fetching logs:', error);
+    res.status(500).json({ error: 'Failed to fetch logs' });
+  }
+});
+
 module.exports = router;
 

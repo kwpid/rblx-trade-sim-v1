@@ -1,0 +1,77 @@
+.banned-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.95);
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  backdrop-filter: blur(5px);
+}
+
+.banned-content {
+  background-color: #1a1a1a;
+  padding: 40px;
+  border-radius: 12px;
+  border: 1px solid #333;
+  text-align: center;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 0 50px rgba(255, 0, 0, 0.2);
+}
+
+.banned-icon {
+  font-size: 64px;
+  margin-bottom: 20px;
+}
+
+.banned-content h1 {
+  color: #ff4d4d;
+  margin-bottom: 20px;
+  font-size: 28px;
+}
+
+.banned-reason, .banned-duration {
+  font-size: 18px;
+  margin: 10px 0;
+  color: #ccc;
+}
+
+.banned-actions {
+  margin-top: 30px;
+  border-top: 1px solid #333;
+  padding-top: 20px;
+}
+
+.tos-link {
+  color: #888;
+  margin-bottom: 20px;
+}
+
+.tos-link a {
+  color: #00a2ff;
+  text-decoration: none;
+}
+
+.tos-link a:hover {
+  text-decoration: underline;
+}
+
+.logout-btn {
+  background-color: #333;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background-color 0.2s;
+}
+
+.logout-btn:hover {
+  background-color: #444;
+}

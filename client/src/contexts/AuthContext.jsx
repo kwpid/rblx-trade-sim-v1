@@ -32,8 +32,18 @@ export const AuthProvider = ({ children }) => {
       setUser(response.data.user)
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
     } catch (error) {
-      localStorage.removeItem('token')
-      delete axios.defaults.headers.common['Authorization']
+      if (error.response?.status === 403 && error.response?.data?.banned_until) {
+        setUser({
+          isBanned: true,
+          bannedUntil: error.response.data.banned_until,
+          banReason: error.response.data.reason
+        });
+        // Don't remove token, keeps them "logged in" but banned
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+      } else {
+        localStorage.removeItem('token')
+        delete axios.defaults.headers.common['Authorization']
+      }
     } finally {
       setLoading(false)
     }
@@ -51,6 +61,15 @@ export const AuthProvider = ({ children }) => {
       setUser(user)
       return { success: true }
     } catch (error) {
+      if (error.response?.status === 403 && error.response?.data?.banned_until) {
+        // Store ban info in user state temporarily to trigger UI
+        setUser({
+          isBanned: true,
+          bannedUntil: error.response.data.banned_until,
+          banReason: error.response.data.reason
+        });
+        return { success: false, error: 'Account Banned' };
+      }
       return { success: false, error: error.response?.data?.error || 'Login failed' }
     }
   }

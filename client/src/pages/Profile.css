@@ -305,3 +305,21 @@
   right: auto;
   left: auto;
 }
+
+.moderate-btn-large {
+  background-color: #ff4d4d;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  font-weight: bold;
+  cursor: pointer;
+  margin-left: 10px;
+  transition: background-color 0.2s;
+  text-decoration: none;
+  font-size: 16px;
+}
+
+.moderate-btn-large:hover {
+  background-color: #e60000;
+}

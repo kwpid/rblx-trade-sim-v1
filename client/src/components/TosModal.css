@@ -1,0 +1,65 @@
+.tos-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.85);
+    z-index: 9998;
+    /* Just below BannedOverlay (9999) */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(3px);
+}
+
+.tos-modal {
+    background-color: #232527;
+    padding: 30px;
+    border-radius: 8px;
+    border: 1px solid #393b3d;
+    width: 450px;
+    max-width: 90%;
+    color: #e0e0e0;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
+}
+
+.tos-modal h2 {
+    color: white;
+    margin-top: 0;
+}
+
+.tos-summary-list {
+    padding-left: 20px;
+    margin: 15px 0;
+    list-style-type: disc;
+}
+
+.tos-summary-list li {
+    margin-bottom: 5px;
+}
+
+.tos-modal a {
+    color: #00a2ff;
+}
+
+.tos-modal-actions {
+    margin-top: 25px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.accept-btn {
+    background-color: #00a2ff;
+    color: white;
+    border: none;
+    padding: 10px 25px;
+    border-radius: 4px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.accept-btn:hover {
+    background-color: #0088d6;
+}

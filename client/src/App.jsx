@@ -24,6 +24,9 @@ import TopBar from './components/TopBar'
 import NotificationContainer from './components/NotificationContainer'
 import PaycheckNotification from './components/PaycheckNotification'
 import VersionManager from './components/VersionManager'
+import BannedOverlay from './components/BannedOverlay'
+import TosModal from './components/TosModal'
+import TermsOfService from './pages/TermsOfService'
 import './App.css'
 
 function App() {
@@ -58,10 +61,13 @@ function App() {
                         <Route path="/leaderboard" element={<Leaderboard />} />
                         <Route path="/settings" element={<Settings />} />
                         <Route path="/admin" element={<AdminPanel />} />
+                        <Route path="/tos" element={<TermsOfService />} />
                       </Routes>
                     </div>
                     <NotificationContainer />
                     <VersionManager />
+                    <BannedOverlay />
+                    <TosModal />
                   </PrivateRoute>
                 }
               />

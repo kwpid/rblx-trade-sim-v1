@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import axios from 'axios'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import ModerationModal from '../components/ModerationModal'
 import './Profile.css'
 
 const Profile = () => {
@@ -14,6 +15,7 @@ const Profile = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [portfolioData, setPortfolioData] = useState([])
   const [portfolioLoading, setPortfolioLoading] = useState(true)
+  const [showModerationModal, setShowModerationModal] = useState(false)
 
   const targetUserId = id || user?.id
 
@@ -132,9 +134,16 @@ const Profile = () => {
 
           <div className="profile-actions-right">
             {id && user && id !== user.id && (
-              <Link to={`/trades/new?partner=${id}`} className="trade-btn-large">
-                Trade
-              </Link>
+              <>
+                <Link to={`/trades/new?partner=${id}`} className="trade-btn-large">
+                  Trade
+                </Link>
+                {user.is_admin && (
+                  <button className="moderate-btn-large" onClick={() => setShowModerationModal(true)}>
+                    Moderate
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -259,6 +268,17 @@ const Profile = () => {
           )}
         </div>
       </div>
+
+      {showModerationModal && (
+        <ModerationModal
+          userId={profileUser?.id || id}
+          username={profileUser?.username}
+          onClose={() => setShowModerationModal(false)}
+          onSuccess={() => {
+            fetchProfile();
+          }}
+        />
+      )}
     </div>
   )
 }
