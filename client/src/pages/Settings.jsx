@@ -185,7 +185,7 @@ const Settings = () => {
                           setMinTradeValue(val);
                         }}
                       />
-                      <span>RAP</span>
+                      <span>Value</span>
                     </div>
                     <p className="setting-description">Users sending you trades must offer at least this much total value.</p>
                   </div>
