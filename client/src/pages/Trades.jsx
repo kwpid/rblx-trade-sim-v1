@@ -135,16 +135,39 @@ const Trades = () => {
                         const isSender = trade.sender_id === user.id
                         const partner = isSender ? trade.receiver : trade.sender
 
+                        // Calculate values from user's perspective
+                        const myValue = isSender ? trade.sender_value : trade.receiver_value
+                        const theirValue = isSender ? trade.receiver_value : trade.sender_value
+                        const diff = theirValue - myValue
+                        const diffPercent = myValue > 0 ? (diff / myValue) * 100 : 0
+
+                        // Determine color
+                        let bgColor
+                        if (Math.abs(diffPercent) <= 5) {
+                            bgColor = 'rgba(255, 193, 7, 0.08)' // Yellow for fair
+                        } else if (diff > 0) {
+                            bgColor = 'rgba(0, 176, 111, 0.08)' // Green for profit
+                        } else {
+                            bgColor = 'rgba(255, 107, 107, 0.08)' // Red for loss
+                        }
+
                         return (
                             <Link
                                 key={trade.id}
                                 to={`/trades/${trade.id}`}
                                 className="trade-card"
+                                style={{ backgroundColor: bgColor }}
                             >
                                 <div className="trade-card-left">
                                     <div className="trade-info">
                                         <span className="trade-partner-name">{partner?.username}</span>
                                         <span className="trade-date">{new Date(trade.created_at).toLocaleString()}</span>
+                                        {/* Value Comparison */}
+                                        <div className="trade-value-comparison">
+                                            <span className="value-send">${myValue?.toLocaleString() || 0}</span>
+                                            <span className="value-separator">/</span>
+                                            <span className="value-receive">${theirValue?.toLocaleString() || 0}</span>
+                                        </div>
                                     </div>
                                 </div>
                                 <div className="trade-card-right">

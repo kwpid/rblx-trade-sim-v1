@@ -135,7 +135,7 @@ const ItemDetail = () => {
 
       // Format value history data
       const formattedValueHistory = valueResponse.data.map(change => ({
-        date: new Date(change.changed_at).toLocaleDateString(),
+        date: new Date(change.created_at).toLocaleDateString(),
         value: change.new_value || 0,
         oldValue: change.old_value || 0
       }))

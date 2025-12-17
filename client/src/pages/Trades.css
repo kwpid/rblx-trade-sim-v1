@@ -144,6 +144,28 @@
     margin-top: 4px;
 }
 
+.trade-value-comparison {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.trade-value-comparison .value-send {
+    color: #ff6b6b;
+}
+
+.trade-value-comparison .value-receive {
+    color: #00b06f;
+}
+
+.trade-value-comparison .value-separator {
+    color: #555;
+    font-weight: 400;
+}
+
 .trade-card-right {
     display: flex;
     align-items: center;

@@ -168,7 +168,15 @@ router.get('/', authenticate, async (req, res) => {
       .select(`
         *,
         sender:sender_id (id, username),
-        receiver:receiver_id (id, username)
+        receiver:receiver_id (id, username),
+        trade_items (
+          id,
+          side,
+          user_items (
+            id,
+            items (value)
+          )
+        )
       `)
       .order('created_at', { ascending: false });
 
@@ -188,7 +196,25 @@ router.get('/', authenticate, async (req, res) => {
     const { data: trades, error } = await query;
 
     if (error) throw error;
-    res.json(trades);
+
+    // Calculate value totals for each trade
+    const tradesWithValues = trades.map(trade => {
+      const senderValue = trade.trade_items
+        ?.filter(ti => ti.side === 'sender')
+        .reduce((sum, ti) => sum + (ti.user_items?.items?.value || 0), 0) || 0;
+
+      const receiverValue = trade.trade_items
+        ?.filter(ti => ti.side === 'receiver')
+        .reduce((sum, ti) => sum + (ti.user_items?.items?.value || 0), 0) || 0;
+
+      return {
+        ...trade,
+        sender_value: senderValue,
+        receiver_value: receiverValue
+      };
+    });
+
+    res.json(tradesWithValues);
 
   } catch (error) {
     console.error('Error fetching trades:', error);
