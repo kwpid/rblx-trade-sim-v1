@@ -1,16 +1,18 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { useNotifications } from '../contexts/NotificationContext'
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 import './TopBar.css'
+
 /* Inline styles fix for badge if css file not opened */
 /* .nav-badge { background: red; color: white; border-radius: 50%; padding: 2px 6px; font-size: 10px; margin-left: 5px; vertical-align: super; } */
 
 const TopBar = () => {
   const { user, logout } = useAuth()
+  const { inboundCount } = useNotifications()
   const location = useLocation()
   const [cash, setCash] = useState(user?.cash || 0)
-  const [inboundCount, setInboundCount] = useState(0)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [paycheckTimer, setPaycheckTimer] = useState(60)
 
@@ -18,15 +20,13 @@ const TopBar = () => {
     setIsMenuOpen(false)
   }, [location])
 
-  // State for inbound trades count
+  // State for inbound trades count -- Managed by Context now
 
   useEffect(() => {
     if (user) {
       setCash(user.cash)
       fetchUserCash()
-      fetchInboundTrades()
-      // Poll trades every 30s
-      const tradeInterval = setInterval(fetchInboundTrades, 30000)
+      // Trades fetched by Context now
 
       // Paycheck Timer (60s loop matches backend/simulated cycle)
       const timerInterval = setInterval(() => {
@@ -40,7 +40,6 @@ const TopBar = () => {
       }, 1000)
 
       return () => {
-        clearInterval(tradeInterval)
         clearInterval(timerInterval)
       }
     }
@@ -52,17 +51,6 @@ const TopBar = () => {
       setCash(response.data.cash)
     } catch (error) {
       console.error('Error fetching cash:', error)
-    }
-  }
-
-  const fetchInboundTrades = async () => {
-    try {
-      const response = await axios.get('/api/trades?type=inbound')
-      // Assuming response.data is array of trades. 
-      // If it's already filtered by 'inbound' and 'pending' via API, length is count.
-      setInboundCount(response.data.length)
-    } catch (error) {
-      console.error('Error fetching trades:', error)
     }
   }
 

@@ -460,10 +460,9 @@ const actionBuyResale = async (ai, personalityProfile) => {
         purchase_price: price
     }).eq('id', target.id);
 
-    // 4. Update RAP
+    // 4. Update RAP (and History)
     const oldRap = target.items.rap || 0;
-    const newRap = oldRap === 0 ? price : Math.floor((oldRap * 9 + price) / 10);
-    await supabase.from('items').update({ rap: newRap }).eq('id', target.items.id);
+    const newRap = await updateItemRAPSnapshot(target.items.id, price);
 
     // 5. Logs
     await supabase.from('transactions').insert([
@@ -479,6 +478,86 @@ const actionBuyResale = async (ai, personalityProfile) => {
     }]);
 
     console.log(`[AI] ${ai.username} bought resale: ${target.items.name} for R$${price}`);
+};
+
+// Helper function to update daily RAP snapshot (Copied from marketplace.js)
+const updateItemRAPSnapshot = async (itemId, salePrice) => {
+    try {
+        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+
+        // Check if snapshot exists for today
+        const { data: existingSnapshot } = await supabase
+            .from('item_rap_history')
+            .select('*')
+            .eq('item_id', itemId)
+            .eq('snapshot_date', today)
+            .single();
+
+        if (existingSnapshot) {
+            // Update existing snapshot
+            const newSalesCount = existingSnapshot.sales_count + 1;
+            const newSalesVolume = existingSnapshot.sales_volume + salePrice;
+
+            let calculatedRap = Math.floor(
+                (existingSnapshot.rap_value * existingSnapshot.sales_count + salePrice) / newSalesCount
+            );
+
+            // dampening: max 20% increase from previous daily snapshot RAP
+            const maxRap = Math.floor(existingSnapshot.rap_value * 1.2);
+            const newRapValue = Math.min(calculatedRap, maxRap);
+
+            await supabase
+                .from('item_rap_history')
+                .update({
+                    rap_value: newRapValue,
+                    sales_count: newSalesCount,
+                    sales_volume: newSalesVolume,
+                    timestamp: new Date().toISOString()
+                })
+                .eq('item_id', itemId)
+                .eq('snapshot_date', today);
+
+            // Also update main item RAP
+            await supabase.from('items').update({ rap: newRapValue }).eq('id', itemId);
+
+            return newRapValue;
+        } else {
+            // Create new snapshot for today
+            // For new day, we might want to base it on previous RAP or just this sale?
+            // Usually RAP carries over. Let's fetch current RAP first.
+            const { data: item } = await supabase.from('items').select('rap').eq('id', itemId).single();
+            const currentRap = item ? item.rap : salePrice;
+
+            // If it's the very first sale of the day, the "New RAP" is often just weighted towards the sale price
+            // OR we just take the dampening logic relative to *yesterday's* RAP. 
+            // For simplicity, we just insert this sale as the baseline for the day.
+            // But we should verify we don't drop RAP to 0 if it was high.
+
+            // Let's stick to simple: Snapshot starts with this sale.
+            // Wait, if RAP was 1M and I sell for 10k, RAP becomes 10k? No.
+            // Ideally we use a moving average. The marketplace.js implementation was:
+            // "Create new snapshot... rap_value: salePrice".
+            // That implies the first sale of the day SETS the RAP to that price? That's volatile.
+            // Let's stick to the user's marketplace logic for consistency:
+
+            await supabase
+                .from('item_rap_history')
+                .insert([{
+                    item_id: itemId,
+                    rap_value: salePrice,
+                    sales_count: 1,
+                    sales_volume: salePrice,
+                    snapshot_date: today,
+                    timestamp: new Date().toISOString()
+                }]);
+
+            await supabase.from('items').update({ rap: salePrice }).eq('id', itemId);
+            return salePrice;
+        }
+    } catch (error) {
+        console.error('Error updating RAP snapshot:', error);
+        return salePrice; // Fallback
+    }
 };
 
 const actionList = async (ai, personalityProfile) => {

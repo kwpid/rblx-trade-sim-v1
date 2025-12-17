@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
+import { useNotifications } from '../contexts/NotificationContext'
 import { Link } from 'react-router-dom'
 import axios from 'axios'
 import './Trades.css'
 
 const Trades = () => {
     const { user } = useAuth()
+    const { fetchInboundTrades } = useNotifications()
     const [activeTab, setActiveTab] = useState('inbound')
     const [trades, setTrades] = useState([])
     const [loading, setLoading] = useState(true)
@@ -19,6 +21,12 @@ const Trades = () => {
         try {
             const response = await axios.get(`/api/trades?type=${activeTab}`)
             setTrades(response.data)
+
+            // Refresh badge count if we are looking at inbound
+            // Or just refresh it generally to ensure sync
+            if (activeTab === 'inbound') {
+                fetchInboundTrades();
+            }
         } catch (error) {
             console.error('Error fetching trades:', error)
         } finally {

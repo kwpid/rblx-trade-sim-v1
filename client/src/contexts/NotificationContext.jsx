@@ -15,12 +15,19 @@ export const useNotifications = () => {
 export const NotificationProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([])
   const [popups, setPopups] = useState([])
+  const [inboundCount, setInboundCount] = useState(0) // Shared trade count
   const { user } = useAuth()
 
   useEffect(() => {
     if (user) {
       fetchNotifications()
-      const interval = setInterval(fetchNotifications, 10000) // Poll every 10 seconds
+      fetchInboundTrades() // Initial fetch
+
+      const interval = setInterval(() => {
+        fetchNotifications()
+        fetchInboundTrades()
+      }, 10000) // Poll every 10 seconds (Unified)
+
       return () => clearInterval(interval)
     }
   }, [user])
@@ -31,6 +38,15 @@ export const NotificationProvider = ({ children }) => {
       setNotifications(response.data)
     } catch (error) {
       console.error('Error fetching notifications:', error)
+    }
+  }
+
+  const fetchInboundTrades = async () => {
+    try {
+      const response = await axios.get('/api/trades?type=inbound')
+      setInboundCount(response.data.length || 0)
+    } catch (error) {
+      console.error('Error fetching trades:', error)
     }
   }
 
@@ -53,12 +69,12 @@ export const NotificationProvider = ({ children }) => {
     const id = Date.now()
     const popup = { id, message, type }
     setPopups(prev => [...prev, popup])
-    
+
     // Auto remove after 5 seconds
     setTimeout(() => {
       setPopups(prev => prev.filter(p => p.id !== id))
     }, 5000)
-    
+
     return id
   }
 
@@ -67,7 +83,16 @@ export const NotificationProvider = ({ children }) => {
   }
 
   return (
-    <NotificationContext.Provider value={{ notifications, addNotification, markAsRead, popups, showPopup, removePopup }}>
+    <NotificationContext.Provider value={{
+      notifications,
+      addNotification,
+      markAsRead,
+      popups,
+      showPopup,
+      removePopup,
+      inboundCount, // Exposed state
+      fetchInboundTrades // Exposed updater
+    }}>
       {children}
     </NotificationContext.Provider>
   )
