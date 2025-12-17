@@ -181,28 +181,14 @@ const leaderboardCache = {
 // Get leaderboard by cash
 router.get('/leaderboard', async (req, res) => {
   try {
-    // Check Cache
-    if (leaderboardCache.cash.data && Date.now() < leaderboardCache.cash.expire) {
-      res.setHeader('X-Cache-Expire', leaderboardCache.cash.expire);
-      return res.json(leaderboardCache.cash.data);
-    }
-
     const { data: users, error } = await supabase
       .from('users')
       .select('id, username, cash')
       .order('cash', { ascending: false })
-      .limit(10); // Limit to top 10
+      .limit(10);
 
     if (error) throw error;
 
-    if (error) throw error;
-
-    // Update Cache
-    const expireTime = Date.now() + 5 * 60 * 1000; // 5 minutes
-    leaderboardCache.cash.data = users;
-    leaderboardCache.cash.expire = expireTime;
-
-    res.setHeader('X-Cache-Expire', expireTime);
     res.json(users);
   } catch (error) {
     console.error('Error fetching leaderboard:', error);
@@ -213,48 +199,35 @@ router.get('/leaderboard', async (req, res) => {
 // Get leaderboard by value
 router.get('/leaderboard/value', async (req, res) => {
   try {
-    // Check Cache
-    if (leaderboardCache.value.data && Date.now() < leaderboardCache.value.expire) {
-      res.setHeader('X-Cache-Expire', leaderboardCache.value.expire);
-      return res.json(leaderboardCache.value.data);
-    }
-
-    // 1. Get All Users (Lightweight)
+    // 1. Get All Users
     const { data: users, error: usersError } = await supabase
       .from('users')
       .select('id, username');
 
     if (usersError) throw usersError;
 
-    // 2. Bulk Fetch All User Items (Batched would be better for scale, but manageable here)
+    // 2. Fetch All User Items - each row is one item copy
     const { data: allItems, error: itemsError } = await supabase
       .from('user_items')
       .select(`
         user_id,
-        items:item_id (
-            value,
-            rap,
-            is_limited,
-            is_off_sale,
-            sale_type,
-            remaining_stock
-        )
+        items:item_id (value)
       `)
-      .not('items', 'is', null); // Filter invalid items
+      .not('items', 'is', null);
 
     if (itemsError) throw itemsError;
 
-    // 3. Aggregate in Memory
+    // 3. Aggregate - count EACH item copy individually
     const userValueMap = {};
 
-    allItems.forEach(ui => {
-      if (!userValueMap[ui.user_id]) userValueMap[ui.user_id] = 0;
+    allItems.forEach(userItem => {
+      if (!userValueMap[userItem.user_id]) userValueMap[userItem.user_id] = 0;
 
-      const itemData = ui.items;
-      // Count all items with value (matching Profile.jsx logic)
+      const itemData = userItem.items;
+      // Each user_item row represents one copy, so add its value
       const val = (itemData.value !== null && itemData.value !== undefined) ? itemData.value : 0;
 
-      userValueMap[ui.user_id] += val;
+      userValueMap[userItem.user_id] += val;
     });
 
     // 4. Map & Sort
@@ -269,12 +242,6 @@ router.get('/leaderboard/value', async (req, res) => {
     // 5. Limit to Top 10
     const top10 = leaderboard.slice(0, 10);
 
-    // Update Cache
-    const expireTime = Date.now() + 5 * 60 * 1000;
-    leaderboardCache.value.data = top10;
-    leaderboardCache.value.expire = expireTime;
-
-    res.setHeader('X-Cache-Expire', expireTime);
     res.json(top10);
 
   } catch (error) {
@@ -286,12 +253,6 @@ router.get('/leaderboard/value', async (req, res) => {
 // Get leaderboard by RAP
 router.get('/leaderboard/rap', async (req, res) => {
   try {
-    // Check Cache
-    if (leaderboardCache.rap.data && Date.now() < leaderboardCache.rap.expire) {
-      res.setHeader('X-Cache-Expire', leaderboardCache.rap.expire);
-      return res.json(leaderboardCache.rap.data);
-    }
-
     // 1. Get All Users
     const { data: users, error: usersError } = await supabase
       .from('users')
@@ -299,7 +260,7 @@ router.get('/leaderboard/rap', async (req, res) => {
 
     if (usersError) throw usersError;
 
-    // 2. Bulk Fetch All User Items
+    // 2. Fetch All User Items - each row is one item copy
     const { data: allItems, error: itemsError } = await supabase
       .from('user_items')
       .select(`
@@ -313,20 +274,20 @@ router.get('/leaderboard/rap', async (req, res) => {
 
     if (itemsError) throw itemsError;
 
-    // 3. Aggregate in Memory
+    // 3. Aggregate - count EACH item copy individually
     const userRAPMap = {};
 
-    allItems.forEach(ui => {
-      if (!userRAPMap[ui.user_id]) userRAPMap[ui.user_id] = 0;
+    allItems.forEach(userItem => {
+      if (!userRAPMap[userItem.user_id]) userRAPMap[userItem.user_id] = 0;
 
-      const itemData = ui.items;
-      // Strictly use RAP for limiteds only
+      const itemData = userItem.items;
+      // Each user_item row represents one copy
       let val = 0;
       if (itemData.is_limited) {
         val = itemData.rap || 0;
       }
 
-      userRAPMap[ui.user_id] += val;
+      userRAPMap[userItem.user_id] += val;
     });
 
     // 4. Map & Sort
@@ -341,12 +302,6 @@ router.get('/leaderboard/rap', async (req, res) => {
     // 5. Limit to Top 10
     const top10 = leaderboard.slice(0, 10);
 
-    // Update Cache
-    const expireTime = Date.now() + 5 * 60 * 1000;
-    leaderboardCache.rap.data = top10;
-    leaderboardCache.rap.expire = expireTime;
-
-    res.setHeader('X-Cache-Expire', expireTime);
     res.json(top10);
 
   } catch (error) {
