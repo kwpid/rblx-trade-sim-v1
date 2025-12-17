@@ -728,6 +728,7 @@ const actionInitiateTrade = async (ai, p) => {
 
     // Filter Candidates: Remove bad items (Projected)
     const validCandidates = candidates.filter(c => {
+        if (!c.items) return false;
         const rap = c.items.rap || 0;
         const val = c.items.value || rap;
         // Avoid projected items unless we are a sniper (looking for victims) or it's just a great deal
