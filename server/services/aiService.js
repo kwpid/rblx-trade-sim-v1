@@ -13,31 +13,31 @@ const ACTION_PROBABILITY = 0.4; // 40% chance to act per tick if online
 // Personality Definitions
 const PERSONALITIES = {
     'hoarder': {
-        weights: { buy_new: 3, buy_resale: 3, list_item: 0.5, manage_listings: 2, trade_send: 1, trade_check: 5 },
+        weights: { buy_new: 5, buy_resale: 1, list_item: 0.5, manage_listings: 2, trade_send: 1, trade_check: 5 },
         trade_accept_threshold: 1.5, // Requires 50% overpay
         trade_decline_threshold: 1.2,
         description: 'Buys often, sells rarely, keeps high value items.'
     },
     'trader': {
-        weights: { buy_new: 1, buy_resale: 3, list_item: 8, manage_listings: 6, trade_send: 4, trade_check: 5 },
+        weights: { buy_new: 4, buy_resale: 0.5, list_item: 8, manage_listings: 6, trade_send: 4, trade_check: 5 },
         trade_accept_threshold: 1.05, // Accepts 5% overpay/fair
         trade_decline_threshold: 0.9,
         description: 'Active in trades and listing, looks for fair/profit trades.'
     },
     'sniper': {
-        weights: { buy_new: 0.5, buy_resale: 5, list_item: 4, manage_listings: 4, trade_send: 2, trade_check: 5 },
+        weights: { buy_new: 2, buy_resale: 2, list_item: 4, manage_listings: 4, trade_send: 2, trade_check: 5 },
         trade_accept_threshold: 1.3, // Wants 30% profit
         trade_decline_threshold: 1.0,
         description: 'Looks for underpriced deals and high profit trades.'
     },
     'casual': {
-        weights: { buy_new: 1, buy_resale: 1, list_item: 4, manage_listings: 3, trade_send: 1, trade_check: 3 },
+        weights: { buy_new: 6, buy_resale: 0.2, list_item: 4, manage_listings: 3, trade_send: 1, trade_check: 3 },
         trade_accept_threshold: 0.95, // Might accept slight loss (-5%)
         trade_decline_threshold: 0.8,
         description: 'Random behavior, not very strict on values.'
     },
     'whale': {
-        weights: { buy_new: 5, buy_resale: 5, list_item: 2, manage_listings: 1, trade_send: 2, trade_check: 3 },
+        weights: { buy_new: 10, buy_resale: 1, list_item: 2, manage_listings: 1, trade_send: 2, trade_check: 3 },
         trade_accept_threshold: 0.9, // Gives away value easily (-10%)
         trade_decline_threshold: 0.7,
         description: 'High balance, buys expensive stuff, carefree with value.'
@@ -294,6 +294,10 @@ const actionBuyNew = async (ai) => {
 };
 
 const actionBuyResale = async (ai, personalityProfile) => {
+    // THROTTLE: User reported AI buys too fast.
+    // Force skip 80% of the time even if action was selected
+    if (Math.random() < 0.8) return;
+
     // Fetch random resale listings
     let query = supabase
         .from('user_items')

@@ -316,6 +316,17 @@ const ItemDetail = () => {
     return 'Stable'
   }
 
+  const handleAdminDelist = async (userItemId) => {
+    if (!window.confirm('Are you sure you want to admin-delist this item?')) return;
+    try {
+      await axios.post('/api/marketplace/admin-delist', { user_item_id: userItemId });
+      showPopup('Item delisted by Admin', 'success');
+      fetchItemDetails();
+    } catch (error) {
+      showPopup(error.response?.data?.error || 'Failed to delist item', 'error');
+    }
+  }
+
   return (
     <div className="item-detail">
       <div className="container">
@@ -523,6 +534,7 @@ const ItemDetail = () => {
               {resellers.map(reseller => {
                 // Check if this reseller item is owned by the current user
                 const isOwnItem = user && ownedItems.some(owned => owned.id === reseller.id)
+                const isAdmin = user && user.is_admin
 
                 return (
                   <div key={reseller.id} className="reseller-item">
@@ -531,6 +543,18 @@ const ItemDetail = () => {
                       <div className="reseller-serial">Serial #{reseller.serial_number || 'N/A'}</div>
                       <div className="reseller-price">${reseller.sale_price?.toLocaleString()}</div>
                     </div>
+
+                    {/* Admin Delist Button */}
+                    {isAdmin && !isOwnItem && (
+                      <button
+                        className="reseller-buy-btn"
+                        onClick={() => handleAdminDelist(reseller.id)}
+                        style={{ backgroundColor: '#ff4d4f', borderColor: '#ff4d4f', marginRight: '8px' }}
+                      >
+                        Delist
+                      </button>
+                    )}
+
                     {isOwnItem ? (
                       <button
                         className="reseller-buy-btn"
@@ -570,6 +594,8 @@ const ItemDetail = () => {
             </div>
           )}
         </div>
+
+        {/* ... (existing dialogs) ... */}
 
         {showConfirmDialog && (
           <div className="confirm-dialog-overlay" onClick={() => setShowConfirmDialog(false)}>

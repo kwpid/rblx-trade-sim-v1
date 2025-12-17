@@ -509,5 +509,45 @@ router.post('/purchase-from-player', authenticate, async (req, res) => {
   }
 });
 
+const { authenticate, requireAdmin } = require('../middleware/auth');
+
+// ... existing code ...
+
+// Admin: Force Delist Item
+router.post('/admin-delist', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { user_item_id } = req.body;
+
+    // Check if item exists
+    const { data: item, error: fetchError } = await supabase
+      .from('user_items')
+      .select('*, users(username)')
+      .eq('id', user_item_id)
+      .single();
+
+    if (fetchError || !item) {
+      return res.status(404).json({ error: 'Item listing not found' });
+    }
+
+    // Force Unlist
+    const { error: updateError } = await supabase
+      .from('user_items')
+      .update({
+        is_for_sale: false,
+        sale_price: null
+      })
+      .eq('id', user_item_id);
+
+    if (updateError) throw updateError;
+
+    console.log(`[Admin] ${req.user.username} delisted item ${user_item_id} from ${item.users?.username}`);
+
+    res.json({ success: true, message: 'Item delisted successfully' });
+  } catch (error) {
+    console.error('Error admin-delisting item:', error);
+    res.status(500).json({ error: 'Failed to delist item' });
+  }
+});
+
 module.exports = router;
 
