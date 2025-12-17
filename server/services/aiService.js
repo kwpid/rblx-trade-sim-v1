@@ -817,6 +817,7 @@ const actionInitiateTrade = async (ai, p) => {
     // 2. Valuation & Strategy
     // Helper to get effective valuation (handling projected items)
     const getEffectiveValue = (item) => {
+        if (!item) return 0;
         const rap = item.rap || 0;
         const val = item.value || rap;
         if (val > 0 && rap > val * 1.25) return Math.floor(val * 0.5); // Penalty for projected
@@ -845,7 +846,9 @@ const actionInitiateTrade = async (ai, p) => {
     let offerVal = 0;
 
     // Sort my items by value desc
-    const mySortedItems = myItems.map(i => ({ ...i, effVal: getEffectiveValue(i.items) }))
+    const mySortedItems = myItems
+        .filter(i => i.items) // Filter out items with missing reference 
+        .map(i => ({ ...i, effVal: getEffectiveValue(i.items) }))
         .sort((a, b) => b.effVal - a.effVal);
 
     // Try to find a match
