@@ -1020,22 +1020,44 @@ const actionInitiateTrade = async (ai, p) => {
     // Simple Strategy: Try to build a package close to Target Value with a Target Ratio
     let targetRatio = 1.0;
 
-    // Adjust based on personalities/trends
+    // IMPROVED: Adjust based on rarity and demand
     const stock = targetItem.items.stock_count || 1000;
-    const isRare = stock < 500;
+    const demand = targetItem.items.demand || 'medium';
 
-    // Base Willingness
+    // Rarity multipliers (more aggressive for rarer items)
+    let rarityMultiplier = 1.0;
+    if (stock < 50) rarityMultiplier = 1.5; // Very rare: +50%
+    else if (stock < 100) rarityMultiplier = 1.3; // Rare: +30%
+    else if (stock < 200) rarityMultiplier = 1.2; // Uncommon: +20%
+    else if (stock < 500) rarityMultiplier = 1.1; // Slightly rare: +10%
+
+    // Demand multipliers
+    let demandMultiplier = 1.0;
+    if (demand === 'very_high') demandMultiplier = 1.3;
+    else if (demand === 'high') demandMultiplier = 1.15;
+    else if (demand === 'medium') demandMultiplier = 1.0;
+    else if (demand === 'low') demandMultiplier = 0.95;
+    else if (demand === 'very_low') demandMultiplier = 0.9;
+
+    // Base Willingness by personality
     if (ai.personality === 'sniper') targetRatio = 0.85; // Lowball
     else if (ai.personality === 'whale') targetRatio = 1.2; // Generous
+    else if (ai.personality === 'hoarder') targetRatio = 1.15; // Willing to pay for collectibles
     else targetRatio = 1.0; // Fair
 
-    // Modifiers
-    if (isRare) targetRatio += 0.1; // Pay more for rares
+    // Apply rarity and demand multipliers
+    targetRatio *= rarityMultiplier * demandMultiplier;
 
     let goalValue = targetVal * targetRatio;
 
     // Knapsack-ish: Fill bucket
     for (const item of mySortedItems) {
+        // PREVENT SAME ITEM 1:1 TRADES
+        if (offerItems.length === 0 && item.items.id === targetItem.items.id) {
+            // Don't offer the same item 1:1
+            continue;
+        }
+
         // Don't add if it exceeds goal significantly
         if (offerVal + item.effVal > goalValue * 1.1) continue;
 
@@ -1048,6 +1070,19 @@ const actionInitiateTrade = async (ai, p) => {
     // Check if offer is valid
     if (offerVal < goalValue * 0.9) return; // Couldn't find enough items
     if (offerVal > goalValue * 1.2) return; // Don't overpay massively (unless intended, but logic above prevents add)
+
+    // PREVENT 1:1 + ADDED ITEM (unfair trades)
+    // If we have exactly 1 item on each side, ensure it's not the same item
+    if (offerItems.length === 1 && offerItems[0].items.id === targetItem.items.id) {
+        return; // Don't send 1:1 same item trade
+    }
+
+    // PREVENT 1:1 + small added item (e.g., 1 big item + 1 small item for 1 item)
+    // If offering 2 items for 1, ensure we're actually upgrading meaningfully
+    if (offerItems.length === 2 && offerVal < targetVal * 1.15) {
+        // We're offering 2 items but not enough value - likely a bad "1:1 + added" trade
+        return;
+    }
 
     // Upgrade/Downgrade Logic Check
     // If we are giving 4 items for 1, and only offering 1.0x, it might be declined.
@@ -1089,7 +1124,7 @@ const actionInitiateTrade = async (ai, p) => {
 
     await supabase.from('trade_items').insert(tradeItemsPayload);
 
-    console.log(`[AI] ${ai.username} SENT trade to ${targetUser.username} (${targetUser.is_ai ? 'AI' : 'PLAYER'}). Offer: ${offerVal} (x${offerItems.length}) vs Ask: ${targetVal} (Item: ${targetItem.items.name})`);
+    console.log(`[AI] ${ai.username} SENT trade to ${targetUser.username} (${targetUser.is_ai ? 'AI' : 'PLAYER'}). Offer: ${offerVal} (x${offerItems.length}) vs Ask: ${targetVal} (Item: ${targetItem.items.name}, Stock: ${stock}, Demand: ${demand}, Ratio: ${targetRatio.toFixed(2)})`);
 };
 
 
