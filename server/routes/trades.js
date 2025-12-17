@@ -510,4 +510,70 @@ router.post('/:id/proof', authenticate, async (req, res) => {
   }
 });
 
+// Bulk decline all incoming trades
+router.post('/bulk/decline-incoming', authenticate, async (req, res) => {
+  try {
+    // Get all pending incoming trades for the user
+    const { data: trades, error: fetchError } = await supabase
+      .from('trades')
+      .select('id')
+      .eq('receiver_id', req.user.id)
+      .eq('status', 'pending');
+
+    if (fetchError) throw fetchError;
+
+    if (!trades || trades.length === 0) {
+      return res.json({ success: true, count: 0, message: 'No incoming trades to decline' });
+    }
+
+    // Decline all trades
+    const tradeIds = trades.map(t => t.id);
+    const { error: updateError } = await supabase
+      .from('trades')
+      .update({ status: 'declined', updated_at: new Date().toISOString() })
+      .in('id', tradeIds);
+
+    if (updateError) throw updateError;
+
+    res.json({ success: true, count: trades.length, message: `Declined ${trades.length} incoming trade(s)` });
+
+  } catch (error) {
+    console.error('Error bulk declining incoming trades:', error);
+    res.status(500).json({ error: 'Failed to decline incoming trades' });
+  }
+});
+
+// Bulk cancel all outbound trades
+router.post('/bulk/cancel-outbound', authenticate, async (req, res) => {
+  try {
+    // Get all pending outbound trades for the user
+    const { data: trades, error: fetchError } = await supabase
+      .from('trades')
+      .select('id')
+      .eq('sender_id', req.user.id)
+      .eq('status', 'pending');
+
+    if (fetchError) throw fetchError;
+
+    if (!trades || trades.length === 0) {
+      return res.json({ success: true, count: 0, message: 'No outbound trades to cancel' });
+    }
+
+    // Cancel all trades
+    const tradeIds = trades.map(t => t.id);
+    const { error: updateError } = await supabase
+      .from('trades')
+      .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+      .in('id', tradeIds);
+
+    if (updateError) throw updateError;
+
+    res.json({ success: true, count: trades.length, message: `Cancelled ${trades.length} outbound trade(s)` });
+
+  } catch (error) {
+    console.error('Error bulk cancelling outbound trades:', error);
+    res.status(500).json({ error: 'Failed to cancel outbound trades' });
+  }
+});
+
 module.exports = router;

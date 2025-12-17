@@ -38,6 +38,36 @@ const Trades = () => {
         return status.charAt(0).toUpperCase() + status.slice(1)
     }
 
+    const handleBulkDeclineIncoming = async () => {
+        if (!window.confirm(`Are you sure you want to decline all ${trades.length} incoming trade(s)?`)) {
+            return
+        }
+
+        try {
+            const response = await axios.post('/api/trades/bulk/decline-incoming')
+            alert(response.data.message || 'Successfully declined all incoming trades')
+            fetchTrades() // Refresh the list
+        } catch (error) {
+            console.error('Error declining incoming trades:', error)
+            alert('Failed to decline incoming trades')
+        }
+    }
+
+    const handleBulkCancelOutbound = async () => {
+        if (!window.confirm(`Are you sure you want to cancel all ${trades.length} outbound trade(s)?`)) {
+            return
+        }
+
+        try {
+            const response = await axios.post('/api/trades/bulk/cancel-outbound')
+            alert(response.data.message || 'Successfully cancelled all outbound trades')
+            fetchTrades() // Refresh the list
+        } catch (error) {
+            console.error('Error cancelling outbound trades:', error)
+            alert('Failed to cancel outbound trades')
+        }
+    }
+
     return (
         <div className="trades-container">
             <div className="trades-header">
@@ -70,6 +100,28 @@ const Trades = () => {
                     Inactive
                 </button>
             </div>
+
+            {/* Bulk Action Buttons */}
+            {(activeTab === 'inbound' || activeTab === 'outbound') && trades.length > 0 && (
+                <div className="bulk-actions">
+                    {activeTab === 'inbound' && (
+                        <button
+                            className="bulk-decline-btn"
+                            onClick={handleBulkDeclineIncoming}
+                        >
+                            Decline All Incoming
+                        </button>
+                    )}
+                    {activeTab === 'outbound' && (
+                        <button
+                            className="bulk-cancel-btn"
+                            onClick={handleBulkCancelOutbound}
+                        >
+                            Cancel All Outbound
+                        </button>
+                    )}
+                </div>
+            )}
 
             <div className="trades-list">
                 {loading ? (

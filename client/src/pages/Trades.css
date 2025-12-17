@@ -45,6 +45,41 @@
     opacity: 1;
 }
 
+.bulk-actions {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding: 12px;
+    background: rgba(255, 0, 0, 0.05);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 0, 0, 0.2);
+}
+
+.bulk-decline-btn,
+.bulk-cancel-btn {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 14px;
+}
+
+.bulk-decline-btn:hover,
+.bulk-cancel-btn:hover {
+    background: #c82333;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+}
+
+.bulk-decline-btn:active,
+.bulk-cancel-btn:active {
+    transform: translateY(0);
+}
+
 .trades-list {
     display: flex;
     flex-direction: column;
