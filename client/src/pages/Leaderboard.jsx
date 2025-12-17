@@ -7,20 +7,39 @@ const Leaderboard = () => {
   const [leaderboard, setLeaderboard] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('value') // 'value' or 'rap'
-  const [cacheExpireTime, setCacheExpireTime] = useState(null)
+
+  // Separate cache for each tab type
+  const [tabCache, setTabCache] = useState({
+    value: { data: null, expireTime: null },
+    rap: { data: null, expireTime: null }
+  })
+
   const [timeRemaining, setTimeRemaining] = useState(300) // 5 minutes in seconds
 
   useEffect(() => {
-    fetchLeaderboard()
-  }, [activeTab])
+    // Check if we have cached data for this tab
+    const cache = tabCache[activeTab]
+    if (cache.data && cache.expireTime && Date.now() < cache.expireTime) {
+      // Use cached data
+      setLeaderboard(cache.data)
+      setLoading(false)
+      // Also update timeRemaining based on cached expireTime
+      const remaining = Math.max(0, Math.floor((cache.expireTime - Date.now()) / 1000))
+      setTimeRemaining(remaining)
+    } else {
+      // Fetch new data
+      fetchLeaderboard()
+    }
+  }, [activeTab, tabCache])
 
-  // Countdown timer effect
+  // Countdown timer effect - uses the current active tab's expiration
   useEffect(() => {
-    if (!cacheExpireTime) return
+    const cache = tabCache[activeTab]
+    if (!cache.expireTime) return
 
     const interval = setInterval(() => {
       const now = Date.now()
-      const remaining = Math.max(0, Math.floor((cacheExpireTime - now) / 1000))
+      const remaining = Math.max(0, Math.floor((cache.expireTime - now) / 1000))
       setTimeRemaining(remaining)
 
       // Auto-refresh when timer expires
@@ -30,7 +49,7 @@ const Leaderboard = () => {
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [cacheExpireTime])
+  }, [activeTab, tabCache])
 
   const fetchLeaderboard = async () => {
     setLoading(true)
@@ -43,11 +62,30 @@ const Leaderboard = () => {
       }
 
       const response = await axios.get(`${endpoint}?t=${Date.now()}`)
-      setLeaderboard(response.data)
+      const data = response.data
+      setLeaderboard(data)
 
-      // Set cache expiration time (5 minutes from now)
-      setCacheExpireTime(Date.now() + 5 * 60 * 1000)
-      setTimeRemaining(300)
+      // Use server-provided cache expiration time
+      const serverExpireTime = response.headers['x-cache-expire']
+      let expireTime
+      let remaining
+
+      if (serverExpireTime) {
+        expireTime = parseInt(serverExpireTime)
+        remaining = Math.max(0, Math.floor((expireTime - Date.now()) / 1000))
+      } else {
+        // Fallback if header not present
+        expireTime = Date.now() + 5 * 60 * 1000
+        remaining = 300
+      }
+
+      // Update cache for this tab
+      setTabCache(prev => ({
+        ...prev,
+        [activeTab]: { data, expireTime }
+      }))
+
+      setTimeRemaining(remaining)
     } catch (error) {
       console.error('Error fetching leaderboard:', error)
     } finally {

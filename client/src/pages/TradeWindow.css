@@ -304,6 +304,57 @@
     flex-wrap: wrap;
 }
 
+/* Value Comparison Section */
+.value-comparison {
+    padding: 16px;
+    border-radius: 8px;
+    margin-top: 15px;
+    margin-bottom: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    text-align: center;
+}
+
+.value-comparison-label {
+    font-size: 12px;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+.value-comparison-values {
+    font-size: 28px;
+    font-weight: 800;
+    font-style: italic;
+    color: #fff;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.value-send {
+    color: #ff6b6b;
+}
+
+.value-receive {
+    color: #00b06f;
+}
+
+.value-separator {
+    color: #555;
+    font-weight: 400;
+}
+
+.value-comparison-sublabel {
+    font-size: 11px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
 .view-status-badge {
     display: inline-block;
     padding: 5px 15px;

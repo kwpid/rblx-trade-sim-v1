@@ -165,15 +165,25 @@ router.get('/:id/resellers', async (req, res) => {
 // Get value change history (public endpoint for all users)
 router.get('/value-changes', async (req, res) => {
   try {
-    const { data: history, error } = await supabase
+    const { item_id } = req.query;
+
+    let query = supabase
       .from('value_change_history')
       .select(`
         *,
         items:item_id (id, name, image_url, roblox_item_id),
         users:changed_by (id, username)
       `)
-      .order('created_at', { ascending: false })
-      .limit(100);
+      .order('changed_at', { ascending: true });
+
+    // Filter by item_id if provided
+    if (item_id) {
+      query = query.eq('item_id', item_id);
+    } else {
+      query = query.limit(100);
+    }
+
+    const { data: history, error } = await query;
 
     if (error) {
       console.error('Supabase error:', error);

@@ -352,6 +352,38 @@ const TradeWindow = () => {
                             </div>
                         </div>
 
+                        {/* Value Comparison */}
+                        {(() => {
+                            const myValue = calculateTotal(myOffer)
+                            const theirValue = calculateTotal(theirOffer)
+                            const diff = theirValue - myValue
+                            const diffPercent = myValue > 0 ? (diff / myValue) * 100 : 0
+
+                            // Determine color: green if profit, yellow if similar, red if loss
+                            let bgColor
+                            if (Math.abs(diffPercent) <= 5) {
+                                bgColor = 'rgba(255, 193, 7, 0.15)' // Yellow for fair trade
+                            } else if (diff > 0) {
+                                bgColor = 'rgba(0, 176, 111, 0.15)' // Green for profit
+                            } else {
+                                bgColor = 'rgba(255, 107, 107, 0.15)' // Red for loss
+                            }
+
+                            return (
+                                <div className="value-comparison" style={{ backgroundColor: bgColor }}>
+                                    <div className="value-comparison-label">Value Comparison</div>
+                                    <div className="value-comparison-values">
+                                        <span className="value-send">${myValue.toLocaleString()}</span>
+                                        <span className="value-separator">/</span>
+                                        <span className="value-receive">${theirValue.toLocaleString()}</span>
+                                    </div>
+                                    <div className="value-comparison-sublabel">
+                                        You'll Send / You'll Receive
+                                    </div>
+                                </div>
+                            )
+                        })()}
+
                         <button className="make-offer-btn" onClick={handleSendTrade}>Make Offer</button>
                         <button className="cancel-btn-styled" onClick={() => navigate(-1)}>Cancel</button>
                     </div>
@@ -429,14 +461,39 @@ const TradeWindow = () => {
                 <div className="offers-column">
                     <div className="offer-section" style={{ background: '#232527', padding: '20px', borderRadius: '8px' }}>
                         <h3>Trade Summary</h3>
-                        <div className="offer-total">
-                            <span>Your Value:</span>
-                            <span>${calculateTotal(myOffer).toLocaleString()}</span>
-                        </div>
-                        <div className="offer-total">
-                            <span>Their Value:</span>
-                            <span>${calculateTotal(theirOffer).toLocaleString()}</span>
-                        </div>
+
+                        {/* Value Comparison */}
+                        {(() => {
+                            const myValue = calculateTotal(myOffer)
+                            const theirValue = calculateTotal(theirOffer)
+                            const diff = theirValue - myValue
+                            const diffPercent = myValue > 0 ? (diff / myValue) * 100 : 0
+
+                            // Determine color: green if profit, yellow if similar, red if loss
+                            let bgColor
+                            if (Math.abs(diffPercent) <= 5) {
+                                bgColor = 'rgba(255, 193, 7, 0.15)' // Yellow for fair trade
+                            } else if (diff > 0) {
+                                bgColor = 'rgba(0, 176, 111, 0.15)' // Green for profit
+                            } else {
+                                bgColor = 'rgba(255, 107, 107, 0.15)' // Red for loss
+                            }
+
+                            return (
+                                <div className="value-comparison" style={{ backgroundColor: bgColor }}>
+                                    <div className="value-comparison-label">Value Comparison</div>
+                                    <div className="value-comparison-values">
+                                        <span className="value-send">${myValue.toLocaleString()}</span>
+                                        <span className="value-separator">/</span>
+                                        <span className="value-receive">${theirValue.toLocaleString()}</span>
+                                    </div>
+                                    <div className="value-comparison-sublabel">
+                                        {status === 'accepted' ? 'You Gave / You Received' : 'You Give / You Receive'}
+                                    </div>
+                                </div>
+                            )
+                        })()}
+
                         <div style={{ marginTop: '20px', fontSize: '20px', fontWeight: 'bold', color: calculateTotal(theirOffer) - calculateTotal(myOffer) >= 0 ? '#00b06f' : '#ff6b6b' }}>
                             {calculateTotal(theirOffer) - calculateTotal(myOffer) > 0 ? '+' : ''}
                             {(calculateTotal(theirOffer) - calculateTotal(myOffer)).toLocaleString()} Value

@@ -183,6 +183,7 @@ router.get('/leaderboard', async (req, res) => {
   try {
     // Check Cache
     if (leaderboardCache.cash.data && Date.now() < leaderboardCache.cash.expire) {
+      res.setHeader('X-Cache-Expire', leaderboardCache.cash.expire);
       return res.json(leaderboardCache.cash.data);
     }
 
@@ -197,9 +198,11 @@ router.get('/leaderboard', async (req, res) => {
     if (error) throw error;
 
     // Update Cache
+    const expireTime = Date.now() + 5 * 60 * 1000; // 5 minutes
     leaderboardCache.cash.data = users;
-    leaderboardCache.cash.expire = Date.now() + 5 * 60 * 1000; // 5 minutes
+    leaderboardCache.cash.expire = expireTime;
 
+    res.setHeader('X-Cache-Expire', expireTime);
     res.json(users);
   } catch (error) {
     console.error('Error fetching leaderboard:', error);
@@ -212,6 +215,7 @@ router.get('/leaderboard/value', async (req, res) => {
   try {
     // Check Cache
     if (leaderboardCache.value.data && Date.now() < leaderboardCache.value.expire) {
+      res.setHeader('X-Cache-Expire', leaderboardCache.value.expire);
       return res.json(leaderboardCache.value.data);
     }
 
@@ -266,9 +270,11 @@ router.get('/leaderboard/value', async (req, res) => {
     const top10 = leaderboard.slice(0, 10);
 
     // Update Cache
+    const expireTime = Date.now() + 5 * 60 * 1000;
     leaderboardCache.value.data = top10;
-    leaderboardCache.value.expire = Date.now() + 5 * 60 * 1000;
+    leaderboardCache.value.expire = expireTime;
 
+    res.setHeader('X-Cache-Expire', expireTime);
     res.json(top10);
 
   } catch (error) {
@@ -282,6 +288,7 @@ router.get('/leaderboard/rap', async (req, res) => {
   try {
     // Check Cache
     if (leaderboardCache.rap.data && Date.now() < leaderboardCache.rap.expire) {
+      res.setHeader('X-Cache-Expire', leaderboardCache.rap.expire);
       return res.json(leaderboardCache.rap.data);
     }
 
@@ -335,9 +342,11 @@ router.get('/leaderboard/rap', async (req, res) => {
     const top10 = leaderboard.slice(0, 10);
 
     // Update Cache
+    const expireTime = Date.now() + 5 * 60 * 1000;
     leaderboardCache.rap.data = top10;
-    leaderboardCache.rap.expire = Date.now() + 5 * 60 * 1000;
+    leaderboardCache.rap.expire = expireTime;
 
+    res.setHeader('X-Cache-Expire', expireTime);
     res.json(top10);
 
   } catch (error) {
