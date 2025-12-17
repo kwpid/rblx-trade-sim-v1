@@ -15,7 +15,7 @@ import Trades from './pages/Trades'
 import Leaderboard from './pages/Leaderboard'
 import Settings from './pages/Settings'
 // import TradeDetails from './pages/TradeDetails'
-import Event from './pages/Event'
+
 import ValueChanges from './pages/ValueChanges'
 import Transactions from './pages/Transactions'
 import AdminPanel from './pages/AdminPanel'
@@ -52,7 +52,7 @@ function App() {
                         <Route path="/trades" element={<Trades />} />
                         <Route path="/trades/:id" element={<TradeWindow />} />
                         {/* <Route path="/deals" element={<Deals />} /> */}
-                        <Route path="/event" element={<Event />} />
+
                         <Route path="/value-changes" element={<ValueChanges />} />
                         <Route path="/transactions" element={<Transactions />} />
                         <Route path="/leaderboard" element={<Leaderboard />} />

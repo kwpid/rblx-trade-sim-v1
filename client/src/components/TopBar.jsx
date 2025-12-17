@@ -75,7 +75,7 @@ const TopBar = () => {
     { path: '/profile', label: 'Profile' },
     { path: '/players', label: 'Players' },
     { path: '/trades', label: 'Trade' },
-    { path: '/event', label: 'Event' },
+
     { path: '/transactions', label: 'Transactions' },
     { path: '/value-changes', label: 'Value Changes' },
     { path: '/leaderboard', label: 'Leaderboard' },
