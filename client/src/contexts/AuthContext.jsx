@@ -16,12 +16,34 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // Axios interceptor to handle global 403 bans
+    const interceptor = axios.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.response?.status === 403 && error.response?.data?.banned_until) {
+          // Global ban handler
+          setUser({
+            isBanned: true,
+            bannedUntil: error.response.data.banned_until,
+            banReason: error.response.data.reason
+          });
+          // Don't reject, just return a "handled" promise or let it fail?
+          // We let it fail so components stop loading, but the state update above triggers the Overlay.
+        }
+        return Promise.reject(error);
+      }
+    );
+
     const token = localStorage.getItem('token')
     if (token) {
       verifyToken(token)
     } else {
       setLoading(false)
     }
+
+    return () => {
+      axios.interceptors.response.eject(interceptor);
+    };
   }, [])
 
   const verifyToken = async (token) => {

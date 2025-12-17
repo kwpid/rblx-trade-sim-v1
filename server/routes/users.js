@@ -8,7 +8,7 @@ router.get('/:id', async (req, res) => {
   try {
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, username, email, cash, is_admin, created_at, is_online')
+      .select('id, username, email, cash, is_admin, created_at, is_online, banned_until')
       .eq('id', req.params.id)
       .single();
 
@@ -57,7 +57,7 @@ router.get('/me/profile', authenticate, async (req, res) => {
   try {
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, username, email, cash, is_admin, created_at')
+      .select('id, username, email, cash, is_admin, created_at, banned_until')
       .eq('id', req.user.id)
       .single();
 
