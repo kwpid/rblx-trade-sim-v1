@@ -6,9 +6,27 @@
 
 .leaderboard h1 {
   color: var(--roblox-text-primary);
-  margin-bottom: 24px;
+  margin-bottom: 0;
   font-size: 28px;
   font-weight: 700;
+}
+
+.leaderboard-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.leaderboard-timer {
+  background-color: var(--roblox-bg-secondary);
+  border: 1px solid var(--roblox-border);
+  border-radius: 6px;
+  padding: 8px 16px;
+  color: var(--roblox-text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  font-family: 'Courier New', monospace;
 }
 
 .leaderboard-tabs {

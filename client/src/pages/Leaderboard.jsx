@@ -7,10 +7,30 @@ const Leaderboard = () => {
   const [leaderboard, setLeaderboard] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('value') // 'value' or 'rap'
+  const [cacheExpireTime, setCacheExpireTime] = useState(null)
+  const [timeRemaining, setTimeRemaining] = useState(300) // 5 minutes in seconds
 
   useEffect(() => {
     fetchLeaderboard()
   }, [activeTab])
+
+  // Countdown timer effect
+  useEffect(() => {
+    if (!cacheExpireTime) return
+
+    const interval = setInterval(() => {
+      const now = Date.now()
+      const remaining = Math.max(0, Math.floor((cacheExpireTime - now) / 1000))
+      setTimeRemaining(remaining)
+
+      // Auto-refresh when timer expires
+      if (remaining === 0) {
+        fetchLeaderboard()
+      }
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [cacheExpireTime])
 
   const fetchLeaderboard = async () => {
     setLoading(true)
@@ -24,6 +44,10 @@ const Leaderboard = () => {
 
       const response = await axios.get(`${endpoint}?t=${Date.now()}`)
       setLeaderboard(response.data)
+
+      // Set cache expiration time (5 minutes from now)
+      setCacheExpireTime(Date.now() + 5 * 60 * 1000)
+      setTimeRemaining(300)
     } catch (error) {
       console.error('Error fetching leaderboard:', error)
     } finally {
@@ -50,10 +74,23 @@ const Leaderboard = () => {
     return 'Cash'
   }
 
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
+
   return (
     <div className="leaderboard">
       <div className="container">
-        <h1>Leaderboard</h1>
+        <div className="leaderboard-title-row">
+          <h1>Leaderboard</h1>
+          {!loading && (
+            <div className="leaderboard-timer">
+              Updates in: {formatTime(timeRemaining)}
+            </div>
+          )}
+        </div>
         <div className="leaderboard-tabs">
           <button
             className={`leaderboard-tab ${activeTab === 'value' ? 'active' : ''}`}

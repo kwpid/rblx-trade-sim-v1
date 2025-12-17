@@ -247,10 +247,7 @@ router.get('/leaderboard/value', async (req, res) => {
       if (!userValueMap[ui.user_id]) userValueMap[ui.user_id] = 0;
 
       const itemData = ui.items;
-      // Strictly use manual value only, AND only if limited
-      // If not limited, value is hidden/0 for game purposes
-      if (!itemData.is_limited) return;
-
+      // Count all items with value (matching Profile.jsx logic)
       const val = (itemData.value !== null && itemData.value !== undefined) ? itemData.value : 0;
 
       userValueMap[ui.user_id] += val;

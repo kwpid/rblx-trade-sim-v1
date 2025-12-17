@@ -416,10 +416,8 @@ router.post('/:id/proof', authenticate, async (req, res) => {
 
     if (fetchError || !trade) return res.status(404).json({ error: 'Trade not found' });
 
-    // Only participants can proof
-    if (trade.sender_id !== req.user.id && trade.receiver_id !== req.user.id) {
-      return res.status(403).json({ error: 'Unauthorized' });
-    }
+    // Allow anyone (including AI) to proof accepted trades
+    // Removed participant-only restriction to enable AI proofing
 
     if (trade.status !== 'accepted') {
       return res.status(400).json({ error: 'Trade must be accepted to proof' });
@@ -427,6 +425,30 @@ router.post('/:id/proof', authenticate, async (req, res) => {
 
     if (trade.is_proofed) {
       return res.status(400).json({ error: 'Trade already proofed' });
+    }
+
+    // Fetch full details to calculate values
+    const fullTrade = await getTradeWithItems(req.params.id);
+
+    const senderItems = fullTrade.trade_items.filter(i => i.side === 'sender');
+    const receiverItems = fullTrade.trade_items.filter(i => i.side === 'receiver');
+
+    // Calculate total values
+    const senderValue = senderItems.reduce((sum, ti) => {
+      const value = ti.user_items?.items?.value || 0;
+      return sum + value;
+    }, 0);
+
+    const receiverValue = receiverItems.reduce((sum, ti) => {
+      const value = ti.user_items?.items?.value || 0;
+      return sum + value;
+    }, 0);
+
+    // Require minimum 10k on BOTH sides
+    if (senderValue < 10000 || receiverValue < 10000) {
+      return res.status(400).json({
+        error: 'Both sides must have at least 10,000 value to proof this trade'
+      });
     }
 
     // Mark as proofed first to prevent race conditions
@@ -437,16 +459,11 @@ router.post('/:id/proof', authenticate, async (req, res) => {
 
     if (updateError) throw updateError;
 
-    // Fetch full details for webhook
-    const fullTrade = await getTradeWithItems(req.params.id);
-
+    // Use already-fetched fullTrade for webhook (no need to fetch again)
     // Construct Embeds
     const sender = fullTrade.sender;
     const receiver = fullTrade.receiver;
     const date = new Date(fullTrade.updated_at).toLocaleString();
-
-    const senderItems = fullTrade.trade_items.filter(i => i.side === 'sender');
-    const receiverItems = fullTrade.trade_items.filter(i => i.side === 'receiver');
 
     const formatItems = (tItems) => {
       return tItems.map(ti => {

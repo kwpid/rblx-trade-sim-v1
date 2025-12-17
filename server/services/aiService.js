@@ -302,6 +302,29 @@ const actionBuyNew = async (ai) => {
             if (diffMins < 1440) score += 20;
         }
 
+        // 4. Newness Factor (Prioritize recently created items)
+        if (item.created_at) {
+            const now = new Date();
+            const created = new Date(item.created_at);
+            const ageInDays = (now - created) / (1000 * 60 * 60 * 24);
+
+            // Items created in the last 7 days get a significant boost
+            if (ageInDays < 1) {
+                // Less than 1 day old - HUGE boost
+                score += 100;
+            } else if (ageInDays < 3) {
+                // 1-3 days old - Large boost
+                score += 60;
+            } else if (ageInDays < 7) {
+                // 3-7 days old - Medium boost
+                score += 30;
+            } else if (ageInDays < 14) {
+                // 1-2 weeks old - Small boost
+                score += 10;
+            }
+            // Items older than 2 weeks get no newness bonus
+        }
+
         if (score > maxScore) {
             maxScore = score;
             bestItem = item;

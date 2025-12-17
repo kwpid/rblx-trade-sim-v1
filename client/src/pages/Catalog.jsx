@@ -9,17 +9,19 @@ const Catalog = () => {
   const [resellerPrices, setResellerPrices] = useState({})
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
-  const [sortBy, setSortBy] = useState('relevance')
+  const [sortBy, setSortBy] = useState('newest')
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 32
 
   useEffect(() => {
     fetchItems()
-  }, [])
+  }, [sortBy])
 
   const fetchItems = async () => {
     try {
-      const response = await axios.get('/api/items')
+      const response = await axios.get('/api/items', {
+        params: { sort: sortBy }
+      })
       const itemsData = response.data
       setItems(itemsData)
 
@@ -57,21 +59,9 @@ const Catalog = () => {
     item.name.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
-  const sortedItems = [...filteredItems].sort((a, b) => {
-    switch (sortBy) {
-      case 'price_low':
-        return (a.best_price || a.current_price || 0) - (b.best_price || b.current_price || 0)
-      case 'price_high':
-        return (b.best_price || b.current_price || 0) - (a.best_price || a.current_price || 0)
-      case 'name':
-        return a.name.localeCompare(b.name)
-      default:
-        return 0
-    }
-  })
-
-  const totalPages = Math.ceil(sortedItems.length / itemsPerPage)
-  const paginatedItems = sortedItems.slice(
+  // Sorting now handled by backend
+  const totalPages = Math.ceil(filteredItems.length / itemsPerPage)
+  const paginatedItems = filteredItems.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   )
@@ -125,12 +115,18 @@ const Catalog = () => {
         <select
           className="sort-dropdown"
           value={sortBy}
-          onChange={(e) => setSortBy(e.target.value)}
+          onChange={(e) => {
+            setSortBy(e.target.value)
+            setCurrentPage(1)
+          }}
         >
-          <option value="relevance">Relevance</option>
+          <option value="newest">Newest</option>
           <option value="price_low">Price: Low to High</option>
           <option value="price_high">Price: High to Low</option>
-          <option value="name">Name</option>
+          <option value="value_low">Value: Low to High</option>
+          <option value="value_high">Value: High to Low</option>
+          <option value="limiteds">Limiteds Only</option>
+          <option value="in_stock">In-Stock Only</option>
         </select>
       </div>
 

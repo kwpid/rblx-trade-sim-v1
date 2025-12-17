@@ -456,15 +456,29 @@ const TradeWindow = () => {
                             </div>
                         )}
 
-                        {status === 'accepted' && !tradeDetails?.is_proofed && (
-                            <button
-                                className="make-offer-btn"
-                                style={{ background: '#7289da', color: '#fff', fontStyle: 'normal', marginTop: '10px' }}
-                                onClick={handleProof}
-                            >
-                                Proof Trade
-                            </button>
-                        )}
+                        {status === 'accepted' && !tradeDetails?.is_proofed && (() => {
+                            const myValue = calculateTotal(myOffer);
+                            const theirValue = calculateTotal(theirOffer);
+                            const canProof = myValue >= 10000 && theirValue >= 10000;
+
+                            if (canProof) {
+                                return (
+                                    <button
+                                        className="make-offer-btn"
+                                        style={{ background: '#7289da', color: '#fff', fontStyle: 'normal', marginTop: '10px' }}
+                                        onClick={handleProof}
+                                    >
+                                        Proof Trade
+                                    </button>
+                                );
+                            } else {
+                                return (
+                                    <div style={{ marginTop: '10px', padding: '10px', background: '#333', borderRadius: '4px', fontSize: '12px', color: '#999' }}>
+                                        ⓘ Proof requires both sides to have ≥10k value
+                                    </div>
+                                );
+                            }
+                        })()}
 
                         <button className="cancel-btn-styled" onClick={() => navigate('/trades')}>Back to Trades</button>
                     </div>

@@ -7,14 +7,42 @@ const { getItemDetails } = require('../utils/rolimons');
 // Get all items (catalog)
 router.get('/', async (req, res) => {
   try {
-    const { limit = 50, offset = 0 } = req.query;
+    const { limit = 50, offset = 0, sort = 'newest' } = req.query;
 
-    const { data: items, error } = await supabase
+    let query = supabase
       .from('items')
       .select('*')
-      .eq('is_off_sale', false)
-      .order('created_at', { ascending: false })
-      .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
+      .eq('is_off_sale', false);
+
+    // Apply sorting
+    switch (sort) {
+      case 'price_high':
+        query = query.order('current_price', { ascending: false });
+        break;
+      case 'price_low':
+        query = query.order('current_price', { ascending: true });
+        break;
+      case 'value_high':
+        query = query.order('value', { ascending: false });
+        break;
+      case 'value_low':
+        query = query.order('value', { ascending: true });
+        break;
+      case 'limiteds':
+        query = query.eq('is_limited', true).order('created_at', { ascending: false });
+        break;
+      case 'in_stock':
+        query = query.eq('is_limited', false).order('created_at', { ascending: false });
+        break;
+      case 'newest':
+      default:
+        query = query.order('created_at', { ascending: false });
+        break;
+    }
+
+    query = query.range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
+
+    const { data: items, error } = await query;
 
     if (error) {
       console.error('Supabase error:', error);
