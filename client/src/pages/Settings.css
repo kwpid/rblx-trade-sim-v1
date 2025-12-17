@@ -152,3 +152,51 @@
   text-align: center;
   margin-top: 40px;
 }
+
+/* Slider Styles */
+.slider {
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.slider-value-display {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.slider-value-display input {
+  width: 100px;
+}
+
+.slider-value-display span {
+  color: var(--roblox-text-secondary);
+  font-weight: 600;
+}
+
+.setting-description {
+  font-size: 13px;
+  color: var(--roblox-text-muted);
+  margin-top: 5px;
+}
+
+/* Messages */
+.settings-message {
+  padding: 10px 15px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.settings-message.success {
+  background-color: rgba(0, 176, 111, 0.2);
+  border: 1px solid #00b06f;
+  color: #00b06f;
+}
+
+.settings-message.error {
+  background-color: rgba(255, 107, 107, 0.2);
+  border: 1px solid #ff6b6b;
+  color: #ff6b6b;
+}

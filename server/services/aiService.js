@@ -686,15 +686,27 @@ const actionList = async (ai, personalityProfile) => {
         }
     }
 
-    // Base valuation: Use RAP, but fall back to Pre-defined Value if RAP is 0 (new limited)
-    // or if RAP is extremely low (e.g. < 100) and Value is set (prevent selling glitched 0 RAP items for nothing)
+    // Base valuation: Use Logic "Smart Value"
+    // If Manual Value > RAP * 1.5, trust Manual Value (Item is projected DOWN or rarely sold)
+    // If RAP > Manual Value * 1.5, trust Manual Value (Item is projected UP)
+    // Otherwise blend or safe pick.
+
+    // User Request: "Prioritize item.value over rap if value is significantly higher"
+
     let refValue = itemToSell.items.rap || 0;
-    if (refValue === 0 || (itemToSell.items.value && refValue < 100)) {
-        refValue = itemToSell.items.value || 0;
+    const manualValue = itemToSell.items.value || 0;
+
+    if (manualValue > refValue) {
+        // If manual value is higher, USE IT. AI shouldn't get scammed.
+        refValue = manualValue;
+    } else if (manualValue > 0 && refValue > manualValue * 1.5) {
+        // If RAP is inflated (projected), stick closer to manual value to initiate selling but maybe slightly higher than value
+        refValue = manualValue;
     }
+
     if (refValue === 0) refValue = 100; // Fallback
 
-    const rap = refValue;
+    const rap = refValue; // We use this "Smart Value" as base for multipliers
 
     // Price logic
     // Scarcity Multiplier: If stock < 200, price increases
@@ -1007,7 +1019,7 @@ const acceptTrade = async (trade, ai) => {
                 };
 
                 const embed1 = {
-                    title: "Trade Proof (AI)",
+                    title: "Trade Proof",
                     color: 3066993,
                     fields: [
                         { name: "Sender", value: sender?.username || 'Unknown', inline: true },
@@ -1086,7 +1098,6 @@ const actionInitiateTrade = async (ai, p) => {
     if (validCandidates.length === 0) return;
 
     // IMPROVED: Pick a Target Item with preference for higher value items
-    // This helps AI trade with players who have expensive inventories
     let targetItem;
 
     // 70% chance to prefer high-value items (helps target wealthy players)
@@ -1100,7 +1111,6 @@ const actionInitiateTrade = async (ai, p) => {
         const topItems = sortedByValue.slice(0, topCount);
         targetItem = topItems[Math.floor(Math.random() * topItems.length)];
     } else {
-        // 30% chance for random selection (maintains variety)
         targetItem = validCandidates[Math.floor(Math.random() * validCandidates.length)];
     }
 
@@ -1129,108 +1139,112 @@ const actionInitiateTrade = async (ai, p) => {
 
     if (!myItems || myItems.length === 0) return;
 
-    // Strategy:
-    // Upgrade: We give multiple items for 1 Big Item -> We must OVERPAY (~1.1x)
-    // Downgrade: We give 1 Big Item for multiple -> We expect OVERPAY (Offer ~0.9x)
-    // Equal: 1 for 1 -> Fair (~1.0x)
+    // Strategy: Build a smart offer
+    // Smarter AI: Don't just dump random items.
 
     let offerItems = [];
     let offerVal = 0;
 
     // Sort my items by value desc
     const mySortedItems = myItems
-        .filter(i => i.items) // Filter out items with missing reference 
+        .filter(i => i.items)
         .map(i => ({ ...i, effVal: getEffectiveValue(i.items) }))
         .sort((a, b) => b.effVal - a.effVal);
 
-    // Try to find a match
-    // Goal Value depends on strategy
-    // Let's assume we want to Upgrade if possible (clear inventory space) OR Downgrade if we have a huge item we want to split.
+    // Determine Logic based on items available
+    // Humanize: Try to match value cleanly first (1:1 or 2:1), then fill with smalls.
 
-    // Simple Strategy: Try to build a package close to Target Value with a Target Ratio
     let targetRatio = 1.0;
 
-    // IMPROVED: Adjust based on rarity and demand
-    const stock = targetItem.items.stock_count || 1000;
-    const demand = targetItem.items.demand || 'medium';
-
-    // Rarity multipliers (more aggressive for rarer items)
-    let rarityMultiplier = 1.0;
-    if (stock < 50) rarityMultiplier = 1.5; // Very rare: +50%
-    else if (stock < 100) rarityMultiplier = 1.3; // Rare: +30%
-    else if (stock < 200) rarityMultiplier = 1.2; // Uncommon: +20%
-    else if (stock < 500) rarityMultiplier = 1.1; // Slightly rare: +10%
-
-    // Demand multipliers
-    let demandMultiplier = 1.0;
-    if (demand === 'very_high') demandMultiplier = 1.3;
-    else if (demand === 'high') demandMultiplier = 1.15;
-    else if (demand === 'medium') demandMultiplier = 1.0;
-    else if (demand === 'low') demandMultiplier = 0.95;
-    else if (demand === 'very_low') demandMultiplier = 0.9;
-
     // Base Willingness by personality
-    if (ai.personality === 'sniper') targetRatio = 0.85; // Lowball
-    else if (ai.personality === 'whale') targetRatio = 1.2; // Generous
-    else if (ai.personality === 'hoarder') targetRatio = 1.15; // Willing to pay for collectibles
-    else targetRatio = 1.0; // Fair
+    // User Request: "AI shouldn't OP too much"
+    // Tuned Limits:
+    let maxOverpayTolerance = 1.1; // Default tight cap
+    let minOverpay = 0.95;
 
-    // Apply rarity and demand multipliers
-    targetRatio *= rarityMultiplier * demandMultiplier;
+    if (ai.personality === 'sniper') {
+        targetRatio = 0.9; // Tries to underpay
+        maxOverpayTolerance = 1.0; // Never overpays
+        minOverpay = 0.8;
+    } else if (ai.personality === 'whale') {
+        targetRatio = 1.1; // Generous
+        maxOverpayTolerance = 1.25; // Still caps at 25% OP (reduced from 30%+)
+        minOverpay = 1.0;
+    } else if (ai.personality === 'trader') {
+        targetRatio = 1.0; // Fair
+        maxOverpayTolerance = 1.05; // Very strict, max 5% loss
+        minOverpay = 0.95;
+    } else {
+        // Casual / Hoarder
+        maxOverpayTolerance = 1.1;
+    }
 
-    let goalValue = targetVal * targetRatio;
+    // High Value targets warrant slightly more flexibility? No, stricter.
+    if (targetVal > 50000) {
+        maxOverpayTolerance = Math.min(maxOverpayTolerance, 1.1); // Cap OP on expensive items
+    }
 
-    // IMPROVED: For high-value items, be more flexible with offer building
-    // This helps AI trade with players who have expensive inventories
-    const isHighValueTarget = targetVal > 20000;
-    const maxOverpayTolerance = isHighValueTarget ? 1.3 : 1.1; // Allow 30% overpay for expensive items
+    const goalValue = targetVal * targetRatio;
 
-    // Knapsack-ish: Fill bucket
-    for (const item of mySortedItems) {
-        // PREVENT SAME ITEM 1:1 TRADES
-        if (offerItems.length === 0 && item.items.id === targetItem.items.id) {
-            // Don't offer the same item 1:1
-            continue;
+    // Logic: 
+    // 1. Try to find a single item close to value (1:1 trade)
+    const perfectMatch = mySortedItems.find(i =>
+        i.effVal >= targetVal * minOverpay &&
+        i.effVal <= targetVal * maxOverpayTolerance &&
+        i.items.id !== targetItem.items.id // Not same item
+    );
+
+    if (perfectMatch) {
+        offerItems.push(perfectMatch);
+        offerVal = perfectMatch.effVal;
+    } else {
+        // 2. Build a package
+        // Filter out same item as target to avoid "Item A for Item A" silliness
+        const candidates = mySortedItems.filter(i => i.items.id !== targetItem.items.id);
+
+        // Try to find a "Base" item (50-90% of value)
+        for (const item of candidates) {
+            // Avoid adding duplicate items to the offer if we want "clean" trades (unless hoarder/whale)
+            // User Request: "ai shjouldnt send the same items for one item" -> assume implies "don't stack duplicates in offer"
+            const alreadyHasOriginal = offerItems.some(o => o.items.id === item.items.id);
+            if (alreadyHasOriginal && ai.personality !== 'hoarder') continue;
+
+            if (offerVal + item.effVal <= goalValue * maxOverpayTolerance) {
+                offerItems.push(item);
+                offerVal += item.effVal;
+            }
+
+            if (offerVal >= goalValue * 0.98) break;
         }
 
-        // Don't add if it exceeds goal significantly (more tolerance for high-value items)
-        if (offerVal + item.effVal > goalValue * maxOverpayTolerance) continue;
-
-        offerItems.push(item);
-        offerVal += item.effVal;
-
-        if (offerVal >= goalValue * 0.95) break; // Close enough
+        // 3. If nearly there but need a "small" to bridge gap
+        // Try to find a small item specifically
+        if (offerVal < goalValue && offerVal > goalValue * 0.8) {
+            const difference = goalValue - offerVal;
+            // Look for item close to difference
+            const small = candidates.find(i =>
+                !offerItems.includes(i) &&
+                i.effVal <= difference * 1.5 && // Can go a bit over
+                i.effVal >= difference * 0.5    // But meaningful
+            );
+            if (small && (offerVal + small.effVal <= goalValue * maxOverpayTolerance)) {
+                offerItems.push(small);
+                offerVal += small.effVal;
+            }
+        }
     }
 
-    // Check if offer is valid
-    // IMPROVED: More lenient for high-value items
-    const minOfferRatio = isHighValueTarget ? 0.85 : 0.9;
-    if (offerVal < goalValue * minOfferRatio) return; // Couldn't find enough items
-    if (offerVal > goalValue * maxOverpayTolerance) return; // Don't overpay massively
+    // Validation
+    if (offerItems.length === 0) return;
 
-    // PREVENT 1:1 + ADDED ITEM (unfair trades)
-    // If we have exactly 1 item on each side, ensure it's not the same item
-    if (offerItems.length === 1 && offerItems[0].items.id === targetItem.items.id) {
-        return; // Don't send 1:1 same item trade
-    }
+    // Check Ratios
+    if (offerVal < targetVal * minOverpay) return; // Too low
+    if (offerVal > targetVal * maxOverpayTolerance) return; // Too high
 
-    // PREVENT 1:1 + small added item (e.g., 1 big item + 1 small item for 1 item)
-    // If offering 2 items for 1, ensure we're actually upgrading meaningfully
-    if (offerItems.length === 2 && offerVal < targetVal * 1.15) {
-        // We're offering 2 items but not enough value - likely a bad "1:1 + added" trade
-        return;
-    }
-
-    // Upgrade/Downgrade Logic Check
-    // If we are giving 4 items for 1, and only offering 1.0x, it might be declined.
-    // Ensure we aren't "lowballing" on an Upgrade trade essentially.
-    if (offerItems.length > 1 && offerVal < targetVal * 1.05 && ai.personality !== 'sniper') {
-        // We are upgrading but not overpaying? Abort to avoid spamming bad trades.
-        return;
-    }
+    // DOUBLE CHECK: Don't send 1:1 same item
+    if (offerItems.length === 1 && offerItems[0].items.id === targetItem.items.id) return;
 
     // 4. Send Trade
-    // Check existing pending trades between users to avoid spam
     const { count: existing } = await supabase
         .from('trades')
         .select('id', { count: 'exact', head: true })
@@ -1259,9 +1273,14 @@ const actionInitiateTrade = async (ai, p) => {
     });
     tradeItemsPayload.push({ trade_id: trade.id, user_item_id: targetItem.id, side: 'receiver' });
 
-    await supabase.from('trade_items').insert(tradeItemsPayload);
+    const { error: itemsError } = await supabase.from('trade_items').insert(tradeItemsPayload);
+    if (itemsError) {
+        // Rollback? AI service doesn't really care, but good to know errors.
+        console.error("AI Trade Item Error", itemsError);
+        return;
+    }
 
-    console.log(`[AI] ${ai.username} SENT trade to ${targetUser.username} (${targetUser.is_ai ? 'AI' : 'PLAYER'}). Offer: ${offerVal} (x${offerItems.length}) vs Ask: ${targetVal} (Item: ${targetItem.items.name}, Stock: ${stock}, Demand: ${demand}, Ratio: ${targetRatio.toFixed(2)})`);
+    console.log(`[AI] ${ai.username} SENT trade to ${targetUser.username}. Offer: ${offerVal} (x${offerItems.length}) vs Ask: ${targetVal} (Item: ${targetItem.items.name}) Ratio: ${(offerVal / targetVal).toFixed(2)}`);
 };
 
 

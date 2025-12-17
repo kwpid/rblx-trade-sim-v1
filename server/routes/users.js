@@ -57,16 +57,55 @@ router.get('/me/profile', authenticate, async (req, res) => {
   try {
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, username, email, cash, is_admin, created_at, banned_until')
+      .select('id, username, email, cash, is_admin, created_at, banned_until, min_trade_value, trade_privacy, inventory_privacy, message_privacy')
       .eq('id', req.user.id)
       .single();
 
     if (error) throw error;
-
     res.json(user);
   } catch (error) {
     console.error('Error fetching profile:', error);
     res.status(500).json({ error: 'Failed to fetch profile' });
+  }
+});
+
+// Update user settings
+router.patch('/me/settings', authenticate, async (req, res) => {
+  try {
+    const { min_trade_value, trade_privacy, inventory_privacy, message_privacy } = req.body;
+
+    // Validate inputs
+    const updates = {};
+    if (min_trade_value !== undefined) {
+      const minVal = parseInt(min_trade_value);
+      if (isNaN(minVal) || minVal < 0 || minVal > 100000) {
+        return res.status(400).json({ error: 'Min trade value must be between 0 and 100,000' });
+      }
+      updates.min_trade_value = minVal;
+    }
+
+    const validPrivacy = ['everyone', 'friends', 'none'];
+    if (trade_privacy && validPrivacy.includes(trade_privacy)) updates.trade_privacy = trade_privacy;
+    if (inventory_privacy && validPrivacy.includes(inventory_privacy)) updates.inventory_privacy = inventory_privacy;
+    if (message_privacy && validPrivacy.includes(message_privacy)) updates.message_privacy = message_privacy;
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: 'No valid settings provided' });
+    }
+
+    const { data, error } = await supabase
+      .from('users')
+      .update(updates)
+      .eq('id', req.user.id)
+      .select('min_trade_value, trade_privacy, inventory_privacy, message_privacy')
+      .single();
+
+    if (error) throw error;
+
+    res.json({ message: 'Settings updated', settings: data });
+  } catch (error) {
+    console.error('Error updating settings:', error);
+    res.status(500).json({ error: 'Failed to update settings' });
   }
 });
 
