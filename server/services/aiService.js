@@ -468,18 +468,14 @@ const actionBuyResale = async (ai, personalityProfile) => {
         const rap = item.rap || 0;
         const val = item.value || rap; // If no manual value, assume fair is RAP
 
-        // Check "Projected": If RAP is significantly higher than Value (if value exists and isn't just a copy of RAP)
-        // Or if we just use a heuristic: RAP > Value * 1.3?
-        // Let's assume 'value' column is the "True Value" or "Safe Value". 
-        // If the item is projected, we should treat it as much less.
-
+        // Check "Projected"
         // If RAP > Value * 1.25, it's likely projected.
-        // User said: "RAP = reduce by 50–70%" for projected.
+        // User Update: "AI will purchase projecteds WAY less unless the resales are back to normal"
+        // This means we should value it at TRUE VALUE. 
+        // If listing is 100k (Fair Value) but RAP is 1M (Projected), we want to buy.
+        // So Effective Value = TRUE VALUE.
         if (val > 0 && rap > val * 1.25) {
-            // STRICT AVOIDANCE: Return 0 or very low to prevent buying
-            // If we just reduce checking, AI might still buy if price is super low. 
-            // But usually projected items are listed HIGH relative to value.
-            return Math.floor(val * 0.5); // Treat it as worth 50% of its TRUE value, prohibiting purchase at inflated RAP
+            return val; // Use True Value, don't penalize to 0, but definitely ignore Inflated RAP
         }
         return val;
     };
@@ -713,6 +709,27 @@ const actionList = async (ai, personalityProfile) => {
     // Formula: 1x at 200 stock, ~2x at 0 stock.
     // (stock already declared above)
     let scarcityMult = 1.0;
+
+    // PROJECTED CORRECTION LOGIC
+    // If item is projected (RAP > Value * 1.25), force listing near true value to "un-project" it
+    // User Request: "when an item is projected, ensure ai try to un-project it overtime"
+    const isProjected = (manualValue > 0 && (itemToSell.items.rap || 0) > manualValue * 1.25);
+
+    if (isProjected) {
+        // Force strict range: 0.9x to 1.1x of True Value
+        // This creates sales at lower prices, dragging RAP down over time
+        const correctionMult = 0.9 + Math.random() * 0.2;
+        const finalPrice = Math.floor(refValue * correctionMult);
+
+        await supabase.from('user_items').update({
+            is_for_sale: true,
+            sale_price: finalPrice
+        }).eq('id', itemToSell.id);
+
+        console.log(`[AI] ${ai.username} listed PROJECTED item ${itemToSell.items.name} for R$${finalPrice} (Val: ${refValue}, RAP: ${itemToSell.items.rap}) to CORRECT price.`);
+        return;
+    }
+
     if (stock < 200) {
         // Scarcity ONLY applies to High Tier / Events now to prevent projection of normal items
         // We defer applying this until we know if it's High Tier
@@ -1185,6 +1202,20 @@ const actionInitiateTrade = async (ai, p) => {
     }
 
     const goalValue = targetVal * targetRatio;
+
+    // RARE ITEM BOOST: If item is rare (low stock) or High Demand, AI is willing to pay MORE.
+    // User Request: "ensure AI will still overpay for rares and stuff"
+    const stock = targetItem.items.stock_count || 1000;
+    const demand = targetItem.items.demand || 'medium';
+    const isRare = (stock < 100) || (demand === 'very_high' || demand === 'high');
+
+    if (isRare) {
+        maxOverpayTolerance = 1.5; // Up to 50% Overpay for Rares
+        if (stock < 50) maxOverpayTolerance = 2.0; // Up to 2x for Super Rares
+
+        // Also boost goal value slightly to ensure we make a tempting offer
+        goalValue = goalValue * 1.1;
+    }
 
     // Logic: 
     // 1. Try to find a single item close to value (1:1 trade)
