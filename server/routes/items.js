@@ -207,7 +207,7 @@ router.get('/value-changes', async (req, res) => {
         items:item_id (id, name, image_url, roblox_item_id),
         users:changed_by (id, username)
       `)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: true });
 
     // Filter by item_id if provided
     if (item_id) {

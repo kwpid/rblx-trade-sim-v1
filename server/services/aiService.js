@@ -924,6 +924,89 @@ const acceptTrade = async (trade, ai) => {
         await supabase.from('trades').update({ status: 'accepted', updated_at: new Date() }).eq('id', trade.id);
 
         console.log(`[AI] ${ai.username} ACCEPTED trade from user ${trade.sender_id}`);
+
+        // 3. AI TRADE PROOFING
+        // Check if trade meets proof requirements (10k+ value on both sides)
+        const senderValue = senderItems.reduce((sum, item) => {
+            const value = item.items?.value || 0;
+            return sum + value;
+        }, 0);
+
+        const receiverValue = receiverItems.reduce((sum, item) => {
+            const value = item.items?.value || 0;
+            return sum + value;
+        }, 0);
+
+        // If both sides have 10k+ value, proof the trade
+        if (senderValue >= 10000 && receiverValue >= 10000) {
+            // Check if already proofed (race condition prevention)
+            const { data: currentTrade } = await supabase
+                .from('trades')
+                .select('is_proofed')
+                .eq('id', trade.id)
+                .single();
+
+            if (!currentTrade?.is_proofed) {
+                // Mark as proofed
+                await supabase
+                    .from('trades')
+                    .update({ is_proofed: true })
+                    .eq('id', trade.id);
+
+                // Send to Discord webhook
+                const { data: sender } = await supabase
+                    .from('users')
+                    .select('username')
+                    .eq('id', trade.sender_id)
+                    .single();
+
+                const { data: receiver } = await supabase
+                    .from('users')
+                    .select('username')
+                    .eq('id', trade.receiver_id)
+                    .single();
+
+                const date = new Date().toLocaleString();
+
+                const formatItems = (items) => {
+                    return items.map(item => {
+                        const itemData = item.items;
+                        const value = itemData?.value || itemData?.rap || 0;
+                        return `• **${itemData?.name || 'Unknown'}** - $${value.toLocaleString()}`;
+                    }).join('\n') || 'No Items';
+                };
+
+                const embed1 = {
+                    title: "Trade Proof (AI)",
+                    color: 3066993,
+                    fields: [
+                        { name: "Sender", value: sender?.username || 'Unknown', inline: true },
+                        { name: "Receiver", value: receiver?.username || 'Unknown', inline: true },
+                        { name: "Date", value: date, inline: false }
+                    ]
+                };
+
+                const embed2 = {
+                    title: "Items Exchanged",
+                    color: 3066993,
+                    fields: [
+                        { name: `${sender?.username || 'Sender'} Gave`, value: formatItems(senderItems), inline: false },
+                        { name: `${receiver?.username || 'Receiver'} Gave`, value: formatItems(receiverItems), inline: false }
+                    ]
+                };
+
+                const webhookUrl = 'https://discord.com/api/webhooks/1448110420106809366/wK44HjiU2NBDvoYwQWq5GgwyyWefmr536hNaJMX9fe_LHuJQ_CGw_Fidiv38FfFDo2qS';
+
+                const axios = require('axios');
+                await axios.post(webhookUrl, {
+                    embeds: [embed1, embed2]
+                }).catch(err => {
+                    console.error('[AI] Failed to send proof webhook:', err.message);
+                });
+
+                console.log(`[AI] ${ai.username} PROOFED trade ${trade.id} (Sender: $${senderValue.toLocaleString()}, Receiver: $${receiverValue.toLocaleString()})`);
+            }
+        }
     } catch (err) {
         console.error(`[AI] Failed to execute accept trade ${trade.id}`, err);
     }
