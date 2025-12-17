@@ -661,11 +661,24 @@ const actionList = async (ai, personalityProfile) => {
             (EVENT_ITEMS.LEGENDARY && EVENT_ITEMS.LEGENDARY.includes(itemToSell.items.id));
     }
 
-    // LOW STOCK JOKE PRICING (overrides everything else)
+    // LOW STOCK PRICING - GRADUAL CURVE
+    // Instead of a cliff at 50, use a gradual increase
     if (stock < 50) {
-        // If we got here, AI decided to list (10% chance from earlier check)
-        // Price it as a "joke" - extremely high
+        // VERY RARE: 90% chance to HODL
+        if (Math.random() < 0.9) {
+            return;
+        }
+        // If we do sell (10% chance), it's a "joke" listing at extreme prices
         multiplier = 5 + Math.random() * 10; // 5x to 15x RAP
+        scarcityMult = 1.0;
+    } else if (stock < 100) {
+        // RARE: Gradual increase from 1.5x to 5x as stock decreases from 100 to 50
+        // Formula: At stock=100 -> 1.5x, at stock=50 -> 5x
+        const stockRatio = (100 - stock) / 50; // 0 at stock=100, 1 at stock=50
+        const baseMultiplier = 1.5 + (stockRatio * 3.5); // 1.5x to 5x
+
+        // Add some randomness
+        multiplier = baseMultiplier + (Math.random() * 0.5 - 0.25);
         scarcityMult = 1.0;
     } else if (isHighTier) {
         // High Tier / Event Items Logic (Extremely high value)
