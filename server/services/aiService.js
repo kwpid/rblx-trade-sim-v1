@@ -272,7 +272,37 @@ const actionBuyNew = async (ai) => {
             if (item.current_price > 0) score += (10000 / Math.max(10, item.current_price));
         }
 
-        // 2. Stock Factor
+        // 2. VALUE-BASED SCORING (NEW - High Priority)
+        // AI can see item values before they go limited
+        // Prioritize items where value > current_price (profit potential)
+        if (item.value && item.value > 0) {
+            const profitPotential = item.value - item.current_price;
+            const profitRatio = item.current_price > 0 ? (item.value / item.current_price) : 1;
+
+            // HUGE boost for high-value items with profit potential
+            if (profitPotential > 0) {
+                // Base profit score
+                score += (profitPotential / 100) * 10; // Scale by profit amount
+
+                // Extra boost for high profit ratios
+                if (profitRatio > 2) score += 200; // 2x+ value = massive boost
+                else if (profitRatio > 1.5) score += 150; // 1.5x+ value = large boost
+                else if (profitRatio > 1.2) score += 100; // 1.2x+ value = medium boost
+                else if (profitRatio > 1.1) score += 50; // 1.1x+ value = small boost
+
+                // Traders and snipers especially love high-value items
+                if (pType === 'trader' || pType === 'sniper') {
+                    score += (profitPotential / 50) * 5;
+                }
+
+                // Hoarders like collecting valuable items
+                if (pType === 'hoarder' && item.value > 5000) {
+                    score += 80;
+                }
+            }
+        }
+
+        // 3. Stock Factor
         if (item.sale_type === 'stock') {
             if (item.remaining_stock <= 0) continue;
 
@@ -292,7 +322,7 @@ const actionBuyNew = async (ai) => {
             score += 50;
         }
 
-        // 3. Timer Factor (Universal urgency)
+        // 4. Timer Factor (Universal urgency)
         if (item.sale_type === 'timer') {
             const now = new Date();
             const end = new Date(item.sale_end_time);
@@ -302,7 +332,7 @@ const actionBuyNew = async (ai) => {
             if (diffMins < 1440) score += 20;
         }
 
-        // 4. Newness Factor (Prioritize recently created items)
+        // 5. Newness Factor (Prioritize recently created items)
         if (item.created_at) {
             const now = new Date();
             const created = new Date(item.created_at);
