@@ -113,7 +113,7 @@ router.get('/new-limiteds', async (req, res) => {
       .from('items')
       .select('*')
       .eq('is_limited', true)
-      .order('created_at', { ascending: false })
+      .order('updated_at', { ascending: false })
       .limit(50);
 
     if (error) throw error;
@@ -207,7 +207,7 @@ router.get('/value-changes', async (req, res) => {
         items:item_id (id, name, image_url, roblox_item_id),
         users:changed_by (id, username)
       `)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: false });
 
     // Filter by item_id if provided
     if (item_id) {
