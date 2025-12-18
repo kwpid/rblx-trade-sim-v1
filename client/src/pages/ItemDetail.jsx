@@ -402,14 +402,14 @@ const ItemDetail = () => {
                   <span className="stat-value price-value">${itemValue.toLocaleString()}</span>
 
                   <span className="stat-label">Owners</span>
-                  <span className="stat-value">{ownerCount}</span>
-
-                  {item.banned_copies > 0 && (
-                    <>
-                      <span className="stat-label" style={{ color: '#ff4d4d' }}>Banned Copies</span>
-                      <span className="stat-value" style={{ color: '#ff4d4d' }}>{item.banned_copies}</span>
-                    </>
-                  )}
+                  <span className="stat-value">
+                    {ownerCount}
+                    {item.banned_copies > 0 && (
+                      <span style={{ color: '#ff4d4d', marginLeft: '6px', fontSize: '0.9em' }}>
+                        (Terminated: {item.banned_copies})
+                      </span>
+                    )}
+                  </span>
 
                   {!item.is_limited && !item.is_off_sale && item.sale_type === 'stock' && (
                     <>

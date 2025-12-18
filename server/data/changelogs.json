@@ -1,9 +1,9 @@
 [
     {
         "id": 1,
-        "version": "v1.1.0",
-        "title": "Welcome to v1.1 - The Update!",
+        "version": "v1.2.0",
+        "title": "v1.2 - Quality of Life Update",
         "date": "2025-12-18",
-        "content": "<h2>New Features</h2><ul><li><strong>Update Logs:</strong> Added this beautiful popup to keep you informed!</li><li><strong>Leaderboards:</strong> Completely overhauled for accuracy. Now shows true value!</li><li><strong>Security:</strong> Enhanced AI moderation and banning systems.</li></ul><h2>Changes</h2><p>Various bug fixes and performance improvements.</p>"
+        "content": "<h2>Updates</h2><ul><li><strong>Value Changes:</strong> Updated value changes and added embedded visual status for Project Status.</li><li><strong>Item Details:</strong> Updated page to show terminated copies next to owner count.</li><li><strong>Bug Fix:</strong> Fixed critical issue where stock items could be oversold.</li><li><strong>Changelogs:</strong> Added this changelog system!</li><li><strong>Pagination:</strong> Added pagination to value changes page for better performance.</li></ul>"
     }
 ]

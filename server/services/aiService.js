@@ -414,6 +414,39 @@ const actionBuyNew = async (ai) => {
 
     // EXECUTE BULK BUY LOOP
     for (let i = 0; i < targetQuantity; i++) {
+        // CRITICAL: Stock Race Condition Fix
+        // We must secure the stock BEFORE taking money or giving the item.
+        if (item.sale_type === 'stock') {
+            const { data: freshItem } = await supabase.from('items').select('remaining_stock').eq('id', item.id).single();
+
+            // 1. Strict Check
+            if (!freshItem || freshItem.remaining_stock <= 0) {
+                console.log(`[AI] Stock ran out for ${item.name} during purchase.`);
+                break;
+            }
+
+            // 2. Atomic/Optimistic Update
+            // Only update if the remaining_stock is STILL what we just saw
+            const { data: result, error } = await supabase
+                .from('items')
+                .update({
+                    remaining_stock: freshItem.remaining_stock - 1,
+                    is_limited: (freshItem.remaining_stock - 1) <= 0
+                })
+                .eq('id', item.id)
+                .eq('remaining_stock', freshItem.remaining_stock)
+                .select();
+
+            if (error || !result || result.length === 0) {
+                // Optimistic lock failed - someone else bought it in these few ms.
+                // Retry this specific loop iteration
+                i--;
+                continue;
+            }
+            // If we're here, we successfully claimed 1 stock. Proceed to pay.
+        }
+
+        // 3. Deduct Cash
         ai.cash -= item.current_price;
         await supabase.from('users').update({ cash: ai.cash }).eq('id', ai.id);
 
@@ -432,15 +465,8 @@ const actionBuyNew = async (ai) => {
             serial_number: serialNumber
         }]);
 
-        if (item.sale_type === 'stock') {
-            item.remaining_stock--;
-            await supabase.from('items').update({
-                remaining_stock: item.remaining_stock,
-                is_limited: item.remaining_stock <= 0
-            }).eq('id', item.id);
-
-            if (item.remaining_stock <= 0) break;
-        }
+        // Stock already decremented above for 'stock' items.
+        // For non-stock items, we don't decrement anything.
 
         await supabase.from('transactions').insert([{
             user_id: ai.id,
@@ -451,7 +477,7 @@ const actionBuyNew = async (ai) => {
         }]);
     }
 
-    console.log(`[AI] ${ai.username} bought ${targetQuantity}x ${item.name}`);
+    console.log(`[AI] ${ai.username} finished buying loop for ${item.name}`);
 };
 
 const actionBuyResale = async (ai, personalityProfile) => {
