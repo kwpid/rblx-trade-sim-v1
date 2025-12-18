@@ -14,25 +14,28 @@ const ValueChanges = () => {
   const [filterTrend, setFilterTrend] = useState('all')
   const [filterDemand, setFilterDemand] = useState('all')
 
+  const [page, setPage] = useState(1);
+
   useEffect(() => {
     fetchData()
-  }, [activeTab])
+  }, [activeTab, page])
 
   const fetchData = async () => {
     setLoading(true)
     try {
       if (activeTab === 'value') {
-        const response = await axios.get('/api/items/value-changes')
-        // Reverse to show newest first (backend returns oldest first for charts)
-        const reversedData = [...response.data].reverse()
-        setValueChangeHistory(reversedData)
-        setFilteredHistory(reversedData)
+        const response = await axios.get(`/api/items/value-changes?page=${page}&limit=20`)
+        // Handle new response structure or fallback
+        const data = response.data.data || response.data;
+        // Backend returns newest first now (desc order)
+        setValueChangeHistory(data)
+        setFilteredHistory(data)
       } else if (activeTab === 'rap') {
-        const response = await axios.get('/api/items/rap-changes')
-        // Reverse to show newest first
-        const reversedData = [...response.data].reverse()
-        setRapChangeHistory(reversedData)
+        const response = await axios.get(`/api/items/rap-changes?page=${page}&limit=20`)
+        const data = response.data.data || response.data;
+        setRapChangeHistory(data)
       } else if (activeTab === 'limiteds') {
+        // Limiteds might not have pagination yet, but let's assume it defaults to 50
         const response = await axios.get('/api/items/new-limiteds')
         setNewLimiteds(response.data)
       }
@@ -112,23 +115,45 @@ const ValueChanges = () => {
         <div className="value-changes-tabs">
           <button
             className={`vc-tab ${activeTab === 'value' ? 'active' : ''}`}
-            onClick={() => setActiveTab('value')}
+            onClick={() => { setActiveTab('value'); setPage(1); }}
           >
             Value Changes
           </button>
           <button
             className={`vc-tab ${activeTab === 'rap' ? 'active' : ''}`}
-            onClick={() => setActiveTab('rap')}
+            onClick={() => { setActiveTab('rap'); setPage(1); }}
           >
             RAP Changes
           </button>
           <button
             className={`vc-tab ${activeTab === 'limiteds' ? 'active' : ''}`}
-            onClick={() => setActiveTab('limiteds')}
+            onClick={() => { setActiveTab('limiteds'); setPage(1); }}
           >
             New Limiteds
           </button>
         </div>
+
+        {/* Pagination Controls (Top) */}
+        {!loading && (
+          <div className="pagination-controls" style={{ display: 'flex', justifyContent: 'center', gap: '15px', padding: '15px 0', alignItems: 'center' }}>
+            <button
+              disabled={page === 1}
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              className="buy-btn"
+              style={{ opacity: page === 1 ? 0.5 : 1, padding: '5px 15px' }}
+            >
+              Prev
+            </button>
+            <span style={{ color: '#fff' }}>Page {page}</span>
+            <button
+              onClick={() => setPage(p => p + 1)}
+              className="buy-btn"
+              style={{ padding: '5px 15px' }}
+            >
+              Next
+            </button>
+          </div>
+        )}
 
         {activeTab === 'value' && (
           <>

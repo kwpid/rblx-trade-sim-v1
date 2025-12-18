@@ -403,6 +403,13 @@ const ItemDetail = () => {
                   <span className="stat-label">Owners</span>
                   <span className="stat-value">{ownerCount}</span>
 
+                  {item.banned_copies !== undefined && item.banned_copies > 0 && (
+                    <>
+                      <span className="stat-label" style={{ color: '#ff4d4f' }}>Banned Copies</span>
+                      <span className="stat-value" style={{ color: '#ff4d4f' }}>{item.banned_copies}</span>
+                    </>
+                  )}
+
                   {!item.is_limited && !item.is_off_sale && item.sale_type === 'stock' && (
                     <>
                       <span className="stat-label">Stock</span>

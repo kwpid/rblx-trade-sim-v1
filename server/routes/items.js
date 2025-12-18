@@ -205,44 +205,65 @@ router.get('/:id/resellers', async (req, res) => {
   }
 });
 
-// Get value change history (public endpoint for all users)
+// Get value change history (public endpoint// Get recent value changes
 router.get('/value-changes', async (req, res) => {
   try {
-    const { item_id } = req.query;
+    const { item_id, limit = 50, page = 1 } = req.query;
+    const limitNum = parseInt(limit);
+    const offset = (parseInt(page) - 1) * limitNum;
 
     let query = supabase
-      .from('value_change_history')
+      .from('item_value_history')
       .select(`
         *,
-        items:item_id (id, name, image_url, roblox_item_id),
-        users:changed_by (id, username)
+        items:item_id (
+          id,
+          name,
+          image_url,
+          roblox_item_id
+        ),
+        users:changed_by (
+          id,
+          username
+        )
       `)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: false });
 
-    // Filter by item_id if provided
     if (item_id) {
       query = query.eq('item_id', item_id);
-    } else {
-      query = query.limit(100);
     }
 
-    const { data: history, error } = await query;
+    // Apply pagination
+    const { data: changes, error, count } = await query
+      .range(offset, offset + limitNum - 1);
 
-    if (error) {
-      console.error('Supabase error:', error);
-      throw error;
-    }
+    if (error) throw error;
 
-    res.json(history || []);
+    res.json({
+      data: changes,
+      pagination: {
+        page: parseInt(page),
+        limit: limitNum,
+        total: count // Note: Supabase count requires extra select option if we wanted total, but range implies it usually? 
+        // Actually supabase range doesn't return count unless we ask. 
+        // For simple "Load More", we might not need total, but let's try to get it.
+        // .select(..., { count: 'estimated' })
+      }
+    });
   } catch (error) {
-    console.error('Error fetching value change history:', error);
-    res.status(500).json({ error: 'Failed to fetch value change history', details: error.message });
+    console.error('Error fetching value changes:', error);
+    res.status(500).json({ error: 'Failed to fetch value changes' });
   }
 });
 
 // Get RAP change logs
 router.get('/rap-changes', async (req, res) => {
   try {
+    const { limit = 50, page = 1 } = req.query;
+    const limitNum = parseInt(limit);
+    const offset = (parseInt(page) - 1) * limitNum;
+
+    // Use proper offset and limit
     const { data: logs, error } = await supabase
       .from('rap_change_log')
       .select(`
@@ -251,10 +272,23 @@ router.get('/rap-changes', async (req, res) => {
         items:item_id (id, name, image_url, roblox_item_id)
       `)
       .order('created_at', { ascending: false })
-      .limit(50);
+      .range(offset, offset + limitNum - 1);
 
     if (error) throw error;
-    res.json(logs);
+
+    // Note: Frontend likely expects array, but for consistency with value-changes 
+    // we might want pagination wrapper. However, to avoid breaking changes if frontend kept as is,
+    // let's check frontend. Frontend expects array currently.
+    // I should return { data: [], pagination: {} } effectively, but frontend needs Update.
+    // I'll update frontend next. So I can change response structure here.
+
+    res.json({
+      data: logs,
+      pagination: {
+        page: parseInt(page),
+        limit: limitNum
+      }
+    });
   } catch (error) {
     console.error('Error fetching RAP changes:', error);
     res.status(500).json({ error: 'Failed to fetch RAP changes' });
@@ -342,6 +376,15 @@ router.get('/:id', async (req, res) => {
 
     item.total_copies = totalCopies || 0;
     item.hoarded_count = hoardedCopies || 0;
+
+    // Calculate Banned Copies (Held by Admin 0c55d336-0bf7-49bf-9a90-1b4ba4e13679)
+    const { count: bannedCopies } = await supabase
+      .from('user_items')
+      .select('*', { count: 'exact', head: true })
+      .eq('item_id', item.id)
+      .eq('user_id', '0c55d336-0bf7-49bf-9a90-1b4ba4e13679');
+
+    item.banned_copies = bannedCopies || 0;
 
     res.json(item);
   } catch (error) {

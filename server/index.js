@@ -40,7 +40,8 @@ app.use('/api/marketplace', marketplaceRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/trades', tradeRoutes);
 app.use('/api/system', systemRoutes);
-app.use('/api/admin', adminRoutes);
+app.use('/api/admin', require('./routes/admin'));
+app.use('/api/meta', require('./routes/meta'));
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/transactions', transactionRoutes);
 

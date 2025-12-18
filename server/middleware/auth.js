@@ -7,14 +7,22 @@ const onlineUsers = new Map();
 // Update user's online status
 const updateOnlineStatus = (userId) => {
   if (!userId) return;
-  onlineUsers.set(userId, Date.now());
+  const now = Date.now();
+
+  // Throttle DB updates: Only update DB every 5 minutes per user
+  const lastSeen = onlineUsers.get(userId);
+  onlineUsers.set(userId, now);
+
+  // If first time seen or > 5 minutes since last update, update DB
+  if (!lastSeen || (now - lastSeen > 5 * 60 * 1000)) {
+    supabase.from('users').update({ last_online: new Date().toISOString(), is_online: true }).eq('id', userId).then(({ error }) => {
+      if (error) console.error('Failed to update last_online:', error);
+    });
+  }
+
   // Consider user offline if they haven't been active in 5 minutes
-  setTimeout(() => {
-    const lastSeen = onlineUsers.get(userId);
-    if (lastSeen && Date.now() - lastSeen > 5 * 60 * 1000) {
-      onlineUsers.delete(userId);
-    }
-  }, 5 * 60 * 1000);
+  // Clean up old check timeout? No, simplistic approach is fine for now but ideally clear old timeouts.
+  // We rely on getOnlineUsers to clean map.
 };
 
 // Export function to get online users

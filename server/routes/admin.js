@@ -227,6 +227,19 @@ router.put('/items/:id', async (req, res) => {
       }
     }
 
+    // Check for projection status change using new utility
+    const { checkProjectionStatus } = require('../utils/economy');
+
+    // We need new RAP if it changed? Admin doesn't update RAP usually, but if they did we'd catch it.
+    // Usually RAP isn't in req.body for admin update, but if it is...
+    // Also need item's current RAP if not updated.
+
+    const newValue = req.body.value !== undefined ? req.body.value : currentItem.value || 0;
+    const newRap = req.body.rap !== undefined ? req.body.rap : currentItem.rap || 0;
+
+    // Run the check (it fires webhook if changed)
+    await checkProjectionStatus(currentItem, currentItem.value, newValue, currentItem.rap, newRap);
+
     const { data: item, error } = await supabase
       .from('items')
       .update(req.body)

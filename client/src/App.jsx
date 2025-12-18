@@ -27,55 +27,103 @@ import VersionManager from './components/VersionManager'
 import BannedOverlay from './components/BannedOverlay'
 import Footer from './components/Footer'
 import TermsOfService from './pages/TermsOfService'
+import UpdateModal, { useVersion } from './components/UpdateModal';
 import './App.css'
+
+const AppContent = () => {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+  const version = useVersion();
+
+  return (
+    <div className="app">
+      <UpdateModal />
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route
+          path="/*"
+          element={
+            <PrivateRoute>
+              <TopBar />
+              <div className="main-content">
+                <Routes>
+                  <Route path="/" element={<Catalog />} />
+                  <Route path="/catalog" element={<Catalog />} />
+                  <Route path="/catalog/:id" element={<ItemDetail />} />
+                  <Route path="/profile" element={<Profile />} />
+                  <Route path="/players" element={<Players />} />
+                  <Route path="/players/:id" element={<Profile />} />
+                  <Route path="/trade" element={<Navigate to="/trades" replace />} />
+                  <Route path="/trades" element={<Trades />} />
+                  <Route path="/trades/:id" element={<TradeWindow />} />
+                  {/* <Route path="/deals" element={<Deals />} /> */}
+
+                  <Route path="/value-changes" element={<ValueChanges />} />
+                  <Route path="/transactions" element={<Transactions />} />
+                  <Route path="/leaderboard" element={<Leaderboard />} />
+                  <Route path="/settings" element={<Settings />} />
+                  <Route path="/admin" element={<AdminPanel />} />
+                  <Route path="/tos" element={<TermsOfService />} />
+                </Routes>
+              </div>
+              <NotificationContainer />
+              <VersionManager />
+              <BannedOverlay />
+              {/* The original Footer component is replaced by the inline footer as per instruction */}
+              {/* <Footer /> */}
+            </PrivateRoute>
+          }
+        />
+      </Routes>
+      <footer className="footer" style={{ textAlign: 'center', padding: '20px', color: '#666', fontSize: '12px' }}>
+        <p>Roblox Trade Sim {version} &copy; 2025</p>
+      </footer>
+    </div>
+  );
+};
 
 function App() {
   return (
     <Router>
       <AuthProvider>
         <NotificationProvider>
-          <div className="app">
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route
-                path="/*"
-                element={
-                  <PrivateRoute>
-                    <TopBar />
-                    <div className="main-content">
-                      <Routes>
-                        <Route path="/" element={<Catalog />} />
-                        <Route path="/catalog" element={<Catalog />} />
-                        <Route path="/catalog/:id" element={<ItemDetail />} />
-                        <Route path="/profile" element={<Profile />} />
-                        <Route path="/players" element={<Players />} />
-                        <Route path="/players/:id" element={<Profile />} />
-                        <Route path="/trade" element={<Navigate to="/trades" replace />} />
-                        <Route path="/trades" element={<Trades />} />
-                        <Route path="/trades/:id" element={<TradeWindow />} />
-                        {/* <Route path="/deals" element={<Deals />} /> */}
+          element={
+            <PrivateRoute>
+              <TopBar />
+              <div className="main-content">
+                <Routes>
+                  <Route path="/" element={<Catalog />} />
+                  <Route path="/catalog" element={<Catalog />} />
+                  <Route path="/catalog/:id" element={<ItemDetail />} />
+                  <Route path="/profile" element={<Profile />} />
+                  <Route path="/players" element={<Players />} />
+                  <Route path="/players/:id" element={<Profile />} />
+                  <Route path="/trade" element={<Navigate to="/trades" replace />} />
+                  <Route path="/trades" element={<Trades />} />
+                  <Route path="/trades/:id" element={<TradeWindow />} />
+                  {/* <Route path="/deals" element={<Deals />} /> */}
 
-                        <Route path="/value-changes" element={<ValueChanges />} />
-                        <Route path="/transactions" element={<Transactions />} />
-                        <Route path="/leaderboard" element={<Leaderboard />} />
-                        <Route path="/settings" element={<Settings />} />
-                        <Route path="/admin" element={<AdminPanel />} />
-                        <Route path="/tos" element={<TermsOfService />} />
-                      </Routes>
-                    </div>
-                    <NotificationContainer />
-                    <VersionManager />
-                    <BannedOverlay />
-                    <Footer />
-                  </PrivateRoute>
-                }
+                  <Route path="/value-changes" element={<ValueChanges />} />
+                  <Route path="/transactions" element={<Transactions />} />
+                  <Route path="/leaderboard" element={<Leaderboard />} />
+                  <Route path="/settings" element={<Settings />} />
+                  <Route path="/admin" element={<AdminPanel />} />
+                  <Route path="/tos" element={<TermsOfService />} />
+                </Routes>
+              </div>
+              <NotificationContainer />
+              <VersionManager />
+              <BannedOverlay />
+              <Footer />
+            </PrivateRoute>
+          }
               />
-            </Routes>
-          </div>
-        </NotificationProvider>
-      </AuthProvider>
-    </Router>
+        </Routes>
+      </div>
+    </NotificationProvider>
+      </AuthProvider >
+    </Router >
   )
 }
 

@@ -1,0 +1,8 @@
+[
+    {
+        "version": "v1.3.0",
+        "title": "Economy & Feature Update",
+        "date": "2025-12-18",
+        "content": "### Major Features\n\n- **Projected Status Updates**: The economy now automatically detects projection manipulation and alerts the community.\n- **Banned Copies**: Item details now show how many copies are locked in the Admin Vault.\n- **Last Online**: You can now see when players were last active.\n- **AI Improvements**: Trading bots are now smarter, targeting higher value trades and avoiding bad deals.\n- **Leaderboard Accuracy**: Leaderboards now reflect true inventory values.\n\n### Fixes & Improvements\n\n- Added pagination to Value Changes page.\n- AI Bans are now strictly enforced.\n- Various UI improvements."
+    }
+]

@@ -3,72 +3,7 @@ const { authenticate, requireAdmin } = require('../middleware/auth');
 const router = express.Router();
 const supabase = require('../config/supabase');
 const { updateChallengeProgress, CHALLENGE_TYPES } = require('../utils/eventHelper');
-
-// Helper function to update daily RAP snapshot
-const updateItemRAPSnapshot = async (itemId, salePrice) => {
-  try {
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
-
-    // Check if snapshot exists for today
-    const { data: existingSnapshot } = await supabase
-      .from('item_rap_history')
-      .select('*')
-      .eq('item_id', itemId)
-      .eq('snapshot_date', today)
-      .single();
-
-    if (existingSnapshot) {
-      // Update existing snapshot
-      const newSalesCount = existingSnapshot.sales_count + 1;
-      const newSalesVolume = existingSnapshot.sales_volume + salePrice;
-      // Calculate new average RAP
-      // DAMPENED UPDATE: Prevent RAP from spiking too hard (Projected prevention)
-      // Cap the new RAP at 1.2x the old RAP? Or just weigh history more?
-      // Let's use a weighted average but also a hard cap on the *increase*.
-      // User asked: "rap caps or increase caps per update cycle so projecteds happen less"
-
-      let calculatedRap = Math.floor(
-        (existingSnapshot.rap_value * existingSnapshot.sales_count + salePrice) / newSalesCount
-      );
-
-      // dampening: max 20% increase from previous daily snapshot RAP
-      const maxRap = Math.floor(existingSnapshot.rap_value * 1.2);
-      // but if salePrice is lower, we allow it to drop (no floor cap requested, mainly anti-inflation)
-
-      const newRapValue = Math.min(calculatedRap, maxRap);
-
-      await supabase
-        .from('item_rap_history')
-        .update({
-          rap_value: newRapValue,
-          sales_count: newSalesCount,
-          sales_volume: newSalesVolume,
-          timestamp: new Date().toISOString()
-        })
-        .eq('item_id', itemId)
-        .eq('snapshot_date', today);
-
-      return newRapValue;
-    } else {
-      // Create new snapshot for today
-      await supabase
-        .from('item_rap_history')
-        .insert([{
-          item_id: itemId,
-          rap_value: salePrice,
-          sales_count: 1,
-          sales_volume: salePrice,
-          snapshot_date: today,
-          timestamp: new Date().toISOString()
-        }]);
-
-      return salePrice;
-    }
-  } catch (error) {
-    console.error('Error updating RAP snapshot:', error);
-    throw error;
-  }
-};
+const { updateItemRAPSnapshot } = require('../utils/economy');
 
 
 // Get deals (items listed below RAP)

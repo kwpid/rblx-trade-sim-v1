@@ -8,7 +8,7 @@ router.get('/:id', async (req, res) => {
   try {
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, username, email, cash, is_admin, created_at, is_online, banned_until')
+      .select('id, username, email, cash, is_admin, created_at, is_online, banned_until, last_online')
       .eq('id', req.params.id)
       .single();
 
@@ -57,7 +57,7 @@ router.get('/me/profile', authenticate, async (req, res) => {
   try {
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, username, email, cash, is_admin, created_at, banned_until, min_trade_value, trade_privacy, inventory_privacy, message_privacy')
+      .select('id, username, email, cash, is_admin, created_at, banned_until, last_online, min_trade_value, trade_privacy, inventory_privacy, message_privacy')
       .eq('id', req.user.id)
       .single();
 
@@ -238,57 +238,122 @@ router.get('/leaderboard', async (req, res) => {
   }
 });
 
+// Helper to calculate accurate inventory stats (Shared with Player List logic)
+const calculateUserStats = async (user, inventory = null) => {
+  try {
+    let userInventory = inventory;
+    if (!userInventory) {
+      // Fetch if not provided
+      const { data: items } = await supabase
+        .from('user_items')
+        .select(`*, items:item_id (*)`)
+        .eq('user_id', user.id);
+      userInventory = items || [];
+    }
+
+    let totalValue = 0;
+    let totalRAP = 0;
+
+    userInventory.forEach(userItem => {
+      const itemData = userItem.items;
+      if (!itemData) return;
+
+      const isOutOfStock = itemData.is_off_sale || (itemData.sale_type === 'stock' && itemData.remaining_stock <= 0);
+
+      // VALUE: Use manual value if Limited.
+      // Matching Player List: "VALUE: Only use manual item.value AND only if limited"
+      // Wait, Player List Logic (lines 465+ in original file):
+      // if (itemData.is_limited && itemData.value !== null ...) itemValue = itemData.value
+      // It explicitly IGNORES value for non-limiteds.
+
+      let itemValue = 0;
+      if (itemData.is_limited && itemData.value !== null && itemData.value !== undefined) {
+        itemValue = itemData.value;
+      }
+
+      // RAP: Only use RAP for Limited items
+      let itemRAP = 0;
+      if (itemData.is_limited) {
+        itemRAP = itemData.rap || 0;
+      }
+
+      totalValue += itemValue;
+      totalRAP += itemRAP;
+    });
+
+    return { value: totalValue, rap: totalRAP };
+  } catch (e) {
+    console.error('Error calc stats:', e);
+    return { value: 0, rap: 0 };
+  }
+};
+
 // Get leaderboard by value
 router.get('/leaderboard/value', async (req, res) => {
   try {
     const ADMIN_USER_ID = '0c55d336-0bf7-49bf-9a90-1b4ba4e13679';
 
     // 1. Get All Users (excluding admin)
+    // NOTE: For large scale, this is slow. But requested to use Player List logic which does this.
+    // We fetch minimal data.
     const { data: users, error: usersError } = await supabase
       .from('users')
       .select('id, username')
-      .neq('id', ADMIN_USER_ID); // Exclude admin
+      .neq('id', ADMIN_USER_ID);
 
     if (usersError) throw usersError;
 
-    // 2. Fetch All User Items - each row is one item copy (excluding admin's items)
+    // 2. Fetch ALL user items in one go (more efficient than N+1 queries)
     const { data: allItems, error: itemsError } = await supabase
       .from('user_items')
       .select(`
         user_id,
-        items:item_id (value)
+        items:item_id (
+            value,
+            rap,
+            is_limited,
+            is_off_sale,
+            sale_type,
+            remaining_stock
+        )
       `)
-      .neq('user_id', ADMIN_USER_ID) // Exclude admin's items
+      .neq('user_id', ADMIN_USER_ID)
       .not('items', 'is', null);
 
     if (itemsError) throw itemsError;
 
-    // 3. Aggregate - count EACH item copy individually
-    const userValueMap = {};
-
-    allItems.forEach(userItem => {
-      if (!userValueMap[userItem.user_id]) userValueMap[userItem.user_id] = 0;
-
-      const itemData = userItem.items;
-      // Each user_item row represents one copy, so add its value
-      const val = (itemData.value !== null && itemData.value !== undefined) ? itemData.value : 0;
-
-      userValueMap[userItem.user_id] += val;
+    // 3. Group items by user
+    const userItemsMap = {}; // userId -> [items...]
+    allItems.forEach(ui => {
+      if (!userItemsMap[ui.user_id]) userItemsMap[ui.user_id] = [];
+      userItemsMap[ui.user_id].push(ui);
     });
 
-    // 4. Map & Sort
-    const leaderboard = users.map(u => ({
-      id: u.id,
-      username: u.username,
-      value: userValueMap[u.id] || 0
-    }));
+    // 4. Calculate Stats for each user
+    const leaderboard = users.map(user => {
+      const myItems = userItemsMap[user.id] || [];
 
+      let totalValue = 0;
+      myItems.forEach(userItem => {
+        const itemData = userItem.items;
+        if (!itemData) return;
+
+        // Logic matching Player List exactly:
+        if (itemData.is_limited && itemData.value !== null && itemData.value !== undefined) {
+          totalValue += itemData.value;
+        }
+      });
+
+      return {
+        id: user.id,
+        username: user.username,
+        value: totalValue
+      };
+    });
+
+    // 5. Sort & Slice
     leaderboard.sort((a, b) => b.value - a.value);
-
-    // 5. Limit to Top 10
-    const top10 = leaderboard.slice(0, 10);
-
-    res.json(top10);
+    res.json(leaderboard.slice(0, 10));
 
   } catch (error) {
     console.error('Error fetching leaderboard:', error);
@@ -301,15 +366,15 @@ router.get('/leaderboard/rap', async (req, res) => {
   try {
     const ADMIN_USER_ID = '0c55d336-0bf7-49bf-9a90-1b4ba4e13679';
 
-    // 1. Get All Users (excluding admin)
+    // 1. Get All Users
     const { data: users, error: usersError } = await supabase
       .from('users')
       .select('id, username')
-      .neq('id', ADMIN_USER_ID); // Exclude admin
+      .neq('id', ADMIN_USER_ID);
 
     if (usersError) throw usersError;
 
-    // 2. Fetch All User Items - each row is one item copy (excluding admin's items)
+    // 2. Fetch All Items
     const { data: allItems, error: itemsError } = await supabase
       .from('user_items')
       .select(`
@@ -319,40 +384,42 @@ router.get('/leaderboard/rap', async (req, res) => {
             is_limited
         )
       `)
-      .neq('user_id', ADMIN_USER_ID) // Exclude admin's items
+      .neq('user_id', ADMIN_USER_ID)
       .not('items', 'is', null);
 
     if (itemsError) throw itemsError;
 
-    // 3. Aggregate - count EACH item copy individually
-    const userRAPMap = {};
-
-    allItems.forEach(userItem => {
-      if (!userRAPMap[userItem.user_id]) userRAPMap[userItem.user_id] = 0;
-
-      const itemData = userItem.items;
-      // Each user_item row represents one copy
-      let val = 0;
-      if (itemData.is_limited) {
-        val = itemData.rap || 0;
-      }
-
-      userRAPMap[userItem.user_id] += val;
+    // 3. Group
+    const userItemsMap = {};
+    allItems.forEach(ui => {
+      if (!userItemsMap[ui.user_id]) userItemsMap[ui.user_id] = [];
+      userItemsMap[ui.user_id].push(ui);
     });
 
-    // 4. Map & Sort
-    const leaderboard = users.map(u => ({
-      id: u.id,
-      username: u.username,
-      rap: userRAPMap[u.id] || 0
-    }));
+    // 4. Calculate
+    const leaderboard = users.map(user => {
+      const myItems = userItemsMap[user.id] || [];
 
+      let totalRAP = 0;
+      myItems.forEach(userItem => {
+        const itemData = userItem.items;
+        if (!itemData) return;
+
+        if (itemData.is_limited) {
+          totalRAP += (itemData.rap || 0);
+        }
+      });
+
+      return {
+        id: user.id,
+        username: user.username,
+        rap: totalRAP
+      };
+    });
+
+    // 5. Sort & Slice
     leaderboard.sort((a, b) => b.rap - a.rap);
-
-    // 5. Limit to Top 10
-    const top10 = leaderboard.slice(0, 10);
-
-    res.json(top10);
+    res.json(leaderboard.slice(0, 10));
 
   } catch (error) {
     console.error('Error fetching RAP leaderboard:', error);

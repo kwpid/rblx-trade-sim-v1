@@ -1,0 +1,113 @@
+.update-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(5px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.update-modal {
+    background-color: #1e2022;
+    border: 1px solid #3d3f41;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 80vh;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.update-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.update-badge {
+    background: linear-gradient(135deg, #00a2ff, #0066cc);
+    color: white;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+}
+
+.update-date {
+    color: #8c8c8c;
+    font-size: 13px;
+}
+
+.update-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #ffffff;
+    margin-bottom: 20px;
+}
+
+.update-content {
+    background-color: #2a2d2f;
+    padding: 20px;
+    border-radius: 8px;
+    overflow-y: auto;
+    color: #d1d1d1;
+    font-size: 15px;
+    line-height: 1.6;
+    margin-bottom: 20px;
+}
+
+.update-content h3 {
+    color: #ffffff;
+    margin-top: 20px;
+    margin-bottom: 10px;
+    font-size: 18px;
+}
+
+.update-content h3:first-child {
+    margin-top: 0;
+}
+
+.update-content ul {
+    margin-left: 20px;
+    margin-bottom: 15px;
+}
+
+.update-content li {
+    margin-bottom: 8px;
+}
+
+.update-content strong {
+    color: #fff;
+}
+
+.update-confirm-btn {
+    align-self: flex-end;
+    background-color: #00a2ff;
+    color: white;
+    border: none;
+    padding: 10px 24px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.update-confirm-btn:hover {
+    background-color: #008ecc;
+}
