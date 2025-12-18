@@ -749,7 +749,21 @@ const actionList = async (ai, personalityProfile) => {
     let itemToSell = null;
 
     // LIQUIDITY PROVIDER LOOP
+    // IGNORE LOW STOCK items for Liquidity Provider (so we don't accidentally list rare items cheaply)
     for (const item of toCheck) {
+        // QUICK CHECK: If item is rare (estimated), SKIP liquidity check
+        // Ideally we check true stock, but that's expensive inside this loop. 
+        // We rely on 'value' as a heuristic or check total supply if we must.
+        // Let's check a quick "Is this item potentially rare?"
+        // We will do the full supply check.
+
+        const { count: totalSupply } = await supabase
+            .from('user_items')
+            .select('*', { count: 'exact', head: true })
+            .eq('item_id', item.items.id);
+
+        if (totalSupply < 100) continue; // SKIP RARE ITEMS entirely for liquidity providing
+
         const { count: globalListings } = await supabase
             .from('user_items')
             .select('*', { count: 'exact', head: true })
@@ -790,19 +804,30 @@ const actionList = async (ai, personalityProfile) => {
         // Stock 1: ~99% chance to skip
         // Stock 50: ~95% chance to skip
         // Stock 100: ~90% chance to skip
-        const baseSkip = 0.9;
+        const baseSkip = 0.95; // Increased base skip
         const rarityFactor = (100 - stock) / 100; // 0.0 to 1.0
-        const skipChance = baseSkip + (rarityFactor * 0.095); // Approaching 0.995 for super rare
+        const skipChance = baseSkip + (rarityFactor * 0.049); // Approaching 0.999 for super rare
 
+        // Log HODL decision occasionally for debugging
         if (Math.random() < skipChance) {
+            // console.log(`[AI] ${ai.username} decided to HODL rare item ${itemToSell.items.name} (Stock: ${stock})`);
             return;
         }
 
+
         // If we DO sell (The "Exception"), price it HIGH.
-        // Stock 1: ~10x Multiplier
-        // Stock 50: ~3x Multiplier
-        // Stock 100: ~1.5x Multiplier
-        const scarcityMult = 1.5 + (rarityFactor * 8.0);
+        // Stock < 10: Joke Price (50x - 100x)
+        // Stock < 50: High Price (10x - 50x)
+        // Stock < 100: Premium Price (5x - 10x)
+
+        let scarcityMult;
+        if (stock < 10) {
+            scarcityMult = 50 + Math.random() * 50; // 50x - 100x
+        } else if (stock < 50) {
+            scarcityMult = 10 + Math.random() * 40; // 10x - 50x
+        } else {
+            scarcityMult = 5 + Math.random() * 5; // 5x - 10x
+        }
 
         let refValue = itemToSell.items.value || itemToSell.items.rap || 100;
         const finalPrice = Math.floor(refValue * scarcityMult);

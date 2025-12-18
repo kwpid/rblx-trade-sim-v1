@@ -9,7 +9,30 @@ const AdminItemEditForm = ({ item, onUpdate }) => {
   const [imageUrl, setImageUrl] = useState(item.image_url || '')
   const [itemName, setItemName] = useState(item.name || '')
   const [itemDescription, setItemDescription] = useState(item.description || '')
+  const [distributeUsernames, setDistributeUsernames] = useState('')
+  const [isDistributing, setIsDistributing] = useState(false)
   const isOutOfStock = item.is_off_sale || (item.sale_type === 'stock' && item.remaining_stock <= 0)
+  const isLimited = item.is_limited
+
+  const handleDistribute = async () => {
+    if (!distributeUsernames.trim()) return
+    setIsDistributing(true)
+    try {
+      await axios.post(`/api/admin/items/${item.id}/distribute`, { usernames: distributeUsernames })
+      alert('Items distributed successfully!')
+      setDistributeUsernames('')
+    } catch (error) {
+      alert(error.response?.data?.error || 'Failed to distribute')
+    } finally {
+      setIsDistributing(false)
+    }
+  }
+
+  const handleMakeLimited = async () => {
+    if (!window.confirm("Are you sure? This cannot be undone easily.")) return;
+    onUpdate({ is_limited: true })
+  }
+
 
   return (
     <div className="admin-edit-form">
@@ -101,6 +124,46 @@ const AdminItemEditForm = ({ item, onUpdate }) => {
           </button>
         )}
       </div>
+
+      {/* Distribution Panel */}
+      <div className="form-group" style={{ marginTop: '24px', borderTop: '1px solid var(--roblox-border)', paddingTop: '16px' }}>
+        <h4>Distribute Item</h4>
+        <label>Give to Users (Comma separated usernames)</label>
+        <textarea
+          className="input"
+          value={distributeUsernames}
+          onChange={(e) => setDistributeUsernames(e.target.value)}
+          placeholder="User1, User2, User3..."
+          rows="3"
+        />
+        <button
+          className="btn btn-small"
+          onClick={handleDistribute}
+          disabled={isDistributing}
+          style={{ marginTop: '8px' }}
+        >
+          {isDistributing ? 'Sending...' : 'Distribute Items'}
+        </button>
+      </div>
+
+      {/* Make Limited Action */}
+      {
+        !isLimited && (
+          <div className="form-group" style={{ marginTop: '24px', borderTop: '1px solid var(--roblox-border)', paddingTop: '16px' }}>
+            <h4>Actions</h4>
+            <button
+              className="btn btn-small btn-danger"
+              onClick={handleMakeLimited}
+            >
+              Set as Limited
+            </button>
+            <small style={{ color: 'var(--roblox-text-muted)', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+              Forces the item to become Limited immediately.
+            </small>
+          </div>
+        )
+      }
+
     </div>
   )
 }

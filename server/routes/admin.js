@@ -80,27 +80,8 @@ router.post('/items', async (req, res) => {
 
     if (error) throw error;
 
-    // Give admin (serial #0) to the admin account
-    const ADMIN_USER_ID = '0c55d336-0bf7-49bf-9a90-1b4ba4e13679';
-    try {
-      const { error: adminError } = await supabase
-        .from('user_items')
-        .insert([{
-          user_id: ADMIN_USER_ID,
-          item_id: item.id,
-          serial_number: 0,
-          is_for_sale: false,
-          purchase_price: 0 // Admin gets it for free
-        }]);
-
-      if (adminError) {
-        console.error('Failed to create admin serial #0 (Supabase Error):', adminError);
-      } else {
-        console.log(`[Admin] Generated Serial #0 for item ${item.name} (${item.id})`);
-      }
-    } catch (adminItemError) {
-      console.error('Failed to create admin serial #0 (Exception):', adminItemError);
-    }
+    // Auto-assign removed by request.
+    // Admin no longer gets Serial #0 automatically.
 
     // Don't create initial RAP entry - RAP is only for reseller purchases
 
@@ -175,7 +156,8 @@ router.put('/items/:id', async (req, res) => {
     }
 
     // Check if trying to update value (Always allowed now, to support "Initial Value" editing)
-    if (req.body.value !== undefined) {
+    // Also allow is_limited update
+    if (req.body.is_limited !== undefined || req.body.value !== undefined) {
       // Track value change history if value, trend, or demand is being updated
       const hasValueChange = req.body.value !== undefined && req.body.value !== currentItem.value;
       const hasTrendChange = req.body.trend !== undefined && req.body.trend !== currentItem.trend;
@@ -261,6 +243,75 @@ router.put('/items/:id', async (req, res) => {
   } catch (error) {
     console.error('Error updating item:', error);
     res.status(500).json({ error: 'Failed to update item' });
+  }
+});
+
+// Distribute item to users (POST /items/:id/distribute)
+router.post('/items/:id/distribute', async (req, res) => {
+  try {
+    const { usernames } = req.body; // Comma separated string or array
+    const itemId = req.params.id;
+
+    if (!usernames) {
+      return res.status(400).json({ error: 'Usernames are required' });
+    }
+
+    const usernameList = Array.isArray(usernames)
+      ? usernames
+      : usernames.split(',').map(u => u.trim()).filter(u => u);
+
+    if (usernameList.length === 0) {
+      return res.status(400).json({ error: 'No valid usernames provided' });
+    }
+
+    // 1. Fetch Users
+    const { data: users, error: userError } = await supabase
+      .from('users')
+      .select('id, username')
+      .in('username', usernameList);
+
+    if (userError || !users || users.length === 0) {
+      return res.status(404).json({ error: 'No matching users found' });
+    }
+
+    // 2. Fetch current Serial Number/Count
+    // Get max serial for this item to append from there
+    // Or just count existing user_items for this item
+    const { count: existingCount, error: countError } = await supabase
+      .from('user_items')
+      .select('*', { count: 'exact', head: true })
+      .eq('item_id', itemId);
+
+    // We want unique serials. 
+    // Usually serial = existingCount + 1, +2, etc.
+    // But to be safe in case of gaps (unlikely here but simpler to just append)
+    let nextSerial = (existingCount || 0) + 1;
+
+    const itemsPayload = users.map(user => {
+      return {
+        user_id: user.id,
+        item_id: itemId,
+        serial_number: nextSerial++,
+        is_for_sale: false,
+        purchase_price: 0 // Free distribution
+      };
+    });
+
+    // 3. Insert Items
+    const { error: insertError } = await supabase
+      .from('user_items')
+      .insert(itemsPayload);
+
+    if (insertError) throw insertError;
+
+    // Log this?
+    console.log(`[Admin] Distributed item ${itemId} to ${users.length} users.`);
+
+    res.json({ success: true, count: users.length, users: users.map(u => u.username) });
+
+  } catch (error) {
+    console.error('Error distributing item:', error);
+    res.status(500).json({ error: 'Failed to distribute item' });
   }
 });
 
