@@ -1,0 +1,9 @@
+[
+    {
+        "id": 1,
+        "version": "v1.1.0",
+        "title": "Welcome to v1.1 - The Update!",
+        "date": "2025-12-18",
+        "content": "<h2>New Features</h2><ul><li><strong>Update Logs:</strong> Added this beautiful popup to keep you informed!</li><li><strong>Leaderboards:</strong> Completely overhauled for accuracy. Now shows true value!</li><li><strong>Security:</strong> Enhanced AI moderation and banning systems.</li></ul><h2>Changes</h2><p>Various bug fixes and performance improvements.</p>"
+    }
+]

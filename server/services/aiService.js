@@ -118,14 +118,19 @@ const runAiLoop = async () => {
         await manageAiSessions();
 
         // 2. Perform Actions for Online AI
+        // FILTER: Ensure NOT banned
         const { data: onlineAis } = await supabase
             .from('users')
             .select('*')
             .eq('is_ai', true)
-            .eq('is_online', true);
+            .eq('is_online', true)
+            .is('banned_until', null); // Or check > now, but null is safest if we clear it on unban
 
         if (onlineAis && onlineAis.length > 0) {
             for (const ai of onlineAis) {
+                // Secondary check for partial bans conceptually (if banned_until > now)
+                if (ai.banned_until && new Date(ai.banned_until) > new Date()) continue;
+
                 // Check incoming trades PRIORITY action
                 await checkIncomingTrades(ai);
 
@@ -143,7 +148,7 @@ const runAiLoop = async () => {
 };
 
 const manageAiSessions = async () => {
-    const { data: allAis } = await supabase.from('users').select('id, username, is_online').eq('is_ai', true);
+    const { data: allAis } = await supabase.from('users').select('id, username, is_online, banned_until').eq('is_ai', true);
     if (!allAis) return;
 
     const now = Date.now();
@@ -160,6 +165,16 @@ const manageAiSessions = async () => {
             // User deleted? Remove session
             delete aiSessions[id];
             continue;
+        }
+
+        // Check BAN status
+        // If banned, force offline immediately
+        // Note: We need to fetch banned_until in 'allAis' query
+        const isBanned = user.banned_until && new Date(user.banned_until) > now;
+        if (isBanned) {
+            await supabase.from('users').update({ is_online: false }).eq('id', id);
+            delete aiSessions[id];
+            continue; // Skip processing
         }
 
         if (session.sessionEnd < now) {
@@ -559,10 +574,22 @@ const actionBuyResale = async (ai, personalityProfile) => {
     console.log(`[AI] ${ai.username} bought resale: ${target.items.name} for R$${price}`);
 };
 
-// Helper function to update daily RAP snapshot (Copied from marketplace.js)
+// Helper function to update daily RAP snapshot
 const updateItemRAPSnapshot = async (itemId, salePrice) => {
     try {
         const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+
+        // 1. Fetch Item Data (Value & Current RAP) for Projected Check
+        const { data: itemData } = await supabase
+            .from('items')
+            .select('value, rap, name, image_url')
+            .eq('id', itemId)
+            .single();
+
+        // Check Old Status
+        const val = itemData?.value || 0;
+        const oldRap = itemData?.rap || 0;
+        const wasProjected = val > 0 && oldRap > (val * 1.25 + 50);
 
         // Check if snapshot exists for today
         const { data: existingSnapshot } = await supabase
@@ -571,6 +598,8 @@ const updateItemRAPSnapshot = async (itemId, salePrice) => {
             .eq('item_id', itemId)
             .eq('snapshot_date', today)
             .single();
+
+        let newRapValue = salePrice;
 
         if (existingSnapshot) {
             // Update existing snapshot
@@ -581,9 +610,9 @@ const updateItemRAPSnapshot = async (itemId, salePrice) => {
                 (existingSnapshot.rap_value * existingSnapshot.sales_count + salePrice) / newSalesCount
             );
 
-            // dampening: max 20% increase from previous daily snapshot RAP
+            // dampening
             const maxRap = Math.floor(existingSnapshot.rap_value * 1.2);
-            const newRapValue = Math.min(calculatedRap, maxRap);
+            newRapValue = Math.min(calculatedRap, maxRap);
 
             await supabase
                 .from('item_rap_history')
@@ -595,30 +624,8 @@ const updateItemRAPSnapshot = async (itemId, salePrice) => {
                 })
                 .eq('item_id', itemId)
                 .eq('snapshot_date', today);
-
-            // Also update main item RAP
-            await supabase.from('items').update({ rap: newRapValue }).eq('id', itemId);
-
-            return newRapValue;
         } else {
             // Create new snapshot for today
-            // For new day, we might want to base it on previous RAP or just this sale?
-            // Usually RAP carries over. Let's fetch current RAP first.
-            const { data: item } = await supabase.from('items').select('rap').eq('id', itemId).single();
-            const currentRap = item ? item.rap : salePrice;
-
-            // If it's the very first sale of the day, the "New RAP" is often just weighted towards the sale price
-            // OR we just take the dampening logic relative to *yesterday's* RAP. 
-            // For simplicity, we just insert this sale as the baseline for the day.
-            // But we should verify we don't drop RAP to 0 if it was high.
-
-            // Let's stick to simple: Snapshot starts with this sale.
-            // Wait, if RAP was 1M and I sell for 10k, RAP becomes 10k? No.
-            // Ideally we use a moving average. The marketplace.js implementation was:
-            // "Create new snapshot... rap_value: salePrice".
-            // That implies the first sale of the day SETS the RAP to that price? That's volatile.
-            // Let's stick to the user's marketplace logic for consistency:
-
             await supabase
                 .from('item_rap_history')
                 .insert([{
@@ -629,10 +636,33 @@ const updateItemRAPSnapshot = async (itemId, salePrice) => {
                     snapshot_date: today,
                     timestamp: new Date().toISOString()
                 }]);
-
-            await supabase.from('items').update({ rap: salePrice }).eq('id', itemId);
-            return salePrice;
         }
+
+        // 2. Update Item RAP
+        await supabase.from('items').update({ rap: newRapValue }).eq('id', itemId);
+
+        // 3. Check New Status (Projected Flip?)
+        const isProjected = val > 0 && newRapValue > (val * 1.25 + 50);
+
+        if (wasProjected !== isProjected) {
+            // Status Changed! Log it.
+            const explanation = isProjected
+                ? `Item became Projected (RAP: ${newRapValue} > Value: ${val})`
+                : `Item is no longer Projected (RAP: ${newRapValue} aligned with Value: ${val})`;
+
+            await supabase.from('value_change_history').insert([{
+                item_id: itemId,
+                previous_value: val,
+                new_value: val,
+                previous_trend: wasProjected ? 'projected' : 'stable',
+                new_trend: isProjected ? 'projected' : 'stable',
+                explanation: explanation,
+                created_at: new Date().toISOString(),
+                changed_by: null // System update
+            }]);
+        }
+
+        return newRapValue;
     } catch (error) {
         console.error('Error updating RAP snapshot:', error);
         return salePrice; // Fallback
@@ -1144,7 +1174,7 @@ const actionInitiateTrade = async (ai, p) => {
     };
 
     const targetVal = getEffectiveValue(targetItem.items);
-    if (targetVal < 100) return; // Don't trade for junk
+    if (targetVal < 1500) return; // INCREASED THRESHOLD: Don't trade for small items (User request: "bigger trades")
 
     // 3. Select Our Offer Items
     const { data: myItems } = await supabase

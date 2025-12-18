@@ -483,9 +483,10 @@ router.post('/:id/proof', authenticate, async (req, res) => {
     }, 0);
 
     // Require minimum 10k on BOTH sides
-    if (senderValue < 10000 || receiverValue < 10000) {
+    // Require minimum 10k on AT LEAST ONE side logic (relaxed from both)
+    if (senderValue < 10000 && receiverValue < 10000) {
       return res.status(400).json({
-        error: 'Both sides must have at least 10,000 value to proof this trade'
+        error: 'At least one side must have 10,000+ value to proof this trade'
       });
     }
 

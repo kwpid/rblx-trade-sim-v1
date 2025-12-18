@@ -305,3 +305,37 @@
   color: var(--roblox-text-muted);
   font-size: 18px;
 }
+/* Pagination */
+.pagination-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    margin-top: 20px;
+    padding: 10px;
+}
+
+.pagination-btn {
+    background: var(--roblox-dark-secondary);
+    border: 1px solid var(--roblox-border);
+    color: var(--roblox-white);
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.pagination-btn:hover:not(:disabled) {
+    background: var(--roblox-blue);
+    border-color: var(--roblox-blue);
+}
+
+.pagination-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.pagination-info {
+    color: var(--roblox-text-secondary);
+    font-size: 0.9rem;
+}

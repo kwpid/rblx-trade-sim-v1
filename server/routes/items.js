@@ -208,7 +208,9 @@ router.get('/:id/resellers', async (req, res) => {
 // Get value change history (public endpoint for all users)
 router.get('/value-changes', async (req, res) => {
   try {
-    const { item_id } = req.query;
+    const { item_id, page = 1, limit = 50 } = req.query;
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
 
     let query = supabase
       .from('value_change_history')
@@ -216,24 +218,30 @@ router.get('/value-changes', async (req, res) => {
         *,
         items:item_id (id, name, image_url, roblox_item_id),
         users:changed_by (id, username)
-      `)
-      .order('created_at', { ascending: true });
+      `, { count: 'exact' })
+      .order('created_at', { ascending: false }); // User probably wants Newest First
 
     // Filter by item_id if provided
     if (item_id) {
       query = query.eq('item_id', item_id);
-    } else {
-      query = query.limit(100);
     }
 
-    const { data: history, error } = await query;
+    // Pagination
+    query = query.range(from, to);
+
+    const { data: history, count, error } = await query;
 
     if (error) {
       console.error('Supabase error:', error);
       throw error;
     }
 
-    res.json(history || []);
+    res.json({
+      data: history || [],
+      total: count,
+      page: parseInt(page),
+      limit: parseInt(limit)
+    });
   } catch (error) {
     console.error('Error fetching value change history:', error);
     res.status(500).json({ error: 'Failed to fetch value change history', details: error.message });
@@ -243,18 +251,28 @@ router.get('/value-changes', async (req, res) => {
 // Get RAP change logs
 router.get('/rap-changes', async (req, res) => {
   try {
-    const { data: logs, error } = await supabase
+    const { page = 1, limit = 50 } = req.query;
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    const { data: logs, count, error } = await supabase
       .from('rap_change_log')
       .select(`
         *,
         amount:purchase_price,
         items:item_id (id, name, image_url, roblox_item_id)
-      `)
+      `, { count: 'exact' })
       .order('created_at', { ascending: false })
-      .limit(50);
+      .range(from, to);
 
     if (error) throw error;
-    res.json(logs);
+
+    res.json({
+      data: logs || [],
+      total: count,
+      page: parseInt(page),
+      limit: parseInt(limit)
+    });
   } catch (error) {
     console.error('Error fetching RAP changes:', error);
     res.status(500).json({ error: 'Failed to fetch RAP changes' });
@@ -340,8 +358,17 @@ router.get('/:id', async (req, res) => {
       .eq('item_id', item.id)
       .eq('users.personality', 'hoarder');
 
+    // Banned Copies (Held by Admin)
+    const ADMIN_USER_ID = '0c55d336-0bf7-49bf-9a90-1b4ba4e13679';
+    const { count: bannedCopies } = await supabase
+      .from('user_items')
+      .select('*', { count: 'exact', head: true })
+      .eq('item_id', item.id)
+      .eq('user_id', ADMIN_USER_ID);
+
     item.total_copies = totalCopies || 0;
     item.hoarded_count = hoardedCopies || 0;
+    item.banned_copies = bannedCopies || 0; // Return to frontend
 
     res.json(item);
   } catch (error) {
