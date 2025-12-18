@@ -715,30 +715,38 @@ const actionList = async (ai, personalityProfile) => {
     const limiteds = myItems.filter(i => i.items.is_limited);
     if (limiteds.length === 0) return;
 
-    const itemToSell = limiteds[Math.floor(Math.random() * limiteds.length)];
+    // Shuffle limiteds to check random ones, but check MULTIPLE for liquidity
+    const shuffled = limiteds.sort(() => 0.5 - Math.random());
+    const toCheck = shuffled.slice(0, 5); // Check up to 5 items per tick per bot
 
-    // LIQUIDITY PROVIDER LOGIC (User Request: "ensure AI sell copies... especially when no re-sellers")
-    const { count: globalListings } = await supabase
-        .from('user_items')
-        .select('*', { count: 'exact', head: true })
-        .eq('item_id', itemToSell.items.id)
-        .eq('is_for_sale', true);
+    let itemToSell = null;
 
-    if (globalListings < 2) {
-        // 0 or 1 seller? Sell it!
-        // Price it at a premium (1.2x - 1.5x) as requested ("for profits")
-        const premium = 1.2 + Math.random() * 0.3;
-        const baseVal = itemToSell.items.value || itemToSell.items.rap || 100;
-        const price = Math.floor(baseVal * premium);
+    // LIQUIDITY PROVIDER LOOP
+    for (const item of toCheck) {
+        const { count: globalListings } = await supabase
+            .from('user_items')
+            .select('*', { count: 'exact', head: true })
+            .eq('item_id', item.items.id)
+            .eq('is_for_sale', true);
 
-        await supabase.from('user_items').update({
-            is_for_sale: true,
-            sale_price: price
-        }).eq('id', itemToSell.id);
+        if (globalListings < 2) {
+            // Found a dead item! Prioritize this.
+            const premium = 1.2 + Math.random() * 0.3;
+            const baseVal = item.items.value || item.items.rap || 100;
+            const price = Math.floor(baseVal * premium);
 
-        console.log(`[AI] ${ai.username} listed LIQUIDITY item ${itemToSell.items.name} for R$${price} (${globalListings} active sellers)`);
-        return;
+            await supabase.from('user_items').update({
+                is_for_sale: true,
+                sale_price: price
+            }).eq('id', item.id);
+
+            console.log(`[AI] ${ai.username} listed LIQUIDITY item ${item.items.name} for R$${price} (${globalListings} active sellers)`);
+            return; // Action done
+        }
     }
+
+    // If we didn't find a liquidity target, standard sell logic on a random item from the list
+    itemToSell = limiteds[Math.floor(Math.random() * limiteds.length)];
 
     // Check Stock Rarity FIRST (items with <50 stock are considered rare)
     const stock = itemToSell.items.stock_count !== undefined ? itemToSell.items.stock_count : 1000;
@@ -1179,8 +1187,8 @@ const actionInitiateTrade = async (ai, p) => {
         query = query.eq('users.is_ai', false);
     }
 
-    // Fetch a batch to choose from
-    const { data: candidates, error } = await query.limit(50);
+    // Fetch a batch to choose from (Increased to 200 for variety)
+    const { data: candidates, error } = await query.limit(200);
 
     if (error || !candidates || candidates.length === 0) return;
 
@@ -1200,17 +1208,24 @@ const actionInitiateTrade = async (ai, p) => {
     // IMPROVED: Pick a Target Item with preference for higher value items
     let targetItem;
 
-    // 70% chance to prefer high-value items (helps target wealthy players)
-    if (Math.random() < 0.7) {
-        // Sort by value and pick from top 30%
-        const sortedByValue = validCandidates
-            .map(c => ({ ...c, effVal: c.items?.value || c.items?.rap || 0 }))
-            .sort((a, b) => b.effVal - a.effVal);
-
-        const topCount = Math.max(1, Math.floor(sortedByValue.length * 0.3));
-        const topItems = sortedByValue.slice(0, topCount);
-        targetItem = topItems[Math.floor(Math.random() * topItems.length)];
-    } else {
+    // 80% chance to specifically target High Value Items (10k+)
+    if (Math.random() < 0.8) {
+        // Filter for high value
+        const highValueCandidates = validCandidates.filter(c => (c.items?.value || c.items?.rap || 0) >= 10000);
+        
+        if (highValueCandidates.length > 0) {
+            targetItem = highValueCandidates[Math.floor(Math.random() * highValueCandidates.length)];
+        } else {
+            // Fallback to > 2000 if no 10k items found
+            const midValueCandidates = validCandidates.filter(c => (c.items?.value || c.items?.rap || 0) >= 2000);
+            if (midValueCandidates.length > 0) {
+                targetItem = midValueCandidates[Math.floor(Math.random() * midValueCandidates.length)];
+            }
+        }
+    }
+    
+    // If still no target (or 20% random low tier), pick random valid one
+    if (!targetItem) {
         targetItem = validCandidates[Math.floor(Math.random() * validCandidates.length)];
     }
 
@@ -1284,7 +1299,7 @@ const actionInitiateTrade = async (ai, p) => {
         maxOverpayTolerance = Math.min(maxOverpayTolerance, 1.1); // Cap OP on expensive items
     }
 
-    const goalValue = targetVal * targetRatio;
+    let goalValue = targetVal * targetRatio;
 
     // RARE ITEM BOOST: If item is rare (low stock) or High Demand, AI is willing to pay MORE.
     // User Request: "ensure AI will still overpay for rares and stuff"
