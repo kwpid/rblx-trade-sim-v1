@@ -120,11 +120,25 @@ const TradeWindow = () => {
     }
 
     const processItem = (userItem, serialNumber = null) => {
+        const item = userItem.items || {}
+        const value = item.value || 0
+        const rap = item.rap || 0
+
+        // Status Logic
+        const isProjected = value > 0 && rap > (value * 1.25 + 50)
+        const isTrending = item.trend === 'trending' || item.trend === 'hot'
+        const isRare = item.is_limited // Assuming 'Rare' tag for limiteds, or if there's a specific rarity field. Using is_limited for 'Limited' badge equivalents or just checking rarity field if exists.
+        // Checking previous files, item has 'rarity' field? "items:item_id (id, name, image_url, rap, current_price, scarcity, rarity)" in marketplace.js deals.
+        // Let's assume item.rarity exists or mapped.
+
         return {
             ...userItem,
-            calculatedValue: userItem.items?.value || 0,
-            rap: userItem.items?.rap || 0,
-            serialNumber: serialNumber || userItem.serialNumber
+            calculatedValue: value,
+            rap: rap,
+            serialNumber: serialNumber || userItem.serialNumber,
+            isProjected,
+            isTrending,
+            isRare: item.rarity === 'rare' || item.rarity === 'insane'
         }
     }
 
@@ -255,6 +269,8 @@ const TradeWindow = () => {
                                     >
                                         <div className="inv-card-img">
                                             <div className="serial-badge">#{item.serialNumber || '?'}</div>
+                                            {item.isProjected && <div className="item-badge projected">Proj</div>}
+                                            {item.isTrending && !item.isProjected && <div className="item-badge trending">Hot</div>}
                                             <img src={item.items?.image_url} alt={item.items?.name} />
                                         </div>
                                         <div className="inv-card-details">
@@ -288,6 +304,8 @@ const TradeWindow = () => {
                                     >
                                         <div className="inv-card-img">
                                             <div className="serial-badge">#{item.serialNumber || '?'}</div>
+                                            {item.isProjected && <div className="item-badge projected">Proj</div>}
+                                            {item.isTrending && !item.isProjected && <div className="item-badge trending">Hot</div>}
                                             <img src={item.items?.image_url} alt={item.items?.name} />
                                         </div>
                                         <div className="inv-card-details">
@@ -421,6 +439,8 @@ const TradeWindow = () => {
                                     <Link to={`/catalog/${item.items?.id}`} key={item.id} className="inv-card" style={{ width: '120px' }}>
                                         <div className="inv-card-img">
                                             <div className="serial-badge">#{item.serialNumber || '?'}</div>
+                                            {item.isProjected && <div className="item-badge projected">Proj</div>}
+                                            {item.isTrending && !item.isProjected && <div className="item-badge trending">Hot</div>}
                                             <img src={item.items?.image_url} alt={item.items?.name} />
                                         </div>
                                         <div className="inv-card-details">
@@ -442,6 +462,8 @@ const TradeWindow = () => {
                                     <Link to={`/catalog/${item.items?.id}`} key={item.id} className="inv-card" style={{ width: '120px' }}>
                                         <div className="inv-card-img">
                                             <div className="serial-badge">#{item.serialNumber || '?'}</div>
+                                            {item.isProjected && <div className="item-badge projected">Proj</div>}
+                                            {item.isTrending && !item.isProjected && <div className="item-badge trending">Hot</div>}
                                             <img src={item.items?.image_url} alt={item.items?.name} />
                                         </div>
                                         <div className="inv-card-details">
