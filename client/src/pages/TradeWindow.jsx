@@ -124,12 +124,19 @@ const TradeWindow = () => {
         const value = item.value || 0
         const rap = item.rap || 0
 
-        // Status Logic
-        const isProjected = value > 0 && rap > (value * 1.25 + 50)
-        const isTrending = item.trend === 'trending' || item.trend === 'hot'
-        const isRare = item.is_limited // Assuming 'Rare' tag for limiteds, or if there's a specific rarity field. Using is_limited for 'Limited' badge equivalents or just checking rarity field if exists.
-        // Checking previous files, item has 'rarity' field? "items:item_id (id, name, image_url, rap, current_price, scarcity, rarity)" in marketplace.js deals.
-        // Let's assume item.rarity exists or mapped.
+        // Status Logic - Matched to Catalog.jsx
+        // Catalog: item.demand === 'high' || item.demand === 'very_high'
+        const isTrending = item.demand === 'high' || item.demand === 'very_high'
+
+        // Catalog: item.is_projected
+        const isProjected = item.is_projected || (value > 0 && rap > (value * 1.25 + 50)) // Fallback if is_projected missing in item obj
+
+        // Catalog: item.is_limited && item.stock_count <= 50
+        const isRare = item.is_limited && (item.stock_count <= 50)
+
+        // Limited Logic for overlay
+        const isLimited = item.is_limited
+        const saleType = item.sale_type
 
         return {
             ...userItem,
@@ -138,7 +145,9 @@ const TradeWindow = () => {
             serialNumber: serialNumber || userItem.serialNumber,
             isProjected,
             isTrending,
-            isRare: item.rarity === 'rare' || item.rarity === 'insane'
+            isRare,
+            isLimited,
+            saleType
         }
     }
 
@@ -219,6 +228,16 @@ const TradeWindow = () => {
             fetchExistingTrade() // Refresh to update is_proofed status
         } catch (error) {
             showPopup(error.response?.data?.error || 'Failed to proof', 'error')
+        }
+    }
+
+    const handleValueRequest = async () => {
+        try {
+            await axios.post(`/api/trades/${id}/value-request`)
+            showPopup('Value Request Submitted!', 'success')
+            fetchExistingTrade()
+        } catch (error) {
+            showPopup(error.response?.data?.error || 'Failed to submit Value Request', 'error')
         }
     }
 
@@ -576,14 +595,44 @@ const TradeWindow = () => {
 
                         {status === 'pending' && (
                             <div style={{ marginTop: '30px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                {isReceiver && (
+                                {tradeDetails?.is_value_request ? (
+                                    <div style={{ padding: '15px', background: 'rgba(255, 193, 7, 0.2)', border: '1px solid #ffc107', borderRadius: '4px', color: '#ffc107', textAlign: 'center' }}>
+                                        <strong>⚖️ Value Request Submitted</strong>
+                                        <div style={{ fontSize: '12px', marginTop: '5px' }}>This trade is waiting for a value checker review.</div>
+                                    </div>
+                                ) : (
                                     <>
-                                        <button className="make-offer-btn" style={{ background: '#00b06f', color: '#fff', fontStyle: 'normal' }} onClick={handleAccept}>Accept Trade</button>
-                                        <button className="make-offer-btn" style={{ background: '#ff4d4d', color: '#fff', fontStyle: 'normal' }} onClick={handleDecline}>Decline Trade</button>
+                                        {isReceiver && (
+                                            <>
+                                                <button className="make-offer-btn" style={{ background: '#00b06f', color: '#fff', fontStyle: 'normal' }} onClick={handleAccept}>Accept Trade</button>
+                                                <button className="make-offer-btn" style={{ background: '#ff4d4d', color: '#fff', fontStyle: 'normal' }} onClick={handleDecline}>Decline Trade</button>
+
+                                                {/* Value Request Button */}
+                                                {(() => {
+                                                    const myValue = calculateTotal(myOffer);
+                                                    const theirValue = calculateTotal(theirOffer);
+                                                    const hasHighValueItem = [...myOffer, ...theirOffer].some(i => (i.calculatedValue || 0) >= 50000);
+
+                                                    // Only show if items are significant (> 50k value total or single item)
+                                                    if (hasHighValueItem || myValue >= 50000 || theirValue >= 50000) {
+                                                        return (
+                                                            <button
+                                                                className="make-offer-btn"
+                                                                style={{ background: '#7289da', color: '#fff', fontStyle: 'normal', marginTop: '10px' }}
+                                                                onClick={handleValueRequest}
+                                                            >
+                                                                Request Value Check
+                                                            </button>
+                                                        )
+                                                    }
+                                                    return null;
+                                                })()}
+                                            </>
+                                        )}
+                                        {isSender && (
+                                            <button className="make-offer-btn" style={{ background: 'transparent', border: '1px solid #fff', color: '#fff', fontStyle: 'normal' }} onClick={handleCancel}>Cancel Trade</button>
+                                        )}
                                     </>
-                                )}
-                                {isSender && (
-                                    <button className="make-offer-btn" style={{ background: 'transparent', border: '1px solid #fff', color: '#fff', fontStyle: 'normal' }} onClick={handleCancel}>Cancel Trade</button>
                                 )}
                             </div>
                         )}
