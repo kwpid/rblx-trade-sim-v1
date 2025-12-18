@@ -1238,15 +1238,13 @@ const actionInitiateTrade = async (ai, p) => {
 
     let query = supabase
         .from('user_items')
+        .select(`
+            *, 
+            items:item_id(*), 
+            users!inner(id, is_ai, username)
+        `)
         .eq('is_for_sale', false) // Target unlisted items (stash)
         .eq('items.is_limited', true);
-
-    // Select advanced stats
-    query = query.select(`
-        *, 
-        items:item_id(*), 
-        users!inner(id, is_ai, username)
-    `);
 
     if (targetRealPlayers) {
         query = query.eq('users.is_ai', false);
