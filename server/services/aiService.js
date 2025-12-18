@@ -717,6 +717,29 @@ const actionList = async (ai, personalityProfile) => {
 
     const itemToSell = limiteds[Math.floor(Math.random() * limiteds.length)];
 
+    // LIQUIDITY PROVIDER LOGIC (User Request: "ensure AI sell copies... especially when no re-sellers")
+    const { count: globalListings } = await supabase
+        .from('user_items')
+        .select('*', { count: 'exact', head: true })
+        .eq('item_id', itemToSell.items.id)
+        .eq('is_for_sale', true);
+
+    if (globalListings < 2) {
+        // 0 or 1 seller? Sell it!
+        // Price it at a premium (1.2x - 1.5x) as requested ("for profits")
+        const premium = 1.2 + Math.random() * 0.3;
+        const baseVal = itemToSell.items.value || itemToSell.items.rap || 100;
+        const price = Math.floor(baseVal * premium);
+
+        await supabase.from('user_items').update({
+            is_for_sale: true,
+            sale_price: price
+        }).eq('id', itemToSell.id);
+
+        console.log(`[AI] ${ai.username} listed LIQUIDITY item ${itemToSell.items.name} for R$${price} (${globalListings} active sellers)`);
+        return;
+    }
+
     // Check Stock Rarity FIRST (items with <50 stock are considered rare)
     const stock = itemToSell.items.stock_count !== undefined ? itemToSell.items.stock_count : 1000;
     if (stock < 50) {
