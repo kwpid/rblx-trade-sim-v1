@@ -235,14 +235,16 @@ router.post('/purchase', authenticate, async (req, res) => {
     // Calculate Serial Number
     // Admin (0c55d336-0bf7-49bf-9a90-1b4ba4e13679) has serial #0
     // Regular users start at serial #1
-    const { count: existingCount } = await supabase
+    // Count only regular user items (exclude serial #0)
+    const { count: regularUserCount } = await supabase
       .from('user_items')
       .select('*', { count: 'exact', head: true })
-      .eq('item_id', item.id);
+      .eq('item_id', item.id)
+      .neq('serial_number', 0);
 
-    // Serial numbers: admin=0, then 1, 2, 3...
-    // existingCount includes admin's serial #0, so regular users start at existingCount
-    const serialNumber = existingCount || 1;
+    // Serial numbers: admin=0, regular users start at 1
+    // regularUserCount is 0 for first user, so they get serial #1
+    const serialNumber = (regularUserCount || 0) + 1;
 
     // Add item to user inventory
     const { data: userItem, error: userItemError } = await supabase

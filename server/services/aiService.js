@@ -450,12 +450,13 @@ const actionBuyNew = async (ai) => {
         ai.cash -= item.current_price;
         await supabase.from('users').update({ cash: ai.cash }).eq('id', ai.id);
 
-        const { count: existingCount } = await supabase
+        const { count: regularUserCount } = await supabase
             .from('user_items')
             .select('*', { count: 'exact', head: true })
-            .eq('item_id', item.id);
+            .eq('item_id', item.id)
+            .neq('serial_number', 0);
 
-        const serialNumber = (existingCount || 0) + 1;
+        const serialNumber = (regularUserCount || 0) + 1;
 
         await supabase.from('user_items').insert([{
             user_id: ai.id,

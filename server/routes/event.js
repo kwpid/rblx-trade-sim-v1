@@ -256,9 +256,13 @@ router.post('/buy-gift', authenticate, async (req, res) => {
         }
 
         // 2. Create User Item
-        // Calculate Serial
-        const { count } = await supabase.from('user_items').select('*', { count: 'exact', head: true }).eq('item_id', itemId);
-        const serial = (count || 0) + 1;
+        // Calculate Serial (exclude admin's serial #0)
+        const { count: regularUserCount } = await supabase
+            .from('user_items')
+            .select('*', { count: 'exact', head: true })
+            .eq('item_id', itemId)
+            .neq('serial_number', 0);
+        const serial = (regularUserCount || 0) + 1;
 
         const { data: userItem, error: uiError } = await supabase.from('user_items').insert([{
             user_id: req.user.id,
