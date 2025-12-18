@@ -775,7 +775,13 @@ const actionList = async (ai, personalityProfile) => {
     itemToSell = limiteds[Math.floor(Math.random() * limiteds.length)];
 
     // Check Stock Rarity (User Rule: "rarer an item (lower the stock) should mean less % its gonna have a resale, and resales for these rars will be higher")
-    const stock = itemToSell.items.stock_count !== undefined ? itemToSell.items.stock_count : 1000;
+    // Count total supply of this item across all users (how many copies exist in circulation)
+    const { count: totalSupply } = await supabase
+        .from('user_items')
+        .select('*', { count: 'exact', head: true })
+        .eq('item_id', itemToSell.items.id);
+
+    const stock = totalSupply || 1000; // Use total supply as "stock" metric
 
     // Rare Definition: Stock < 100
     if (stock < 100) {
@@ -878,26 +884,8 @@ const actionList = async (ai, personalityProfile) => {
             (EVENT_ITEMS.LEGENDARY && EVENT_ITEMS.LEGENDARY.includes(itemToSell.items.id));
     }
 
-    // LOW STOCK PRICING - GRADUAL CURVE
-    // Instead of a cliff at 50, use a gradual increase
-    if (stock < 50) {
-        // VERY RARE: 90% chance to HODL
-        if (Math.random() < 0.9) {
-            return;
-        }
-        // If we do sell (10% chance), it's a "joke" listing at extreme prices
-        multiplier = 5 + Math.random() * 10; // 5x to 15x RAP
-        scarcityMult = 1.0;
-    } else if (stock < 100) {
-        // RARE: Gradual increase from 1.5x to 5x as stock decreases from 100 to 50
-        // Formula: At stock=100 -> 1.5x, at stock=50 -> 5x
-        const stockRatio = (100 - stock) / 50; // 0 at stock=100, 1 at stock=50
-        const baseMultiplier = 1.5 + (stockRatio * 3.5); // 1.5x to 5x
-
-        // Add some randomness
-        multiplier = baseMultiplier + (Math.random() * 0.5 - 0.25);
-        scarcityMult = 1.0;
-    } else if (isHighTier) {
+    // High Tier / Event Items Logic
+    if (isHighTier) {
         // High Tier / Event Items Logic (Extremely high value)
         if (rap > 100000) {
             multiplier = 10 + Math.random() * 20; // 10x to 30x
