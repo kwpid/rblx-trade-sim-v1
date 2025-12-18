@@ -16,10 +16,13 @@
 
 .trade-layout-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr; /* 50/50 split */
+    grid-template-columns: 1fr 1fr;
+    /* 50/50 split */
     gap: 20px;
-    height: calc(100vh - 100px); /* Fill most of screen */
-    overflow: hidden; /* Manage scrolling inside cols */
+    height: calc(100vh - 100px);
+    /* Fill most of screen */
+    overflow: hidden;
+    /* Manage scrolling inside cols */
 }
 
 /* Columns */
@@ -49,7 +52,8 @@
     display: flex;
     flex-direction: column;
     gap: 15px;
-    flex: 1; /* Take up half height each */
+    flex: 1;
+    /* Take up half height each */
     overflow: hidden;
 }
 
@@ -79,8 +83,10 @@
     grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
     gap: 10px;
     padding-right: 5px;
-    overflow-y: auto; /* Scrollable grid */
-    flex: 1; /* Fill remaining space */
+    overflow-y: auto;
+    /* Scrollable grid */
+    flex: 1;
+    /* Fill remaining space */
 }
 
 /* Item Card */
@@ -146,7 +152,7 @@
     position: absolute;
     top: 4px;
     left: 4px;
-    background: rgba(0,0,0,0.6);
+    background: rgba(0, 0, 0, 0.6);
     color: #fff;
     font-size: 10px;
     padding: 2px 4px;
@@ -160,11 +166,13 @@
     gap: 2px;
     z-index: 10;
 }
+
 .badge-group.bottom-right {
     bottom: 2px;
     right: 2px;
     flex-direction: row-reverse;
 }
+
 .badge-group.top-right {
     top: 2px;
     right: 2px;
@@ -210,13 +218,36 @@
 }
 
 
+/* View Mode Rows */
+.view-mode-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.view-section-header {
+    font-size: 16px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #393b3d;
+}
+
+.view-items-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
 /* Offer Column */
 .offer-section {
     flex: 1;
     display: flex;
     flex-direction: column;
     gap: 10px;
-    background: #1e2022; /* Inner box contrast */
+    background: #1e2022;
+    /* Inner box contrast */
     border-radius: 8px;
     padding: 15px;
 }
@@ -255,6 +286,7 @@
     align-items: center;
     justify-content: center;
 }
+
 .slot-img img {
     width: 32px;
     height: 32px;
@@ -289,7 +321,8 @@
 }
 
 .empty-slot {
-    height: 56px; /* Approx height of filled slot */
+    height: 56px;
+    /* Approx height of filled slot */
     border: 2px dashed #393b3d;
     border-radius: 6px;
 }
@@ -361,6 +394,7 @@
     cursor: pointer;
     text-decoration: underline;
 }
+
 .cancel-btn-styled:hover {
     color: #fff;
 }
