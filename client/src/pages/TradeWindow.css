@@ -80,14 +80,57 @@
 
 .inv-items-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(100px, 120px));
     gap: 10px;
     padding-right: 5px;
     overflow-y: auto;
     /* Scrollable grid */
     flex: 1;
     /* Fill remaining space */
+    justify-content: start;
 }
+
+/* Alternative class name used in JSX */
+.inventory-items-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 120px));
+    gap: 10px;
+    padding-right: 5px;
+    overflow-y: auto;
+    flex: 1;
+    justify-content: start;
+}
+
+.inventory-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #393b3d;
+    margin-bottom: 15px;
+}
+
+.inventory-header-row h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #fff;
+    margin: 0;
+}
+
+.inventory-search-bar {
+    background: #393b3d;
+    border: none;
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 14px;
+    width: 200px;
+}
+
+.inventory-search-bar::placeholder {
+    color: #888;
+}
+
 
 /* Item Card */
 /* Matched to Catalog Card style but smaller */
@@ -406,7 +449,8 @@
         padding: 10px;
         height: auto;
         min-height: 100vh;
-        overflow-y: auto; /* Allow body scroll */
+        overflow-y: auto;
+        /* Allow body scroll */
     }
 
     .trade-layout-grid {
@@ -428,22 +472,27 @@
     /* Inventory: Keep contained scroll but let page scroll to it */
     .inventory-section {
         height: auto;
-        max-height: none; /* Let it expand or control it? Users want to scroll content usually */
+        max-height: none;
+        /* Let it expand or control it? Users want to scroll content usually */
         display: flex;
         flex-direction: column;
     }
 
     /* Grid Items */
     .inv-items-grid {
-        height: 350px; /* Fixed height window for items so we can reach offers below */
+        height: 350px;
+        /* Fixed height window for items so we can reach offers below */
         overflow-y: auto;
-        flex: none; /* Disable flex growth that relies on parent height */
-        grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); /* Smaller items */
+        flex: none;
+        /* Disable flex growth that relies on parent height */
+        grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+        /* Smaller items */
         padding-bottom: 10px;
     }
 
     .offers-column {
-        padding: 10px; /* Less padding on mobile */
+        padding: 10px;
+        /* Less padding on mobile */
     }
 
     .offer-section {
@@ -457,7 +506,7 @@
     .badge-group .rare-badge {
         font-size: 12px;
     }
-    
+
     .inv-card-name {
         font-size: 11px;
     }
@@ -468,7 +517,7 @@
         align-items: flex-start;
         gap: 10px;
     }
-    
+
     .view-status-badge {
         margin-left: 0 !important;
         font-size: 12px !important;
