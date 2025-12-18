@@ -31,7 +31,9 @@ async function getTradeWithItems(tradeId) {
              is_limited,
              is_off_sale,
              sale_type,
-             remaining_stock
+             remaining_stock,
+             demand,
+             stock_count
           )
         )
       )
@@ -186,7 +188,7 @@ router.get('/', authenticate, async (req, res) => {
           side,
           user_items (
             id,
-            items (value)
+            items (value, demand, stock_count)
           )
         )
       `)

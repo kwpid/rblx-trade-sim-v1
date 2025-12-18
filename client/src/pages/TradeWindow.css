@@ -1,119 +1,125 @@
+/* TradeWindow.css */
 .trade-window-container {
-    max-width: 1400px;
-    margin: 0 auto;
     padding: 20px;
+    background-color: #1e2022;
+    min-height: 100vh;
     color: #fff;
 }
 
 .trade-header-title {
-    font-size: 28px;
-    font-weight: 800;
-    font-style: italic;
-    margin-bottom: 25px;
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
 }
 
-/* Layout Grid */
 .trade-layout-grid {
     display: grid;
-    grid-template-columns: 1.8fr 1fr;
-    /* Inventories take more space, Offers take less */
-    gap: 30px;
-    align-items: start;
+    grid-template-columns: 1fr 1fr; /* 50/50 split */
+    gap: 20px;
+    height: calc(100vh - 100px); /* Fill most of screen */
+    overflow: hidden; /* Manage scrolling inside cols */
 }
 
-/* Left Column: Inventories */
+/* Columns */
 .inventories-column {
     display: flex;
     flex-direction: column;
-    gap: 30px;
+    gap: 20px;
+    height: 100%;
 }
 
+.offers-column {
+    background-color: #232527;
+    border-radius: 8px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    height: 100%;
+    overflow-y: auto;
+}
+
+/* Inventory Section */
 .inventory-section {
-    background: transparent;
+    background-color: #232527;
+    border-radius: 8px;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    flex: 1; /* Take up half height each */
+    overflow: hidden;
 }
 
-.inventory-header-row {
+.inv-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 15px;
-}
-
-.inventory-header-row h3 {
-    font-size: 24px;
-    font-weight: 800;
-    font-style: italic;
-    margin: 0;
-}
-
-.inventory-search-bar {
-    background: #000;
-    border: 1px solid #333;
-    border-radius: 6px;
-    padding: 8px 12px;
+    font-size: 16px;
+    font-weight: 600;
     color: #fff;
-    width: 200px;
-    font-size: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #393b3d;
 }
 
-.inventory-items-grid {
+.inv-dropdown {
+    background: #393b3d;
+    border: none;
+    color: #fff;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.inv-items-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
     gap: 10px;
-    max-height: 500px;
-    /* Scrollable area */
-    overflow-y: auto;
     padding-right: 5px;
-    /* Space for scrollbar */
+    overflow-y: auto; /* Scrollable grid */
+    flex: 1; /* Fill remaining space */
 }
 
-/* Inventory Item Card */
+/* Item Card */
+/* Matched to Catalog Card style but smaller */
 .inv-card {
-    background: #2b2d31;
+    background-color: #393b3d;
     border-radius: 6px;
     overflow: hidden;
-    position: relative;
     cursor: pointer;
-    transition: transform 0.1s;
-    border: 1px solid transparent;
+    transition: all 0.1s;
+    user-select: none;
+    border: 2px solid transparent;
 }
 
 .inv-card:hover {
-    transform: scale(1.02);
-    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+    background-color: #454749;
 }
 
 .inv-card.selected {
-    opacity: 0.5;
-    filter: grayscale(0.5);
-    cursor: default;
+    border-color: #00a2ff;
+    background-color: #2a3844;
 }
 
 .inv-card-img {
+    position: relative;
     width: 100%;
     aspect-ratio: 1;
-    background: #393b3d;
-    position: relative;
+    background-color: #2a2a2a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .inv-card-img img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+    width: 90%;
+    height: 90%;
+    object-fit: contain;
 }
-
-.serial-badge {
-    position: absolute;
-    top: 4px;
-    left: 4px;
-    background: rgba(0, 0, 0, 0.6);
-    color: #ccc;
-    font-size: 10px;
-    padding: 1px 4px;
-    border-radius: 3px;
-}
-
-/* Removed limited tag as requested */
 
 .inv-card-details {
     padding: 8px;
@@ -121,269 +127,248 @@
 
 .inv-card-name {
     font-size: 12px;
-    font-weight: 700;
-    color: #fff;
+    font-weight: 600;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     margin-bottom: 4px;
+    color: #fff;
 }
 
 .inv-card-value {
     font-size: 11px;
-    color: #00b06f;
-    /* Green */
+    color: #00ff88;
     font-weight: 700;
-    /* Bold */
 }
 
-/* Right Column: Offers */
-.offers-column {
+/* Badges (Copied/Adapted from Catalog) */
+.serial-badge {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    background: rgba(0,0,0,0.6);
+    color: #fff;
+    font-size: 10px;
+    padding: 2px 4px;
+    border-radius: 3px;
+    z-index: 5;
+}
+
+.badge-group {
+    position: absolute;
+    display: flex;
+    gap: 2px;
+    z-index: 10;
+}
+.badge-group.bottom-right {
+    bottom: 2px;
+    right: 2px;
+    flex-direction: row-reverse;
+}
+.badge-group.top-right {
+    top: 2px;
+    right: 2px;
+    flex-direction: row-reverse;
+}
+
+.projected-badge,
+.rare-badge,
+.trending-badge {
+    font-size: 14px;
+    filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.8));
+    cursor: help;
+}
+
+/* Limited Overlay */
+.limited-badge-overlay {
+    position: absolute;
+    bottom: 4px;
+    left: 4px;
+    display: flex;
+    gap: 0;
+    align-items: center;
+    z-index: 5;
+}
+
+.limited-tag {
+    background-color: #00b06f;
+    color: white;
+    padding: 2px 4px;
+    font-size: 8px;
+    font-weight: 800;
+    text-transform: uppercase;
+    border-radius: 3px 0 0 3px;
+}
+
+.limited-u-tag {
+    background-color: #ffd700;
+    color: white;
+    padding: 2px 4px;
+    font-size: 8px;
+    font-weight: 800;
+    border-radius: 0 3px 3px 0;
+}
+
+
+/* Offer Column */
+.offer-section {
+    flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 30px;
-    position: sticky;
-    top: 20px;
-}
-
-.offer-section {
-    background: transparent;
+    gap: 10px;
+    background: #1e2022; /* Inner box contrast */
+    border-radius: 8px;
+    padding: 15px;
 }
 
 .offer-header {
-    font-size: 24px;
-    font-weight: 800;
-    font-style: italic;
-    margin-bottom: 15px;
-    border-bottom: 1px solid #333;
-    padding-bottom: 10px;
+    font-size: 14px;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 700;
 }
 
 .offer-slots {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    min-height: 200px;
-    /* Placeholder visual */
+    flex: 1;
 }
 
 .offer-slot-item {
-    background: #1a1a1a;
-    border-radius: 4px;
     display: flex;
     align-items: center;
-    padding: 5px;
-    margin-right: 10px;
-    gap: 12px;
+    background: #393b3d;
+    padding: 8px;
+    border-radius: 6px;
+    gap: 10px;
+    position: relative;
 }
 
 .slot-img {
     width: 40px;
     height: 40px;
-    background: #333;
+    background: #2a2a2a;
     border-radius: 4px;
-    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.slot-img img {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
 }
 
-.slot-img img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+.slot-info {
+    flex: 1;
+    overflow: hidden;
+}
+
+.slot-name {
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.slot-val {
+    font-size: 11px;
+    color: #00ff88;
 }
 
 .slot-remove-btn {
     background: transparent;
     border: none;
-    color: #888;
+    color: #ff6b6b;
     font-size: 20px;
     cursor: pointer;
     line-height: 1;
-    padding: 0 5px;
-    align-self: flex-start;
-    /* Optional, align top */
 }
 
-.slot-remove-btn:hover {
-    color: #fff;
-}
-
-.slot-info {
-    flex: 1;
-}
-
-.slot-name {
-    font-size: 14px;
-    font-weight: 600;
-}
-
-.slot-val {
-    font-size: 12px;
-    color: #00b06f;
-    /* Green */
-    font-weight: 700;
-    /* Bold */
+.empty-slot {
+    height: 56px; /* Approx height of filled slot */
+    border: 2px dashed #393b3d;
+    border-radius: 6px;
 }
 
 .offer-total {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    margin-top: 10px;
-    font-size: 18px;
+    font-size: 14px;
     font-weight: 700;
-    font-style: italic;
-}
-
-.offer-total span:last-child {
     color: #fff;
+    padding-top: 10px;
+    border-top: 1px solid #393b3d;
 }
 
-/* Placeholders for empty slots */
-.empty-slot {
-    height: 50px;
-    background: #111;
-    border: 1px dashed #333;
-    border-radius: 4px;
-}
-
-/* Action Button */
-.make-offer-btn {
-    width: 100%;
-    background: #fff;
-    color: #000;
-    font-size: 24px;
-    font-weight: 800;
-    font-style: italic;
-    border: none;
-    border-radius: 6px;
-    padding: 12px;
-    cursor: pointer;
-    margin-top: 20px;
-    transition: background 0.2s;
-}
-
-.make-offer-btn:hover {
-    background: #dadada;
-}
-
-.cancel-btn-styled {
-    width: 100%;
-    background: transparent;
-    border: 1px solid #555;
-    color: #888;
-    padding: 10px;
-    border-radius: 6px;
-    margin-top: 10px;
-    cursor: pointer;
-    font-weight: 600;
-}
-
-.cancel-btn-styled:hover {
-    border-color: #fff;
-    color: #fff;
-}
-
-/* View Mode specific (if reusing same component) */
-.view-mode-container {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-}
-
-.view-section-header {
-    font-size: 20px;
-    font-weight: bold;
-    margin-bottom: 10px;
-    border-bottom: 1px solid #333;
-    padding-bottom: 5px;
-}
-
-.view-items-row {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-}
-
-/* Value Comparison Section */
 .value-comparison {
-    padding: 16px;
+    padding: 15px;
     border-radius: 8px;
-    margin-top: 15px;
-    margin-bottom: 15px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
     text-align: center;
+    margin-top: auto;
 }
 
 .value-comparison-label {
     font-size: 12px;
-    color: #888;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 8px;
-    font-weight: 600;
+    color: #aaa;
+    margin-bottom: 5px;
 }
 
 .value-comparison-values {
-    font-size: 28px;
+    font-size: 20px;
     font-weight: 800;
-    font-style: italic;
-    color: #fff;
-    margin-bottom: 6px;
     display: flex;
-    align-items: center;
     justify-content: center;
-    gap: 8px;
-}
-
-.value-send {
-    color: #ff6b6b;
-}
-
-.value-receive {
-    color: #00b06f;
+    gap: 10px;
 }
 
 .value-separator {
     color: #555;
-    font-weight: 400;
 }
 
 .value-comparison-sublabel {
-    font-size: 11px;
-    color: #666;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
+    font-size: 10px;
+    color: #888;
+    margin-top: 5px;
 }
 
-.view-status-badge {
-    display: inline-block;
-    padding: 5px 15px;
-    border-radius: 20px;
-    font-weight: bold;
-    margin-left: 15px;
+.make-offer-btn {
+    background-color: #00a2ff;
+    color: white;
+    border: none;
+    padding: 14px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.make-offer-btn:hover {
+    background-color: #008ecc;
+}
+
+.cancel-btn-styled {
+    background-color: transparent;
+    color: #aaa;
+    border: none;
+    padding: 10px;
     font-size: 14px;
-    font-style: normal;
+    cursor: pointer;
+    text-decoration: underline;
+}
+.cancel-btn-styled:hover {
+    color: #fff;
 }
 
-@media (max-width: 900px) {
-    .trade-layout-grid {
-        grid-template-columns: 1fr;
-        gap: 20px;
-    }
-
-    .offers-column {
-        position: static;
-    }
-
-    .inventory-search-bar {
-        width: 100%;
-        max-width: 250px;
-    }
-
-    .make-offer-btn {
-        position: sticky;
-        bottom: 20px;
-        z-index: 100;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-    }
+.no-items {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 40px;
+    color: #666;
+    font-style: italic;
 }

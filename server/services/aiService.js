@@ -774,29 +774,39 @@ const actionList = async (ai, personalityProfile) => {
     // If we didn't find a liquidity target, standard sell logic on a random item from the list
     itemToSell = limiteds[Math.floor(Math.random() * limiteds.length)];
 
-    // Check Stock Rarity FIRST (items with <50 stock are considered rare)
+    // Check Stock Rarity (User Rule: "rarer an item (lower the stock) should mean less % its gonna have a resale, and resales for these rars will be higher")
     const stock = itemToSell.items.stock_count !== undefined ? itemToSell.items.stock_count : 1000;
-    if (stock < 50) {
-        // 90% chance to HODL (don't sell rare items)
-        if (Math.random() < 0.9) {
+
+    // Rare Definition: Stock < 100
+    if (stock < 100) {
+        // Dynamic Skip Chance (HODL)
+        // Stock 1: ~99% chance to skip
+        // Stock 50: ~95% chance to skip
+        // Stock 100: ~90% chance to skip
+        const baseSkip = 0.9;
+        const rarityFactor = (100 - stock) / 100; // 0.0 to 1.0
+        const skipChance = baseSkip + (rarityFactor * 0.095); // Approaching 0.995 for super rare
+
+        if (Math.random() < skipChance) {
             return;
         }
-        // If we do sell (10% chance), it's a "joke" listing at extreme prices
-        // This will be handled in pricing logic below
-    }
 
-    // Check Rarity (Hold Rares/Legendaries more often)
-    // EVENT_ITEMS might be undefined if file issues, so safeguard
-    if (EVENT_ITEMS) {
-        const isRare = (EVENT_ITEMS.RARE && EVENT_ITEMS.RARE.includes(itemToSell.items.roblox_item_id)) ||
-            (EVENT_ITEMS.LEGENDARY && EVENT_ITEMS.LEGENDARY.includes(itemToSell.items.roblox_item_id)) ||
-            (EVENT_ITEMS.RARE && EVENT_ITEMS.RARE.includes(itemToSell.items.id)) ||
-            (EVENT_ITEMS.LEGENDARY && EVENT_ITEMS.LEGENDARY.includes(itemToSell.items.id)); // Check both ID types just in case
+        // If we DO sell (The "Exception"), price it HIGH.
+        // Stock 1: ~10x Multiplier
+        // Stock 50: ~3x Multiplier
+        // Stock 100: ~1.5x Multiplier
+        const scarcityMult = 1.5 + (rarityFactor * 8.0);
 
-        // If Rare/Legendary, 80% chance to SKIP selling (HODL)
-        if (isRare && Math.random() < 0.8) {
-            return;
-        }
+        let refValue = itemToSell.items.value || itemToSell.items.rap || 100;
+        const finalPrice = Math.floor(refValue * scarcityMult);
+
+        await supabase.from('user_items').update({
+            is_for_sale: true,
+            sale_price: finalPrice
+        }).eq('id', itemToSell.id);
+
+        console.log(`[AI] ${ai.username} listed RARE item ${itemToSell.items.name} (Stock: ${stock}) for R$${finalPrice} (${scarcityMult.toFixed(1)}x Markup)`);
+        return;
     }
 
     // Base valuation: Use Logic "Smart Value"

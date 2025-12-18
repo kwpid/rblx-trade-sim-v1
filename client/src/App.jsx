@@ -23,9 +23,7 @@ import PrivateRoute from './components/PrivateRoute'
 import TopBar from './components/TopBar'
 import NotificationContainer from './components/NotificationContainer'
 import PaycheckNotification from './components/PaycheckNotification'
-import VersionManager from './components/VersionManager'
 import BannedOverlay from './components/BannedOverlay'
-import UpdateLogsPopup from './components/UpdateLogsPopup'
 import Footer from './components/Footer'
 import TermsOfService from './pages/TermsOfService'
 import './App.css'
@@ -67,7 +65,6 @@ function App() {
                     </div>
                     <NotificationContainer />
                     <NotificationContainer />
-                    <UpdateLogsPopup />
                     <BannedOverlay />
                     <Footer />
                   </PrivateRoute>

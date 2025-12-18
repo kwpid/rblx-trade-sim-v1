@@ -304,8 +304,26 @@ const TradeWindow = () => {
                                     >
                                         <div className="inv-card-img">
                                             <div className="serial-badge">#{item.serialNumber || '?'}</div>
-                                            {item.isProjected && <div className="item-badge projected">Proj</div>}
-                                            {item.isTrending && !item.isProjected && <div className="item-badge trending">Hot</div>}
+
+                                            {/* Top Right Badges */}
+                                            <div className="badge-group top-right">
+                                                {item.isTrending && <div className="trending-badge" title="Trending">🔥</div>}
+                                            </div>
+
+                                            {/* Bottom Right Badges */}
+                                            <div className="badge-group bottom-right">
+                                                {item.isProjected && <div className="projected-badge" title="Projected">⚠️</div>}
+                                                {item.isRare && <div className="rare-badge" title="Rare">💎</div>}
+                                            </div>
+
+                                            {/* Limited Overlay */}
+                                            {item.isLimited && (
+                                                <div className="limited-badge-overlay">
+                                                    <span className="limited-tag">LIMITED</span>
+                                                    {item.saleType === 'stock' && <span className="limited-u-tag">U</span>}
+                                                </div>
+                                            )}
+
                                             <img src={item.items?.image_url} alt={item.items?.name} />
                                         </div>
                                         <div className="inv-card-details">
