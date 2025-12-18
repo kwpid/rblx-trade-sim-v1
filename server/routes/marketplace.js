@@ -9,6 +9,18 @@ const updateItemRAPSnapshot = async (itemId, salePrice) => {
   try {
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
 
+    // 1. Fetch Item Data (Value & Current RAP) for Projected Check
+    const { data: itemData } = await supabase
+      .from('items')
+      .select('value, rap, name, image_url')
+      .eq('id', itemId)
+      .single();
+
+    // Check Old Status
+    const val = itemData?.value || 0;
+    const oldRap = itemData?.rap || 0;
+    const wasProjected = val > 0 && oldRap > (val * 1.25 + 50);
+
     // Check if snapshot exists for today
     const { data: existingSnapshot } = await supabase
       .from('item_rap_history')
@@ -17,15 +29,12 @@ const updateItemRAPSnapshot = async (itemId, salePrice) => {
       .eq('snapshot_date', today)
       .single();
 
+    let newRapValue = salePrice;
+
     if (existingSnapshot) {
       // Update existing snapshot
       const newSalesCount = existingSnapshot.sales_count + 1;
       const newSalesVolume = existingSnapshot.sales_volume + salePrice;
-      // Calculate new average RAP
-      // DAMPENED UPDATE: Prevent RAP from spiking too hard (Projected prevention)
-      // Cap the new RAP at 1.2x the old RAP? Or just weigh history more?
-      // Let's use a weighted average but also a hard cap on the *increase*.
-      // User asked: "rap caps or increase caps per update cycle so projecteds happen less"
 
       let calculatedRap = Math.floor(
         (existingSnapshot.rap_value * existingSnapshot.sales_count + salePrice) / newSalesCount
@@ -33,9 +42,7 @@ const updateItemRAPSnapshot = async (itemId, salePrice) => {
 
       // dampening: max 20% increase from previous daily snapshot RAP
       const maxRap = Math.floor(existingSnapshot.rap_value * 1.2);
-      // but if salePrice is lower, we allow it to drop (no floor cap requested, mainly anti-inflation)
-
-      const newRapValue = Math.min(calculatedRap, maxRap);
+      newRapValue = Math.min(calculatedRap, maxRap);
 
       await supabase
         .from('item_rap_history')
@@ -47,8 +54,6 @@ const updateItemRAPSnapshot = async (itemId, salePrice) => {
         })
         .eq('item_id', itemId)
         .eq('snapshot_date', today);
-
-      return newRapValue;
     } else {
       // Create new snapshot for today
       await supabase
@@ -61,9 +66,35 @@ const updateItemRAPSnapshot = async (itemId, salePrice) => {
           snapshot_date: today,
           timestamp: new Date().toISOString()
         }]);
-
-      return salePrice;
     }
+
+    // 2. Update Item RAP
+    await supabase.from('items').update({ rap: newRapValue }).eq('id', itemId);
+
+    // 3. Check New Status (Projected Flip?)
+    const isProjected = val > 0 && newRapValue > (val * 1.25 + 50);
+
+    if (wasProjected !== isProjected) {
+      // Status Changed! Log it.
+      const trend = isProjected ? 'projected' : 'stable'; // Or 'recovering'? User said "Projected -> Not Projected"
+      // We'll use explanation to be specific
+      const explanation = isProjected
+        ? `Item became Projected (RAP: ${newRapValue} > Value: ${val})`
+        : `Item is no longer Projected (RAP: ${newRapValue} aligned with Value: ${val})`;
+
+      await supabase.from('value_change_history').insert([{
+        item_id: itemId,
+        previous_value: val, // Value didn't change, RAP did
+        new_value: val,
+        previous_trend: wasProjected ? 'projected' : 'stable',
+        new_trend: isProjected ? 'projected' : 'stable',
+        explanation: explanation,
+        created_at: new Date().toISOString(),
+        changed_by: null // System update
+      }]);
+    }
+
+    return newRapValue;
   } catch (error) {
     console.error('Error updating RAP snapshot:', error);
     throw error;

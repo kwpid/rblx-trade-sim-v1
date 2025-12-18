@@ -176,19 +176,36 @@ router.put('/items/:id', async (req, res) => {
       const hasDemandChange = req.body.demand !== undefined && req.body.demand !== currentItem.demand;
 
       if (hasValueChange || hasTrendChange || hasDemandChange) {
+        const newValue = req.body.value !== undefined ? req.body.value : currentItem.value || 0;
+        const oldValue = currentItem.value || 0;
+
+        // PROJECTED CHECK
+        const rap = currentItem.rap || 0;
+        const wasProjected = oldValue > 0 && rap > (oldValue * 1.25 + 50);
+        const isProjected = newValue > 0 && rap > (newValue * 1.25 + 50);
+
+        let systemExplanation = req.body.value_update_explanation || null;
+        if (wasProjected !== isProjected) {
+          const statusTxt = isProjected
+            ? `Item became Projected (RAP: ${rap} vs New Val: ${newValue})`
+            : `Item NO LONGER Projected (RAP: ${rap} vs New Val: ${newValue})`;
+
+          systemExplanation = systemExplanation ? `${systemExplanation} | ${statusTxt}` : statusTxt;
+        }
+
         // Create value change history entry
         await supabase
           .from('value_change_history')
           .insert([
             {
               item_id: req.params.id,
-              previous_value: currentItem.value || 0,
-              new_value: req.body.value !== undefined ? req.body.value : currentItem.value || 0,
+              previous_value: oldValue,
+              new_value: newValue,
               previous_trend: currentItem.trend || 'stable',
               new_trend: req.body.trend !== undefined ? req.body.trend : currentItem.trend || 'stable',
               previous_demand: currentItem.demand || 'unknown',
               new_demand: req.body.demand !== undefined ? req.body.demand : currentItem.demand || 'unknown',
-              explanation: req.body.value_update_explanation || null,
+              explanation: systemExplanation,
               changed_by: req.user.id,
               created_at: new Date().toISOString()
             }
@@ -199,8 +216,6 @@ router.put('/items/:id', async (req, res) => {
           const axios = require('axios');
           const webhookUrl = process.env.DISCORD_WEBHOOK_URL_VALUES;
           if (webhookUrl) {
-            const newValue = req.body.value !== undefined ? req.body.value : currentItem.value || 0;
-            const oldValue = currentItem.value || 0;
             const trend = req.body.trend !== undefined ? req.body.trend : currentItem.trend || 'stable';
             const demand = req.body.demand !== undefined ? req.body.demand : currentItem.demand || 'unknown';
 
@@ -213,7 +228,7 @@ router.put('/items/:id', async (req, res) => {
                 { name: "New Value", value: `R$${newValue.toLocaleString()}`, inline: true },
                 { name: "Trend", value: trend.toUpperCase(), inline: true },
                 { name: "Demand", value: demand.toUpperCase().replace('_', ' '), inline: true },
-                { name: "Explanation", value: req.body.value_update_explanation || "No explanation provided" }
+                { name: "Explanation", value: systemExplanation || "No explanation provided" }
               ],
               footer: { text: `Updated by Admin` },
               timestamp: new Date().toISOString()

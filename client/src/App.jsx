@@ -65,7 +65,8 @@ function App() {
                       </Routes>
                     </div>
                     <NotificationContainer />
-                    <VersionManager />
+                    <NotificationContainer />
+                    <UpdateLogsPopup />
                     <BannedOverlay />
                     <Footer />
                   </PrivateRoute>

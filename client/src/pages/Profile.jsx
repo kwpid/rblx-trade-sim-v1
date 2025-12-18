@@ -112,7 +112,15 @@ const Profile = () => {
             <div className="profile-info">
               <div className="profile-name-container">
                 <h1>{profileUser?.username || user?.username}</h1>
-                {(profileUser?.is_online || (user && profileUser?.id === user.id)) && <div className="online-indicator"></div>}
+                {(profileUser?.is_online || (user && profileUser?.id === user.id)) ? (
+                  <div className="online-indicator" title="Online now"></div>
+                ) : (
+                  profileUser?.last_online && (
+                    <div className="last-online-text" style={{ fontSize: '0.8rem', color: '#888', marginTop: '5px' }}>
+                      Last Online: {new Date(profileUser.last_online).toLocaleString()}
+                    </div>
+                  )
+                )}
               </div>
               <div className="profile-stats-new">
                 <div className="stat-row">

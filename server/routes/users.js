@@ -256,7 +256,7 @@ router.get('/leaderboard/value', async (req, res) => {
       .from('user_items')
       .select(`
         user_id,
-        items:item_id (value)
+        items:item_id (value, is_limited)
       `)
       .neq('user_id', ADMIN_USER_ID) // Exclude admin's items
       .not('items', 'is', null);
@@ -270,10 +270,11 @@ router.get('/leaderboard/value', async (req, res) => {
       if (!userValueMap[userItem.user_id]) userValueMap[userItem.user_id] = 0;
 
       const itemData = userItem.items;
-      // Each user_item row represents one copy, so add its value
-      const val = (itemData.value !== null && itemData.value !== undefined) ? itemData.value : 0;
-
-      userValueMap[userItem.user_id] += val;
+      // MATCH LOGIC WITH PLAYER LIST: Only count value if limited
+      if (itemData && itemData.is_limited) {
+        const val = (itemData.value !== null && itemData.value !== undefined) ? itemData.value : 0;
+        userValueMap[userItem.user_id] += val;
+      }
     });
 
     // 4. Map & Sort
@@ -365,12 +366,28 @@ const onlineUsers = new Map();
 
 // Update user's online status
 const updateOnlineStatus = async (userId) => {
-  onlineUsers.set(userId, Date.now());
+  const now = Date.now();
+  // Update in-memory
+  onlineUsers.set(userId, now);
+
+  // Update DB (Throttled: only if last update was > 1 min ago to save writes)
+  // We'll store a separate "lastDbUpdate" map to throttle
+  if (!global.lastDbUpdates) global.lastDbUpdates = new Map();
+  const lastDb = global.lastDbUpdates.get(userId) || 0;
+
+  if (now - lastDb > 60000) { // 1 minute
+    global.lastDbUpdates.set(userId, now);
+    // Fire and forget
+    supabase.from('users').update({ is_online: true, last_online: new Date().toISOString() }).eq('id', userId).then();
+  }
+
   // Consider user offline if they haven't been active in 5 minutes
   setTimeout(() => {
     const lastSeen = onlineUsers.get(userId);
     if (lastSeen && Date.now() - lastSeen > 5 * 60 * 1000) {
       onlineUsers.delete(userId);
+      // Mark offline in DB
+      supabase.from('users').update({ is_online: false }).eq('id', userId).then();
     }
   }, 5 * 60 * 1000);
 };
