@@ -134,7 +134,8 @@ const ItemDetail = () => {
       setRapHistory(formattedRapHistory)
 
       // Format value history data
-      const formattedValueHistory = valueResponse.data.map(change => ({
+      // Format value history data
+      const formattedValueHistory = (valueResponse.data.data || []).map(change => ({
         date: new Date(change.created_at).toLocaleDateString(),
         value: change.new_value || 0,
         oldValue: change.old_value || 0

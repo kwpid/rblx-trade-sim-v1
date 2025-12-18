@@ -179,7 +179,10 @@ const manageAiSessions = async () => {
 
         if (session.sessionEnd < now) {
             // Expired
-            await supabase.from('users').update({ is_online: false }).eq('id', id);
+            await supabase.from('users').update({
+                is_online: false,
+                last_online: new Date().toISOString()
+            }).eq('id', id);
             delete aiSessions[id];
             // console.log(`[AI] Session ended for ${user.username}`);
         } else {
@@ -214,7 +217,10 @@ const manageAiSessions = async () => {
             const duration = (Math.random() * 13 + 2) * 60 * 1000;
             aiSessions[ai.id] = { sessionEnd: now + duration };
 
-            const { error } = await supabase.from('users').update({ is_online: true }).eq('id', ai.id);
+            const { error } = await supabase.from('users').update({
+                is_online: true,
+                last_online: new Date().toISOString()
+            }).eq('id', ai.id);
             if (!error) {
                 activated++;
                 if (activated <= 3) console.log(`[AI] Activating ${ai.username || ai.id}`);
@@ -451,11 +457,11 @@ const actionBuyNew = async (ai) => {
 const actionBuyResale = async (ai, personalityProfile) => {
     // THROTTLE: Adjusted to increase resale purchases, especially for cheaper items
     // Snipers/Traders should check more often
-    let skipChance = 0.5; // Default 50% skip (moderate)
+    let skipChance = 0.4; // Default 40% skip (More active)
 
-    if (ai.personality === 'sniper' || ai.personality === 'trader') skipChance = 0.15; // 15% skip (Very Active)
-    if (ai.personality === 'whale') skipChance = 0.3; // 30% skip
-    if (ai.personality === 'hoarder') skipChance = 0.4; // 40% skip
+    if (ai.personality === 'sniper' || ai.personality === 'trader') skipChance = 0.1; // 10% skip (Very Active)
+    if (ai.personality === 'whale') skipChance = 0.2; // 20% skip
+    if (ai.personality === 'hoarder') skipChance = 0.3; // 30% skip
 
     if (Math.random() < skipChance) return;
 
@@ -470,13 +476,11 @@ const actionBuyResale = async (ai, personalityProfile) => {
     const { data: listings } = await query;
     if (!listings || listings.length === 0) return;
 
-    // FAVOR CHEAPER ITEMS: Reduce skip chance even more for items under 10k
-    const cheapListings = listings.filter(l => l.sale_price < 10000);
-    if (cheapListings.length > 0 && Math.random() < 0.7) {
-        // 70% chance to focus on cheap items if available
-        listings.length = 0;
-        listings.push(...cheapListings);
-    }
+    // FAVOR CHEAPER ITEMS: Relaxed significantly
+    // We still want them to buy affordable things, but not JUST cheap things
+    // Removed strict < 10k filtering preference
+    // If cash is low, they will naturally only buy cheap things due to logic below
+
 
     // Helper to get effective valuation (handling projected items)
     const getEffectiveValue = (item) => {
