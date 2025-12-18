@@ -149,14 +149,14 @@ const TradeWindow = () => {
             if (myOffer.find(i => i.id === item.id)) {
                 setMyOffer(myOffer.filter(i => i.id !== item.id))
             } else {
-                if (myOffer.length >= 4) return showPopup('Max 4 items', 'error')
+                if (myOffer.length >= 7) return showPopup('Max 7 items', 'error')
                 setMyOffer([...myOffer, item])
             }
         } else {
             if (theirOffer.find(i => i.id === item.id)) {
                 setTheirOffer(theirOffer.filter(i => i.id !== item.id))
             } else {
-                if (theirOffer.length >= 4) return showPopup('Max 4 items', 'error')
+                if (theirOffer.length >= 7) return showPopup('Max 7 items', 'error')
                 setTheirOffer([...theirOffer, item])
             }
         }
@@ -335,8 +335,7 @@ const TradeWindow = () => {
                                         <button className="slot-remove-btn" onClick={() => toggleItem(item, 'mine')}>×</button>
                                     </div>
                                 ))}
-                                {/* Fill rest with empty slots if < 4 */}
-                                {Array.from({ length: Math.max(0, 4 - myOffer.length) }).map((_, i) => (
+                                {Array.from({ length: Math.max(0, 7 - myOffer.length) }).map((_, i) => (
                                     <div key={i} className="empty-slot"></div>
                                 ))}
                             </div>
@@ -360,7 +359,7 @@ const TradeWindow = () => {
                                         <button className="slot-remove-btn" onClick={() => toggleItem(item, 'theirs')}>×</button>
                                     </div>
                                 ))}
-                                {Array.from({ length: Math.max(0, 4 - theirOffer.length) }).map((_, i) => (
+                                {Array.from({ length: Math.max(0, 7 - theirOffer.length) }).map((_, i) => (
                                     <div key={i} className="empty-slot"></div>
                                 ))}
                             </div>

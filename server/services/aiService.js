@@ -502,6 +502,32 @@ const actionBuyResale = async (ai, personalityProfile) => {
     const { data: listings } = await query;
     if (!listings || listings.length === 0) return;
 
+    // THROTTLE LOW END:
+    // User Complaint: "low items still get sold fast so theyre back to no resalers"
+    // Fix: If item has few listings, AI should HESITATE to buy (unless sniper).
+
+    // Pick a potential target first
+    let targetCandidate = listings[Math.floor(Math.random() * listings.length)];
+
+    // Check global supply for this item
+    const { count: globalSupply } = await supabase
+        .from('user_items')
+        .select('*', { count: 'exact', head: true })
+        .eq('item_id', targetCandidate.items.id)
+        .eq('is_for_sale', true);
+
+    if (globalSupply < 5 && ai.personality !== 'sniper') {
+        // If supply is low (less than 5), 80% chance to SKIP ensuring we leave stock for players
+        if (Math.random() < 0.8) return;
+    }
+
+    // EXTRA SLOWNESS for cheap items (< 5000)
+    const val = targetCandidate.items.value || targetCandidate.items.rap || 0;
+    if (val < 5000) {
+        // 50% chance to skip buying cheap items entirely to slow down the drain
+        if (Math.random() < 0.5) return;
+    }
+
     // FAVOR CHEAPER ITEMS: Relaxed significantly
     // We still want them to buy affordable things, but not JUST cheap things
     // Removed strict < 10k filtering preference
@@ -1212,7 +1238,7 @@ const actionInitiateTrade = async (ai, p) => {
     if (Math.random() < 0.8) {
         // Filter for high value
         const highValueCandidates = validCandidates.filter(c => (c.items?.value || c.items?.rap || 0) >= 10000);
-        
+
         if (highValueCandidates.length > 0) {
             targetItem = highValueCandidates[Math.floor(Math.random() * highValueCandidates.length)];
         } else {
@@ -1223,7 +1249,7 @@ const actionInitiateTrade = async (ai, p) => {
             }
         }
     }
-    
+
     // If still no target (or 20% random low tier), pick random valid one
     if (!targetItem) {
         targetItem = validCandidates[Math.floor(Math.random() * validCandidates.length)];
