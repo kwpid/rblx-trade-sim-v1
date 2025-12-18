@@ -664,17 +664,23 @@ router.post('/:id/value-request', authenticate, async (req, res) => {
       }).join('\n') || 'No Items';
     };
 
-    const embed = {
+    const embed1 = {
       title: "⚖️ VALUE REQUEST",
-      description: "A player has requested a manual value check on this trade.",
       color: 16761095, // Yellow/Gold
       fields: [
         { name: "Sender", value: sender.username, inline: true },
         { name: "Receiver", value: receiver.username, inline: true },
         { name: "Date", value: date, inline: false },
-        { name: `${sender.username}'s Offer`, value: formatItems(senderItems), inline: false },
-        { name: `${receiver.username}'s Offer`, value: formatItems(receiverItems), inline: false },
         { name: "Trade ID", value: trade.id, inline: false }
+      ]
+    };
+
+    const embed2 = {
+      title: "Items Offered",
+      color: 16761095,
+      fields: [
+        { name: `${sender.username}'s Offer`, value: formatItems(senderItems), inline: false },
+        { name: `${receiver.username}'s Offer`, value: formatItems(receiverItems), inline: false }
       ]
     };
 
@@ -690,7 +696,7 @@ router.post('/:id/value-request', authenticate, async (req, res) => {
     const axios = require('axios');
     await axios.post(PROOF_WEBHOOK, {
       content: "<@&VALUE_CHECKER_ROLE_ID_HERE> New Value Request!", // Optional mention
-      embeds: [embed]
+      embeds: [embed1, embed2]
     }).catch(err => console.error('Webhook failed', err.message));
 
     res.json({ success: true, message: 'Value Request submitted' });
