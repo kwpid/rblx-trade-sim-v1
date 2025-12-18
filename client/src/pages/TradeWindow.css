@@ -399,10 +399,78 @@
     color: #fff;
 }
 
-.no-items {
-    grid-column: 1 / -1;
-    text-align: center;
-    padding: 40px;
-    color: #666;
-    font-style: italic;
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+    .trade-window-container {
+        padding: 10px;
+        height: auto;
+        min-height: 100vh;
+        overflow-y: auto; /* Allow body scroll */
+    }
+
+    .trade-layout-grid {
+        display: flex;
+        flex-direction: column;
+        height: auto;
+        gap: 15px;
+        overflow: visible;
+    }
+
+    /* Stack columns */
+    .inventories-column,
+    .offers-column {
+        width: 100%;
+        height: auto;
+        overflow: visible;
+    }
+
+    /* Inventory: Keep contained scroll but let page scroll to it */
+    .inventory-section {
+        height: auto;
+        max-height: none; /* Let it expand or control it? Users want to scroll content usually */
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* Grid Items */
+    .inv-items-grid {
+        height: 350px; /* Fixed height window for items so we can reach offers below */
+        overflow-y: auto;
+        flex: none; /* Disable flex growth that relies on parent height */
+        grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); /* Smaller items */
+        padding-bottom: 10px;
+    }
+
+    .offers-column {
+        padding: 10px; /* Less padding on mobile */
+    }
+
+    .offer-section {
+        padding: 10px;
+        height: auto;
+    }
+
+    /* Adjust badges for smaller cards */
+    .badge-group .trending-badge,
+    .badge-group .projected-badge,
+    .badge-group .rare-badge {
+        font-size: 12px;
+    }
+    
+    .inv-card-name {
+        font-size: 11px;
+    }
+
+    .trade-header-title {
+        font-size: 18px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .view-status-badge {
+        margin-left: 0 !important;
+        font-size: 12px !important;
+    }
 }
