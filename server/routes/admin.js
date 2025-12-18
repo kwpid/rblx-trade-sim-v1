@@ -203,21 +203,81 @@ router.put('/items/:id', async (req, res) => {
         try {
           const axios = require('axios');
           const webhookUrl = process.env.DISCORD_WEBHOOK_URL_VALUES;
+          // URL for Value Changes embedded inside (User request: "send an embed with the same URL as the value webhook")
+          // Not clear if they want the ITEM url or the WEBHOOK url. 
+          // Re-reading: "doesnt send an embed with the same URL as the value webhook"
+          // Likely means "use the same webhook URL as other value logs" (which we are: DISCORD_WEBHOOK_URL_VALUES)
+          // OR means "link the title to the item". Let's link title to item.
+          const itemLink = `https://rblxtradesim.com/items/${currentItem.id}`; // Example base URL
+
           if (webhookUrl) {
-            const trend = req.body.trend !== undefined ? req.body.trend : currentItem.trend || 'stable';
-            const demand = req.body.demand !== undefined ? req.body.demand : currentItem.demand || 'unknown';
+            const newTrend = req.body.trend !== undefined ? req.body.trend : currentItem.trend || 'stable';
+            const newDemand = req.body.demand !== undefined ? req.body.demand : currentItem.demand || 'unknown';
+            const oldTrend = currentItem.trend || 'stable';
+            const oldDemand = currentItem.demand || 'unknown';
+
+            // --- COLOR & DIRECTION LOGIC ---
+            // Rankings for comparison
+            const trendRank = { 'falling': 0, 'unstable': 1, 'fluctuating': 2, 'stable': 3, 'raising': 4 };
+            const demandRank = { 'none': 0, 'low': 1, 'normal': 2, 'high': 3, 'amazing': 4 };
+
+            let israise = false;
+            let isdrop = false;
+
+            // Check Value
+            if (newValue > oldValue) israise = true;
+            else if (newValue < oldValue) isdrop = true;
+
+            // Check others if value is flat
+            else {
+              if (trendRank[newTrend] > (trendRank[oldTrend] || 0)) israise = true;
+              else if (trendRank[newTrend] < (trendRank[oldTrend] || 0)) isdrop = true;
+
+              if (demandRank[newDemand] > (demandRank[oldDemand] || 0)) israise = true;
+              else if (demandRank[newDemand] < (demandRank[oldDemand] || 0)) isdrop = true;
+            }
+
+            // Green (Raise) / Red (Drop) / Blue (Neutral/Mixed)
+            let color = 3447003; // Default Blue
+            if (israise && !isdrop) color = 65280; // Green
+            if (isdrop && !israise) color = 16711680; // Red
+            if (israise && isdrop) color = 16776960; // Yellow (Mixed)
+
+            // --- FIELD CONSTRUCTION ---
+            const fields = [];
+
+            // Value Field
+            if (hasValueChange) {
+              fields.push({ name: "Value", value: `R$${oldValue.toLocaleString()} -> R$${newValue.toLocaleString()}`, inline: true });
+            }
+
+            // Trend Field
+            if (hasTrendChange) {
+              fields.push({ name: "Trend", value: `${oldTrend.toUpperCase()} -> ${newTrend.toUpperCase()}`, inline: true });
+            }
+
+            // Demand Field
+            if (hasDemandChange) {
+              fields.push({ name: "Demand", value: `${oldDemand.toUpperCase().replace('_', ' ')} -> ${newDemand.toUpperCase().replace('_', ' ')}`, inline: true });
+            }
+
+            // Projected Status
+            if (wasProjected !== isProjected) {
+              const pStatus = isProjected ? "Became Projected" : "No Longer Projected";
+              fields.push({ name: "Status Update", value: `**${pStatus}**`, inline: false });
+            }
+
+            // Explanation
+            if (systemExplanation || req.body.value_update_explanation) {
+              fields.push({ name: "Explanation", value: systemExplanation || req.body.value_update_explanation || "No explanation", inline: false });
+            }
 
             const embed = {
               title: `Value Update: ${currentItem.name}`,
+              url: itemLink,
               thumbnail: { url: currentItem.image_url },
-              color: 3447003, // Blue
-              fields: [
-                { name: "Old Value", value: `R$${oldValue.toLocaleString()}`, inline: true },
-                { name: "New Value", value: `R$${newValue.toLocaleString()}`, inline: true },
-                { name: "Trend", value: trend.toUpperCase(), inline: true },
-                { name: "Demand", value: demand.toUpperCase().replace('_', ' '), inline: true },
-                { name: "Explanation", value: systemExplanation || "No explanation provided" }
-              ],
+              color: color,
+              fields: fields,
               footer: { text: `Updated by Admin` },
               timestamp: new Date().toISOString()
             };
@@ -228,6 +288,18 @@ router.put('/items/:id', async (req, res) => {
           console.error("Failed to send value update webhook:", err);
         }
       }
+    }
+
+    // STATE ENFORCEMENT
+    // 1. If setting is_limited = true (Make Limited)
+    // We should usually set is_off_sale = false so it's tradable.
+    // UNLESS the user explicitly sent is_off_sale = true in the same request (Manual Override to archive it)
+    if (req.body.is_limited === true) {
+      if (req.body.is_off_sale === undefined) {
+        // Auto-enable if not specified
+        req.body.is_off_sale = false;
+      }
+      // If they sent is_off_sale = true, we respect it (Reference: "make it so i can set existing limiteds to off-sale")
     }
 
     const { data: item, error } = await supabase

@@ -87,6 +87,19 @@ router.post('/', authenticate, async (req, res) => {
         return res.status(400).json({ error: 'Serial #0 items cannot be traded' });
       }
 
+      // CHECK OFF-SALE ITEMS (Sender)
+      // We need to join with items table to check is_off_sale
+      // Optimally we fetch this in the initial query
+      const { data: senderOffSaleCheck } = await supabase
+        .from('user_items')
+        .select('id, items!inner(is_off_sale)')
+        .in('id', sender_item_ids)
+        .eq('items.is_off_sale', true);
+
+      if (senderOffSaleCheck && senderOffSaleCheck.length > 0) {
+        return res.status(400).json({ error: 'Cannot trade Off-Sale items (Sender)' });
+      }
+
       // Allow trading items for sale - they will be unlisted if trade is accepted
     }
 
@@ -111,6 +124,17 @@ router.post('/', authenticate, async (req, res) => {
       const hasSerialZero = receiverItems.some(i => i.serial_number === 0);
       if (hasSerialZero) {
         return res.status(400).json({ error: 'Serial #0 items cannot be traded' });
+      }
+
+      // CHECK OFF-SALE ITEMS (Receiver)
+      const { data: receiverOffSaleCheck } = await supabase
+        .from('user_items')
+        .select('id, items!inner(is_off_sale)')
+        .in('id', receiver_item_ids)
+        .eq('items.is_off_sale', true);
+
+      if (receiverOffSaleCheck && receiverOffSaleCheck.length > 0) {
+        return res.status(400).json({ error: 'Cannot trade Off-Sale items (Receiver)' });
       }
 
       // Allow trading items for sale - they will be unlisted if trade is accepted
