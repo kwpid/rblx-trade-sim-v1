@@ -1426,6 +1426,7 @@ const actionInitiateTrade = async (ai, p) => {
                 let requestedItems = [];
 
                 for (const item of victimSorted) {
+                    if (requestedItems.length >= 7) break; // Hard Limit: Max 7 items
                     if (currentRequestVal + item.effVal <= requestValGoal * 1.1) {
                         requestedItems.push(item);
                         currentRequestVal += item.effVal;
@@ -1493,6 +1494,7 @@ const actionInitiateTrade = async (ai, p) => {
 
     // Try to satisfy value
     for (const item of mySortedItems) {
+        if (myOfferItems.length >= 7) break; // Hard Limit: Max 7 items
         if (item.items.id === targetItem.items.id) continue; // Skip same
         if (myCurrentVal + item.effVal <= targetVal * maxOverpay) {
             myOfferItems.push(item);
