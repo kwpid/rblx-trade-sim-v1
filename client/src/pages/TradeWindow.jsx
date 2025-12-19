@@ -25,6 +25,10 @@ const TradeWindow = () => {
     const [mySearch, setMySearch] = useState('')
     const [theirSearch, setTheirSearch] = useState('')
 
+    // Filters
+    const [myFilter, setMyFilter] = useState('all')
+    const [theirFilter, setTheirFilter] = useState('all')
+
     // Offers
     const [myOffer, setMyOffer] = useState([]) // Items I am giving
     const [theirOffer, setTheirOffer] = useState([]) // Items they are giving
@@ -168,6 +172,57 @@ const TradeWindow = () => {
                 if (theirOffer.length >= 7) return showPopup('Max 7 items', 'error')
                 setTheirOffer([...theirOffer, item])
             }
+        }
+    }
+
+    // Helper function to filter inventory
+    const getFilteredInventory = (inventory, searchTerm, filter) => {
+        let filtered = inventory
+
+        // Apply search filter
+        if (searchTerm) {
+            filtered = filtered.filter(item =>
+                item.items?.name.toLowerCase().includes(searchTerm.toLowerCase())
+            )
+        }
+
+        // Apply limited filter
+        if (filter === 'limited') {
+            filtered = filtered.filter(item => item.isLimited)
+        }
+
+        return filtered
+    }
+
+    // Add item to offer
+    const addToOffer = (item, side) => {
+        if (!isNewTrade) return
+
+        if (side === 'my') {
+            if (myOffer.some(i => i.id === item.id)) {
+                // Already in offer, remove it
+                setMyOffer(myOffer.filter(i => i.id !== item.id))
+            } else {
+                if (myOffer.length >= 4) return showPopup('Max 4 items per side', 'error')
+                setMyOffer([...myOffer, item])
+            }
+        } else {
+            if (theirOffer.some(i => i.id === item.id)) {
+                // Already in offer, remove it
+                setTheirOffer(theirOffer.filter(i => i.id !== item.id))
+            } else {
+                if (theirOffer.length >= 4) return showPopup('Max 4 items per side', 'error')
+                setTheirOffer([...theirOffer, item])
+            }
+        }
+    }
+
+    // Remove item from offer
+    const removeFromOffer = (itemId, side) => {
+        if (side === 'my') {
+            setMyOffer(myOffer.filter(i => i.id !== itemId))
+        } else {
+            setTheirOffer(theirOffer.filter(i => i.id !== itemId))
         }
     }
 
