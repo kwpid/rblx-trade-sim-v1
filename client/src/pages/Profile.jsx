@@ -260,13 +260,13 @@ const Profile = () => {
         </div>
 
         {/* Inventory Section */}
-        <div className="inventory-section">
-          <div className="inventory-header">
+        <div className="profile-inventory-section">
+          <div className="profile-inventory-header">
             <h2>Inventory</h2>
-            <div className="inventory-controls">
+            <div className="profile-inventory-controls">
               <input
                 type="text"
-                className="inventory-search"
+                className="profile-inventory-search"
                 placeholder="Search inventory..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -330,7 +330,6 @@ const Profile = () => {
                             <div className="rare-badge-inv" title="Rare Item: 50 or less stock">💎</div>
                           )}
                         </div>
-                        <img src={item.image_url} alt={item.name} />
                       </div>
                       <div className="inventory-item-name">{item.name}</div>
                       <div className="inventory-item-price">${itemValue.toLocaleString()}</div>

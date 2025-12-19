@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { formatLocalDate } from '../utils/dateUtils';
 import './BannedOverlay.css'; // We'll assume we can add styles here or use inline for now
 
 const BannedOverlay = () => {
@@ -9,7 +10,7 @@ const BannedOverlay = () => {
 
     const formatDate = (dateString) => {
         if (!dateString) return 'Never';
-        return new Date(dateString).toLocaleString();
+        return formatLocalDate(dateString);
     };
 
     const isPerm = !user.bannedUntil || new Date(user.bannedUntil).getFullYear() > 9000;

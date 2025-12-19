@@ -1503,9 +1503,11 @@ const actionInitiateTrade = async (ai, p) => {
         if (myCurrentVal >= targetVal * 0.95) break; // Close enough?
     }
 
-    // Validation
-    if (myOfferItems.length === 0) {
-        console.log(`[AI-Trade] ${ai.username} failed to construct an offer for ${targetItem.items.name}.`);
+    // Final Validation: Ensure we aren't low-balling severely
+    // User Request: Fix AI trading logic where it sends severely mismatched values.
+    const minRatio = (p.trade_accept_threshold ? Math.min(0.9, p.trade_accept_threshold) : 0.9);
+    if (myCurrentVal < targetVal * minRatio) {
+        console.log(`[AI-Trade] ${ai.username} aborted trade for ${targetItem.items.name}: Value ratio too low (${(myCurrentVal / targetVal).toFixed(2)}x < ${minRatio}x).`);
         return;
     }
 

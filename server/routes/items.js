@@ -12,7 +12,7 @@ router.get('/', async (req, res) => {
 
     let query = supabase
       .from('items')
-      .select('*')
+      .select('*', { count: 'exact' })
       .eq('is_off_sale', false);
 
     // Apply sorting
@@ -43,7 +43,7 @@ router.get('/', async (req, res) => {
 
     query = query.range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
 
-    const { data: items, error } = await query;
+    const { data: items, count, error } = await query;
 
     if (error) {
       console.error('Supabase error:', error);
@@ -101,7 +101,10 @@ router.get('/', async (req, res) => {
       });
     }
 
-    res.json(itemsWithProjected);
+    res.json({
+      items: itemsWithProjected,
+      total: count || 0
+    });
   } catch (error) {
     console.error('Error fetching items:', error);
     res.status(500).json({ error: 'Failed to fetch items', details: error.message });

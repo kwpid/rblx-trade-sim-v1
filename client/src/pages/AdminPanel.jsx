@@ -210,7 +210,10 @@ const AdminPanel = () => {
     is_off_sale: false,
     image_url: '',
     buy_limit: '',
-    initial_value: ''
+    initial_value: '',
+    scheduled_release: false,
+    release_duration: '',
+    release_unit: 'minutes'
   })
   const [itemPreview, setItemPreview] = useState(null)
   const [loadingPreview, setLoadingPreview] = useState(false)
@@ -357,8 +360,15 @@ const AdminPanel = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
     try {
-      await axios.post('/api/admin/items', formData)
-      showPopup('Item created successfully!', 'success')
+      const response = await axios.post('/api/admin/items', formData)
+      const itemData = response.data
+
+      if (itemData.status === 'scheduled') {
+        showPopup(`Item scheduled for release at ${new Date(itemData.scheduled_release_time).toLocaleString()}!`, 'success')
+      } else {
+        showPopup('Item created successfully!', 'success')
+      }
+
       setShowUploadForm(false)
       setItemPreview(null)
       setFormData({
@@ -373,7 +383,10 @@ const AdminPanel = () => {
         is_off_sale: false,
         image_url: '',
         buy_limit: '',
-        initial_value: ''
+        initial_value: '',
+        scheduled_release: false,
+        release_duration: '',
+        release_unit: 'minutes'
       })
       fetchItems()
     } catch (error) {
@@ -620,6 +633,47 @@ const AdminPanel = () => {
                         Limits how many copies a user can purchase at the original price. Does not apply to reseller purchases.
                       </small>
                     </div>
+                    <div className="form-group">
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={formData.scheduled_release}
+                          onChange={(e) => setFormData({ ...formData, scheduled_release: e.target.checked })}
+                        />
+                        Schedule Release (upload to waiting list instead of immediate release)
+                      </label>
+                    </div>
+                    {formData.scheduled_release && (
+                      <div className="form-group">
+                        <label>Release Delay</label>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <input
+                            type="number"
+                            value={formData.release_duration}
+                            onChange={(e) => setFormData({ ...formData, release_duration: e.target.value })}
+                            className="input"
+                            min="1"
+                            step="1"
+                            required
+                            style={{ flex: 1 }}
+                            placeholder="e.g. 3"
+                          />
+                          <select
+                            value={formData.release_unit}
+                            onChange={(e) => setFormData({ ...formData, release_unit: e.target.value })}
+                            className="input"
+                            style={{ width: '120px' }}
+                          >
+                            <option value="minutes">Minutes</option>
+                            <option value="hours">Hours</option>
+                            <option value="days">Days</option>
+                          </select>
+                        </div>
+                        <small style={{ color: 'var(--roblox-text-muted)', fontSize: '12px', marginTop: '4px', display: 'block' }}>
+                          Item will be added to waiting list and automatically released after this delay
+                        </small>
+                      </div>
+                    )}
                     <div className="modal-actions">
                       <button type="submit" className="btn">
                         Create Item
