@@ -25,10 +25,6 @@ const TradeWindow = () => {
     const [mySearch, setMySearch] = useState('')
     const [theirSearch, setTheirSearch] = useState('')
 
-    // Filters
-    const [myFilter, setMyFilter] = useState('all')
-    const [theirFilter, setTheirFilter] = useState('all')
-
     // Offers
     const [myOffer, setMyOffer] = useState([]) // Items I am giving
     const [theirOffer, setTheirOffer] = useState([]) // Items they are giving
@@ -175,57 +171,6 @@ const TradeWindow = () => {
         }
     }
 
-    // Helper function to filter inventory
-    const getFilteredInventory = (inventory, searchTerm, filter) => {
-        let filtered = inventory
-
-        // Apply search filter
-        if (searchTerm) {
-            filtered = filtered.filter(item =>
-                item.items?.name.toLowerCase().includes(searchTerm.toLowerCase())
-            )
-        }
-
-        // Apply limited filter
-        if (filter === 'limited') {
-            filtered = filtered.filter(item => item.isLimited)
-        }
-
-        return filtered
-    }
-
-    // Add item to offer
-    const addToOffer = (item, side) => {
-        if (!isNewTrade) return
-
-        if (side === 'my') {
-            if (myOffer.some(i => i.id === item.id)) {
-                // Already in offer, remove it
-                setMyOffer(myOffer.filter(i => i.id !== item.id))
-            } else {
-                if (myOffer.length >= 4) return showPopup('Max 4 items per side', 'error')
-                setMyOffer([...myOffer, item])
-            }
-        } else {
-            if (theirOffer.some(i => i.id === item.id)) {
-                // Already in offer, remove it
-                setTheirOffer(theirOffer.filter(i => i.id !== item.id))
-            } else {
-                if (theirOffer.length >= 4) return showPopup('Max 4 items per side', 'error')
-                setTheirOffer([...theirOffer, item])
-            }
-        }
-    }
-
-    // Remove item from offer
-    const removeFromOffer = (itemId, side) => {
-        if (side === 'my') {
-            setMyOffer(myOffer.filter(i => i.id !== itemId))
-        } else {
-            setTheirOffer(theirOffer.filter(i => i.id !== itemId))
-        }
-    }
-
     const calculateTotal = (items) => {
         return items.reduce((sum, i) => sum + (i.calculatedValue || 0), 0)
     }
@@ -313,34 +258,121 @@ const TradeWindow = () => {
 
     if (loading) return <div className="loading-container"><div className="spinner"></div></div>
 
-    // Layout for New Trade Creation
+    // Layout for New Trade (Reference Image Style)
     if (isNewTrade) {
         return (
             <div className="trade-window-container">
-                <div className="trade-header-title">
-                    Trade with {partner?.username || 'Loading...'}
-                </div>
+                <div className="trade-header-title">Trade with {partner?.username}</div>
 
-                <div className="trade-layout-roblox">
-                    {/* TOP SECTION: OFFERS */}
-                    <div className="offers-row">
-                        {/* Your Offer */}
+                <div className="trade-layout-grid">
+                    {/* Left Column: Inventories */}
+                    <div className="inventories-column">
+                        {/* My Inventory */}
+                        <div className="inventory-section">
+                            <div className="inventory-header-row">
+                                <h3>Your Inventory</h3>
+                                <input
+                                    type="text"
+                                    className="inventory-search-bar"
+                                    placeholder="Search"
+                                    value={mySearch}
+                                    onChange={(e) => setMySearch(e.target.value)}
+                                />
+                            </div>
+                            <div className="inventory-items-grid">
+                                {filteredMyInv.map(item => ( // Show ALL items
+                                    <div
+                                        key={item.id}
+                                        className={`inv-card ${myOffer.find(i => i.id === item.id) ? 'selected' : ''}`}
+                                        onClick={() => toggleItem(item, 'mine')}
+                                    >
+                                        <div className="inv-card-img">
+                                            <div className="serial-badge">#{item.serialNumber || '?'}</div>
+                                            {item.isProjected && <div className="item-badge projected">Proj</div>}
+                                            {item.isTrending && !item.isProjected && <div className="item-badge trending">Hot</div>}
+                                            <img src={item.items?.image_url} alt={item.items?.name} />
+                                        </div>
+                                        <div className="inv-card-details">
+                                            <div className="inv-card-name">{item.items?.name}</div>
+                                            <div className="inv-card-value">${item.calculatedValue.toLocaleString()}</div>
+                                        </div>
+                                    </div>
+                                ))}
+                                {filteredMyInv.length === 0 && <div className="no-items">No items found</div>}
+                            </div>
+                        </div>
+
+                        {/* Partner Inventory */}
+                        <div className="inventory-section">
+                            <div className="inventory-header-row">
+                                <h3>{partner?.username}'s Inventory</h3>
+                                <input
+                                    type="text"
+                                    className="inventory-search-bar"
+                                    placeholder="Search"
+                                    value={theirSearch}
+                                    onChange={(e) => setTheirSearch(e.target.value)}
+                                />
+                            </div>
+                            <div className="inventory-items-grid">
+                                {filteredTheirInv.map(item => (
+                                    <div
+                                        key={item.id}
+                                        className={`inv-card ${theirOffer.find(i => i.id === item.id) ? 'selected' : ''}`}
+                                        onClick={() => toggleItem(item, 'theirs')}
+                                    >
+                                        <div className="inv-card-img">
+                                            <div className="serial-badge">#{item.serialNumber || '?'}</div>
+
+                                            {/* Top Right Badges */}
+                                            <div className="badge-group top-right">
+                                                {item.isTrending && <div className="trending-badge" title="Trending">🔥</div>}
+                                            </div>
+
+                                            {/* Bottom Right Badges */}
+                                            <div className="badge-group bottom-right">
+                                                {item.isProjected && <div className="projected-badge" title="Projected">⚠️</div>}
+                                                {item.isRare && <div className="rare-badge" title="Rare">💎</div>}
+                                            </div>
+
+                                            {/* Limited Overlay */}
+                                            {item.isLimited && (
+                                                <div className="limited-badge-overlay">
+                                                    <span className="limited-tag">LIMITED</span>
+                                                    {item.saleType === 'stock' && <span className="limited-u-tag">U</span>}
+                                                </div>
+                                            )}
+
+                                            <img src={item.items?.image_url} alt={item.items?.name} />
+                                        </div>
+                                        <div className="inv-card-details">
+                                            <div className="inv-card-name">{item.items?.name}</div>
+                                            <div className="inv-card-value">${item.calculatedValue.toLocaleString()}</div>
+                                        </div>
+                                    </div>
+                                ))}
+                                {filteredTheirInv.length === 0 && <div className="no-items">No items found</div>}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Right Column: Offers */}
+                    <div className="offers-column">
+                        {/* My Offer */}
                         <div className="offer-section">
-                            <div className="offer-header">YOUR OFFER</div>
+                            <div className="offer-header">Your Offer</div>
                             <div className="offer-slots">
                                 {myOffer.map(item => (
                                     <div key={item.id} className="offer-slot-item">
-                                        <div className="slot-img">
-                                            <img src={item.items?.image_url} alt={item.items?.name} />
-                                        </div>
+                                        <div className="slot-img"><img src={item.items?.image_url} alt="" /></div>
                                         <div className="slot-info">
                                             <div className="slot-name">{item.items?.name}</div>
-                                            <div className="slot-val">${item.calculatedValue?.toLocaleString()}</div>
+                                            <div className="slot-val">${item.calculatedValue.toLocaleString()}</div>
                                         </div>
-                                        <button className="slot-remove-btn" onClick={() => removeFromOffer(item.id, 'my')}>×</button>
+                                        <button className="slot-remove-btn" onClick={() => toggleItem(item, 'mine')}>×</button>
                                     </div>
                                 ))}
-                                {Array.from({ length: Math.max(0, 4 - myOffer.length) }).map((_, i) => (
+                                {Array.from({ length: Math.max(0, 7 - myOffer.length) }).map((_, i) => (
                                     <div key={i} className="empty-slot"></div>
                                 ))}
                             </div>
@@ -350,23 +382,21 @@ const TradeWindow = () => {
                             </div>
                         </div>
 
-                        {/* Your Request */}
+                        {/* Their Offer */}
                         <div className="offer-section">
-                            <div className="offer-header">YOUR REQUEST</div>
+                            <div className="offer-header">Your Request</div>
                             <div className="offer-slots">
                                 {theirOffer.map(item => (
                                     <div key={item.id} className="offer-slot-item">
-                                        <div className="slot-img">
-                                            <img src={item.items?.image_url} alt={item.items?.name} />
-                                        </div>
+                                        <div className="slot-img"><img src={item.items?.image_url} alt="" /></div>
                                         <div className="slot-info">
                                             <div className="slot-name">{item.items?.name}</div>
-                                            <div className="slot-val">${item.calculatedValue?.toLocaleString()}</div>
+                                            <div className="slot-val">${item.calculatedValue.toLocaleString()}</div>
                                         </div>
-                                        <button className="slot-remove-btn" onClick={() => removeFromOffer(item.id, 'their')}>×</button>
+                                        <button className="slot-remove-btn" onClick={() => toggleItem(item, 'theirs')}>×</button>
                                     </div>
                                 ))}
-                                {Array.from({ length: Math.max(0, 4 - theirOffer.length) }).map((_, i) => (
+                                {Array.from({ length: Math.max(0, 7 - theirOffer.length) }).map((_, i) => (
                                     <div key={i} className="empty-slot"></div>
                                 ))}
                             </div>
@@ -375,164 +405,39 @@ const TradeWindow = () => {
                                 <span>${calculateTotal(theirOffer).toLocaleString()}</span>
                             </div>
                         </div>
-                    </div>
 
-                    {/* VALUE COMPARISON */}
-                    {(() => {
-                        const myValue = calculateTotal(myOffer)
-                        const theirValue = calculateTotal(theirOffer)
-                        const diff = theirValue - myValue
-                        const diffPercent = myValue > 0 ? (diff / myValue) * 100 : 0
+                        {/* Value Comparison */}
+                        {(() => {
+                            const myValue = calculateTotal(myOffer)
+                            const theirValue = calculateTotal(theirOffer)
+                            const diff = theirValue - myValue
+                            const diffPercent = myValue > 0 ? (diff / myValue) * 100 : 0
 
-                        let bgColor
-                        if (Math.abs(diffPercent) <= 5) {
-                            bgColor = 'rgba(255, 193, 7, 0.15)'
-                        } else if (diff > 0) {
-                            bgColor = 'rgba(0, 176, 111, 0.15)'
-                        } else {
-                            bgColor = 'rgba(255, 107, 107, 0.15)'
-                        }
+                            // Determine color: green if profit, yellow if similar, red if loss
+                            let bgColor
+                            if (Math.abs(diffPercent) <= 5) {
+                                bgColor = 'rgba(255, 193, 7, 0.15)' // Yellow for fair trade
+                            } else if (diff > 0) {
+                                bgColor = 'rgba(0, 176, 111, 0.15)' // Green for profit
+                            } else {
+                                bgColor = 'rgba(255, 107, 107, 0.15)' // Red for loss
+                            }
 
-                        return (
-                            <div className="value-comparison" style={{ backgroundColor: bgColor }}>
-                                <div className="value-comparison-label">Value Comparison</div>
-                                <div className="value-comparison-values">
-                                    <span className="value-send">${myValue.toLocaleString()}</span>
-                                    <span className="value-separator">/</span>
-                                    <span className="value-receive">${theirValue.toLocaleString()}</span>
-                                </div>
-                                <div className="value-comparison-sublabel">
-                                    You'll Send / You'll Receive
-                                </div>
-                            </div>
-                        )
-                    })()}
-
-                    {/* BOTTOM SECTION: INVENTORIES */}
-                    <div className="inventories-row">
-                        {/* Your Inventory */}
-                        <div className="inventory-section">
-                            <div className="inv-header">
-                                <span>Your Inventory</span>
-                                <select className="inv-dropdown" value={myFilter} onChange={(e) => setMyFilter(e.target.value)}>
-                                    <option value="all">All Items</option>
-                                    <option value="limited">Limited Only</option>
-                                </select>
-                            </div>
-                            <input
-                                type="text"
-                                placeholder="Search your items..."
-                                value={mySearch}
-                                onChange={(e) => setMySearch(e.target.value)}
-                                style={{
-                                    width: '100%',
-                                    padding: '8px',
-                                    background: '#393b3d',
-                                    border: 'none',
-                                    borderRadius: '4px',
-                                    color: '#fff',
-                                    marginBottom: '10px'
-                                }}
-                            />
-                            <div className="inv-items-grid">
-                                {getFilteredInventory(myInventory, mySearch, myFilter).map(item => (
-                                    <div
-                                        key={item.id}
-                                        className={`inv-card ${myOffer.some(i => i.id === item.id) ? 'selected' : ''}`}
-                                        onClick={() => addToOffer(item, 'my')}
-                                    >
-                                        <div className="inv-card-img">
-                                            <div className="serial-badge">#{item.serialNumber || '?'}</div>
-                                            <div className="badge-group top-right">
-                                                {item.isTrending && <div className="trending-badge" title="Trending">🔥</div>}
-                                            </div>
-                                            <div className="badge-group bottom-right">
-                                                {item.isProjected && <div className="projected-badge" title="Projected">⚠️</div>}
-                                                {item.isRare && <div className="rare-badge" title="Rare">💎</div>}
-                                            </div>
-                                            {item.isLimited && (
-                                                <div className="limited-badge-overlay">
-                                                    <span className="limited-tag">LIMITED</span>
-                                                    {item.saleType === 'stock' && <span className="limited-u-tag">U</span>}
-                                                </div>
-                                            )}
-                                            <img src={item.items?.image_url} alt={item.items?.name} />
-                                        </div>
-                                        <div className="inv-card-details">
-                                            <div className="inv-card-name">{item.items?.name}</div>
-                                            <div className="inv-card-value">${item.calculatedValue?.toLocaleString()}</div>
-                                        </div>
+                            return (
+                                <div className="value-comparison" style={{ backgroundColor: bgColor }}>
+                                    <div className="value-comparison-label">Value Comparison</div>
+                                    <div className="value-comparison-values">
+                                        <span className="value-send">${myValue.toLocaleString()}</span>
+                                        <span className="value-separator">/</span>
+                                        <span className="value-receive">${theirValue.toLocaleString()}</span>
                                     </div>
-                                ))}
-                                {getFilteredInventory(myInventory, mySearch, myFilter).length === 0 && (
-                                    <div className="no-items">No items found</div>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Their Inventory */}
-                        <div className="inventory-section">
-                            <div className="inv-header">
-                                <span>{partner?.username}'s Inventory</span>
-                                <select className="inv-dropdown" value={theirFilter} onChange={(e) => setTheirFilter(e.target.value)}>
-                                    <option value="all">All Items</option>
-                                    <option value="limited">Limited Only</option>
-                                </select>
-                            </div>
-                            <input
-                                type="text"
-                                placeholder="Search their items..."
-                                value={theirSearch}
-                                onChange={(e) => setTheirSearch(e.target.value)}
-                                style={{
-                                    width: '100%',
-                                    padding: '8px',
-                                    background: '#393b3d',
-                                    border: 'none',
-                                    borderRadius: '4px',
-                                    color: '#fff',
-                                    marginBottom: '10px'
-                                }}
-                            />
-                            <div className="inv-items-grid">
-                                {getFilteredInventory(partnerInventory, theirSearch, theirFilter).map(item => (
-                                    <div
-                                        key={item.id}
-                                        className={`inv-card ${theirOffer.some(i => i.id === item.id) ? 'selected' : ''}`}
-                                        onClick={() => addToOffer(item, 'their')}
-                                    >
-                                        <div className="inv-card-img">
-                                            <div className="serial-badge">#{item.serialNumber || '?'}</div>
-                                            <div className="badge-group top-right">
-                                                {item.isTrending && <div className="trending-badge" title="Trending">🔥</div>}
-                                            </div>
-                                            <div className="badge-group bottom-right">
-                                                {item.isProjected && <div className="projected-badge" title="Projected">⚠️</div>}
-                                                {item.isRare && <div className="rare-badge" title="Rare">💎</div>}
-                                            </div>
-                                            {item.isLimited && (
-                                                <div className="limited-badge-overlay">
-                                                    <span className="limited-tag">LIMITED</span>
-                                                    {item.saleType === 'stock' && <span className="limited-u-tag">U</span>}
-                                                </div>
-                                            )}
-                                            <img src={item.items?.image_url} alt={item.items?.name} />
-                                        </div>
-                                        <div className="inv-card-details">
-                                            <div className="inv-card-name">{item.items?.name}</div>
-                                            <div className="inv-card-value">${item.calculatedValue?.toLocaleString()}</div>
-                                        </div>
+                                    <div className="value-comparison-sublabel">
+                                        You'll Send / You'll Receive
                                     </div>
-                                ))}
-                                {getFilteredInventory(partnerInventory, theirSearch, theirFilter).length === 0 && (
-                                    <div className="no-items">No items found</div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
+                                </div>
+                            )
+                        })()}
 
-                    {/* ACTIONS */}
-                    <div className="trade-actions-bottom">
                         <button className="make-offer-btn" onClick={handleSendTrade}>Make Offer</button>
                         <button className="cancel-btn-styled" onClick={() => navigate(-1)}>Cancel</button>
                     </div>

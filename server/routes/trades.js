@@ -645,7 +645,7 @@ router.post('/:id/value-request', authenticate, async (req, res) => {
     // Update DB
     const { error: updateError } = await supabase
       .from('trades')
-      .update({ is_value_request: true, status: 'declined', updated_at: new Date().toISOString() })
+      .update({ is_value_request: true, updated_at: new Date().toISOString() })
       .eq('id', trade.id);
 
     if (updateError) throw updateError;
