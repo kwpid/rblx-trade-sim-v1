@@ -222,6 +222,16 @@ const TradeWindow = () => {
         }
     }
 
+    const handleValueRequest = async () => {
+        try {
+            await axios.post(`/api/trades/${id}/value-request`)
+            showPopup('Value change request submitted!', 'success')
+            fetchExistingTrade() // Refresh to update status
+        } catch (error) {
+            showPopup(error.response?.data?.error || 'Failed to submit value request', 'error')
+        }
+    }
+
     // Determine Labels based on status
     const getMyLabel = () => {
         if (status === 'accepted') return 'You gave'
@@ -269,8 +279,18 @@ const TradeWindow = () => {
                                     >
                                         <div className="inv-card-img">
                                             <div className="serial-badge">#{item.serialNumber || '?'}</div>
-                                            {item.isProjected && <div className="item-badge projected">Proj</div>}
-                                            {item.isTrending && !item.isProjected && <div className="item-badge trending">Hot</div>}
+
+                                            {/* Top Right Badges */}
+                                            <div className="badge-group top-right">
+                                                {item.isTrending && <div className="trending-badge" title="Trending">🔥</div>}
+                                            </div>
+
+                                            {/* Bottom Right Badges */}
+                                            <div className="badge-group bottom-right">
+                                                {item.isProjected && <div className="projected-badge" title="Projected">⚠️</div>}
+                                                {item.isRare && <div className="rare-badge" title="Rare">💎</div>}
+                                            </div>
+
                                             <img src={item.items?.image_url} alt={item.items?.name} />
                                         </div>
                                         <div className="inv-card-details">
@@ -580,6 +600,23 @@ const TradeWindow = () => {
                                     <>
                                         <button className="make-offer-btn" style={{ background: '#00b06f', color: '#fff', fontStyle: 'normal' }} onClick={handleAccept}>Accept Trade</button>
                                         <button className="make-offer-btn" style={{ background: '#ff4d4d', color: '#fff', fontStyle: 'normal' }} onClick={handleDecline}>Decline Trade</button>
+
+                                        {/* Value Request Button - Only for high-value items */}
+                                        {(() => {
+                                            const hasHighValueItem = theirOffer.some(item => (item.calculatedValue || 0) >= 50000);
+                                            if (hasHighValueItem) {
+                                                return (
+                                                    <button
+                                                        className="make-offer-btn"
+                                                        style={{ background: '#f59e0b', color: '#fff', fontStyle: 'normal', border: '1px solid #d97706' }}
+                                                        onClick={handleValueRequest}
+                                                    >
+                                                        Request Value Change
+                                                    </button>
+                                                );
+                                            }
+                                            return null;
+                                        })()}
                                     </>
                                 )}
                                 {isSender && (

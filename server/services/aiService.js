@@ -1365,6 +1365,48 @@ const actionInitiateTrade = async (ai, p) => {
         goalValue = goalValue * 1.1;
     }
 
+    // TRADING INTELLIGENCE: Adjust offer based on item's trading history
+    // If item typically gets overpays, AI should offer around that amount
+    // If item typically gets lowballs, AI can lowball too
+    const avgOverpay = targetItem.items.avg_overpay || 0;
+    const avgLowball = targetItem.items.avg_lowball || 0;
+    const tradeFrequency = targetItem.items.trade_frequency || 'normal';
+
+    if (avgOverpay > 0) {
+        // Item typically gets overpays - AI should offer similar amounts
+        // Apply 80-120% of the typical overpay to add variance
+        const overpayVariance = 0.8 + Math.random() * 0.4;
+        const adjustedOverpay = avgOverpay * overpayVariance;
+
+        // Add the overpay to goal value
+        goalValue += adjustedOverpay;
+
+        // Increase tolerance to accommodate the overpay
+        maxOverpayTolerance = Math.max(maxOverpayTolerance, 1 + (adjustedOverpay / targetVal));
+
+        console.log(`[AI] ${ai.username} adjusting offer for ${targetItem.items.name} - typical OP: ${avgOverpay}, adding: ${Math.floor(adjustedOverpay)}`);
+    } else if (avgLowball > 0 && ai.personality === 'sniper') {
+        // Item typically gets lowballs - snipers can lowball too
+        const lowballVariance = 0.8 + Math.random() * 0.4;
+        const adjustedLowball = avgLowball * lowballVariance;
+
+        // Reduce goal value by the lowball amount
+        goalValue = Math.max(goalValue - adjustedLowball, targetVal * 0.7); // Don't go below 70%
+
+        console.log(`[AI] ${ai.username} lowballing ${targetItem.items.name} - typical LB: ${avgLowball}, reducing by: ${Math.floor(adjustedLowball)}`);
+    }
+
+    // Adjust behavior based on trade frequency
+    if (tradeFrequency === 'frequent') {
+        // Frequently traded items - AI is more willing to trade
+        // Slightly increase tolerance
+        maxOverpayTolerance *= 1.05;
+    } else if (tradeFrequency === 'rare') {
+        // Rarely traded items - AI is more cautious
+        // Reduce tolerance slightly
+        maxOverpayTolerance *= 0.95;
+    }
+
     // Logic: 
     // 1. Try to find a single item close to value (1:1 trade)
     const perfectMatch = mySortedItems.find(i =>

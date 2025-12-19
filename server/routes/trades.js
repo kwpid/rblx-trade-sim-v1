@@ -575,6 +575,128 @@ router.post('/:id/proof', authenticate, async (req, res) => {
   }
 });
 
+// Request value change for trade items (Discord Webhook)
+router.post('/:id/value-request', authenticate, async (req, res) => {
+  try {
+    const { data: trade, error: fetchError } = await supabase
+      .from('trades')
+      .select('*')
+      .eq('id', req.params.id)
+      .single();
+
+    if (fetchError || !trade) return res.status(404).json({ error: 'Trade not found' });
+
+    // Only receiver can request value change
+    if (trade.receiver_id !== req.user.id) {
+      return res.status(403).json({ error: 'Only the receiver can request value changes' });
+    }
+
+    // Trade must be pending
+    if (trade.status !== 'pending') {
+      return res.status(400).json({ error: 'Can only request value changes on pending trades' });
+    }
+
+    // Check if value request already exists
+    const { data: existingRequest } = await supabase
+      .from('value_requests')
+      .select('*')
+      .eq('trade_id', req.params.id)
+      .single();
+
+    if (existingRequest) {
+      return res.status(400).json({ error: 'Value request already submitted for this trade' });
+    }
+
+    // Fetch full trade details to check values
+    const fullTrade = await getTradeWithItems(req.params.id);
+
+    const receiverItems = fullTrade.trade_items.filter(i => i.side === 'receiver');
+
+    // Check if at least one item has 50k+ value
+    const hasHighValueItem = receiverItems.some(ti => {
+      const value = ti.user_items?.items?.value || 0;
+      return value >= 50000;
+    });
+
+    if (!hasHighValueItem) {
+      return res.status(400).json({
+        error: 'Value requests are only available for trades with items worth 50k+ value'
+      });
+    }
+
+    // Create value request record
+    const { data: valueRequest, error: insertError } = await supabase
+      .from('value_requests')
+      .insert([{
+        trade_id: req.params.id,
+        requester_id: req.user.id,
+        status: 'pending',
+        notes: req.body.notes || null
+      }])
+      .select()
+      .single();
+
+    if (insertError) throw insertError;
+
+    // Send Discord webhook
+    const sender = fullTrade.sender;
+    const receiver = fullTrade.receiver;
+    const date = new Date(fullTrade.created_at).toLocaleString();
+
+    const senderItems = fullTrade.trade_items.filter(i => i.side === 'sender');
+
+    const formatItems = (tItems) => {
+      return tItems.map(ti => {
+        const item = ti.user_items.items;
+        const value = item.value || item.rap || 0;
+        return `• **${item.name}** - $${value.toLocaleString()}`;
+      }).join('\n') || 'No Items';
+    };
+
+    const senderValue = senderItems.reduce((sum, ti) => sum + (ti.user_items?.items?.value || 0), 0);
+    const receiverValue = receiverItems.reduce((sum, ti) => sum + (ti.user_items?.items?.value || 0), 0);
+
+    const embed1 = {
+      title: "⚠️ Value Change Request",
+      color: 15844367, // Gold/orange color
+      fields: [
+        { name: "Requester", value: receiver.username, inline: true },
+        { name: "Trade Partner", value: sender.username, inline: true },
+        { name: "Trade ID", value: req.params.id, inline: false },
+        { name: "Date", value: date, inline: false }
+      ]
+    };
+
+    const embed2 = {
+      title: "Trade Details",
+      color: 15844367,
+      fields: [
+        { name: `${sender.username} Offers ($${senderValue.toLocaleString()})`, value: formatItems(senderItems), inline: false },
+        { name: `${receiver.username} Offers ($${receiverValue.toLocaleString()})`, value: formatItems(receiverItems), inline: false }
+      ]
+    };
+
+    if (req.body.notes) {
+      embed2.fields.push({ name: "Notes", value: req.body.notes, inline: false });
+    }
+
+    // Use the REQUEST webhook URL (you'll need to add this to .env)
+    const webhookUrl = process.env.DISCORD_WEBHOOK_URL_REQUESTS || 'https://discord.com/api/webhooks/1448110420106809366/wK44HjiU2NBDvoYwQWq5GgwyyWefmr536hNaJMX9fe_LHuJQ_CGw_Fidiv38FfFDo2qS';
+
+    // Send to Discord
+    const axios = require('axios');
+    await axios.post(webhookUrl, {
+      embeds: [embed1, embed2]
+    });
+
+    res.json({ success: true, valueRequest });
+
+  } catch (error) {
+    console.error('Error creating value request:', error);
+    res.status(500).json({ error: 'Failed to create value request: ' + error.message });
+  }
+});
+
 // Bulk decline all incoming trades
 router.post('/bulk/decline-incoming', authenticate, async (req, res) => {
   try {
