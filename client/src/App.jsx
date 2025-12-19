@@ -13,7 +13,7 @@ import TradeWindow from './pages/TradeWindow'
 import Trades from './pages/Trades'
 // import Deals from './pages/Deals'
 import Leaderboard from './pages/Leaderboard'
-import Settings from './pages/Settings'
+// import Settings from './pages/Settings'
 // import TradeDetails from './pages/TradeDetails'
 
 import ValueChanges from './pages/ValueChanges'
@@ -60,12 +60,10 @@ function App() {
                         <Route path="/transactions" element={<Transactions />} />
                         <Route path="/leaderboard" element={<Leaderboard />} />
                         <Route path="/badges" element={<Badges />} />
-                        <Route path="/settings" element={<Settings />} />
                         <Route path="/admin" element={<AdminPanel />} />
                         <Route path="/tos" element={<TermsOfService />} />
                       </Routes>
                     </div>
-                    <NotificationContainer />
                     <NotificationContainer />
                     <BannedOverlay />
                     <Footer />

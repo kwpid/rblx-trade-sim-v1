@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 import { Link } from 'react-router-dom'
+import { formatLocalDate } from '../utils/dateUtils'
 import './ValueChanges.css'
 
 const ValueChanges = () => {
@@ -105,7 +106,7 @@ const ValueChanges = () => {
 
   const formatDate = (dateString) => {
     if (!dateString) return 'Unknown'
-    return new Date(dateString).toLocaleString()
+    return formatLocalDate(dateString)
   }
 
   const getValueChangeColor = (oldValue, newValue) => {

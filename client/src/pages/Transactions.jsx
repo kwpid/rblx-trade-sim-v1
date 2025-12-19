@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
+import { formatLocalDate } from '../utils/dateUtils'
 import './Transactions.css'
 
 const Transactions = () => {
@@ -71,7 +72,7 @@ const Transactions = () => {
                                         ) : (
                                             tx.type === 'buy' && !tx.related_user_id ? 'from Shop' : ''
                                         )}
-                                        <span className="tx-date"> • {new Date(tx.created_at).toLocaleString()}</span>
+                                        <span className="tx-date"> • {formatLocalDate(tx.created_at)}</span>
                                     </div>
                                 </div>
                             </div>

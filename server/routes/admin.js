@@ -11,11 +11,86 @@ router.use(requireAdmin);
 // Upload new item
 router.post('/items', async (req, res) => {
   try {
-    const { roblox_item_id, item_name, item_description, initial_price, sale_type, stock_count, timer_duration, timer_unit, is_off_sale, image_url, buy_limit, initial_value } = req.body;
+    const { roblox_item_id, item_name, item_description, initial_price, sale_type, stock_count, timer_duration, timer_unit, is_off_sale, image_url, buy_limit, initial_value, scheduled_release, release_duration, release_unit } = req.body;
 
     if (!roblox_item_id || !initial_price) {
       return res.status(400).json({ error: 'Roblox item ID and initial price are required' });
     }
+
+    // If scheduled release, calculate release time and store in pending_items table
+    if (scheduled_release && release_duration) {
+      try {
+        // Fetch item details from Rolimons
+        const itemDetails = await getItemDetails(roblox_item_id);
+
+        // Calculate release time
+        const duration = parseFloat(release_duration);
+        let milliseconds = 0;
+
+        switch (release_unit) {
+          case 'days':
+            milliseconds = duration * 24 * 60 * 60 * 1000;
+            break;
+          case 'hours':
+            milliseconds = duration * 60 * 60 * 1000;
+            break;
+          case 'minutes':
+          default:
+            milliseconds = duration * 60 * 1000;
+            break;
+        }
+
+        const scheduled_release_time = new Date(Date.now() + milliseconds).toISOString();
+
+        // Validate and parse numeric fields
+        const parsedInitialPrice = parseInt(initial_price);
+        const parsedStockCount = stock_count ? parseInt(stock_count) : null;
+        const parsedTimerDuration = timer_duration ? parseInt(timer_duration) : null;
+        const parsedBuyLimit = buy_limit && buy_limit > 0 ? parseInt(buy_limit) : null;
+        const parsedInitialValue = initial_value ? Math.min(parseInt(initial_value), 2147483647) : 0; // Cap at max integer
+
+        // Validate ranges
+        if (parsedInitialPrice < 1 || parsedInitialPrice > 2147483647) {
+          throw new Error('Initial price must be between 1 and 2,147,483,647');
+        }
+        if (parsedInitialValue < 0 || parsedInitialValue > 2147483647) {
+          throw new Error('Initial value must be between 0 and 2,147,483,647');
+        }
+
+        // Try to store in pending_items table
+        const { data: pendingItem, error: pendingError } = await supabase
+          .from('pending_items')
+          .insert([{
+            roblox_item_id,
+            name: item_name || itemDetails.name,
+            description: item_description || itemDetails.description,
+            image_url: (image_url && image_url.trim() !== '') ? image_url : itemDetails.imageUrl,
+            initial_price: parsedInitialPrice,
+            sale_type: sale_type || 'stock',
+            stock_count: sale_type === 'stock' ? parsedStockCount : null,
+            timer_duration: sale_type === 'timer' ? parsedTimerDuration : null,
+            timer_unit: sale_type === 'timer' ? timer_unit : null,
+            is_off_sale: is_off_sale || false,
+            buy_limit: parsedBuyLimit,
+            initial_value: parsedInitialValue,
+            scheduled_release_time,
+            created_by: req.user.id
+          }])
+          .select()
+          .single();
+
+        if (!pendingError && pendingItem) {
+          console.log('Pending item created successfully:', pendingItem.name, 'ID:', pendingItem.id, 'Release at:', scheduled_release_time);
+          return res.json({ ...pendingItem, status: 'scheduled', scheduled_release_time });
+        } else {
+          console.log('Pending items table not available, falling back to immediate release:', pendingError?.message);
+        }
+      } catch (pendingError) {
+        console.log('Error creating pending item, falling back to immediate release:', pendingError.message);
+      }
+    }
+
+    // Normal item creation (existing logic)
 
     // Fetch item details from Rolimons
     const itemDetails = await getItemDetails(roblox_item_id);
@@ -80,6 +155,8 @@ router.post('/items', async (req, res) => {
 
     if (error) throw error;
 
+    console.log('Item created successfully:', item.name, 'ID:', item.id);
+
     // Auto-assign removed by request.
     // Admin no longer gets Serial #0 automatically.
 
@@ -87,50 +164,75 @@ router.post('/items', async (req, res) => {
 
     // Send Webhook (Item Release) & In-Game Notifications
     try {
-      const axios = require('axios');
-      // Discord Webhook
-      const webhookUrl = process.env.DISCORD_WEBHOOK_URL_ITEMS;
-      if (webhookUrl) {
-        // ... (Embed construction same as before) ...
-        const embed = {
-          title: item.name,
-          thumbnail: { url: item.image_url },
-          color: 16766720, // Gold
-          fields: [
-            { name: "Price", value: `R$${item.initial_price.toLocaleString()}`, inline: true }
-          ]
-        };
+      if (!item.is_off_sale) {
+        const axios = require('axios');
+        // Discord Webhook
+        const webhookUrl = process.env.DISCORD_WEBHOOK_URL_ITEMS;
+        console.log('Webhook URL exists:', !!webhookUrl);
+        console.log('Webhook URL:', webhookUrl ? webhookUrl.substring(0, 50) + '...' : 'NOT SET');
 
-        if (item.sale_type === 'stock') {
-          embed.fields.push({ name: "Stock", value: item.stock_count.toLocaleString(), inline: true });
-        } else if (item.sale_type === 'timer') {
-          embed.fields.push({ name: "Available Until", value: new Date(item.sale_end_time).toLocaleString(), inline: true });
+        if (webhookUrl) {
+          const embed = {
+            title: item.name,
+            thumbnail: { url: item.image_url },
+            color: 16766720, // Gold
+            fields: [
+              { name: "Price", value: `R$${item.initial_price.toLocaleString()}`, inline: true }
+            ]
+          };
+
+          if (item.sale_type === 'stock') {
+            embed.fields.push({ name: "Stock", value: item.stock_count.toLocaleString(), inline: true });
+          } else if (item.sale_type === 'timer') {
+            embed.fields.push({ name: "Available Until", value: new Date(item.sale_end_time).toLocaleString(), inline: true });
+          } else {
+            embed.fields.push({ name: "Type", value: "Regular", inline: true });
+          }
+
+          console.log('Sending webhook for item:', item.name);
+          try {
+            const response = await axios.post(webhookUrl, { embeds: [embed] });
+            console.log('Webhook response status:', response.status);
+          } catch (webhookError) {
+            console.error("Discord webhook failed:", webhookError.response?.status, webhookError.response?.data || webhookError.message);
+          }
         } else {
-          embed.fields.push({ name: "Type", value: "Regular", inline: true });
+          console.log('No webhook URL configured');
         }
 
-        await axios.post(webhookUrl, { embeds: [embed] }).catch(err => console.error("Discord webhook failed", err.message));
+        // GLOBAL NOTIFICATION
+        // 1. Get all user IDs (Real + AI)
+        const { data: allUsers, error: usersError } = await supabase.from('users').select('id');
+
+        if (usersError) {
+          console.error('Error fetching users for notifications:', usersError);
+        } else if (allUsers && allUsers.length > 0) {
+          console.log(`Found ${allUsers.length} users to notify about new item: ${item.name}`);
+
+          const notifPayload = allUsers.map(u => ({
+            user_id: u.id,
+            type: 'item_release',
+            message: `New Item Dropped: ${item.name}!`,
+            is_read: false,
+            created_at: new Date().toISOString()
+          }));
+
+          console.log('Notification payload sample:', notifPayload[0]);
+
+          // Batch insert (supabase handles batch well)
+          const { data: insertResult, error: insertError } = await supabase.from('notifications').insert(notifPayload);
+
+          if (insertError) {
+            console.error('Error inserting notifications:', insertError);
+          } else {
+            console.log(`[Admin] Successfully broadcasted new item notification to ${allUsers.length} users. Insert result:`, insertResult);
+          }
+        } else {
+          console.log('No users found to notify about new item');
+        }
+      } else {
+        console.log(`Skipping webhook and notifications for OFF-SALE item: ${item.name}`);
       }
-
-      // GLOBAL NOTIFICATION
-      // 1. Get all user IDs (Real + AI)
-      const { data: allUsers } = await supabase.from('users').select('id');
-
-      if (allUsers && allUsers.length > 0) {
-        const notifPayload = allUsers.map(u => ({
-          user_id: u.id,
-          type: 'item_release',
-          message: `New Item Dropped: ${item.name}!`,
-          link: `/catalog/${item.id}`,
-          is_read: false,
-          created_at: new Date().toISOString()
-        }));
-
-        // Batch insert (supabase handles batch well)
-        await supabase.from('notifications').insert(notifPayload);
-        console.log(`[Admin] Broadcasted new item notification to ${allUsers.length} users.`);
-      }
-
     } catch (err) {
       console.error("Failed to send item release notifications:", err);
     }

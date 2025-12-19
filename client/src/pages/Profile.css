@@ -1,7 +1,7 @@
 .profile {
   padding: 24px;
   background-color: var(--roblox-bg-primary);
-  min-height: calc(100vh - 56px);
+  height: auto;
   margin-top: 56px;
 }
 
@@ -108,30 +108,30 @@
 }
 
 /* Old styles - kept for other sections */
-.inventory-section {
+.profile-inventory-section {
   margin-top: 24px;
 }
 
-.inventory-header {
+.profile-inventory-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
 }
 
-.inventory-header h2 {
+.profile-inventory-header h2 {
   color: var(--roblox-text-primary);
   font-size: 20px;
   font-weight: 600;
 }
 
-.inventory-controls {
+.profile-inventory-controls {
   display: flex;
   gap: 12px;
   align-items: center;
 }
 
-.inventory-search {
+.profile-inventory-search {
   background-color: var(--roblox-bg-tertiary);
   border: 1px solid var(--roblox-border);
   color: var(--roblox-text-primary);
@@ -141,12 +141,12 @@
   width: 200px;
 }
 
-.inventory-search:focus {
+.profile-inventory-search:focus {
   outline: none;
   border-color: var(--roblox-text-muted);
 }
 
-.inventory-search::placeholder {
+.profile-inventory-search::placeholder {
   color: var(--roblox-text-muted);
 }
 
@@ -370,4 +370,36 @@
 
 .mini-badge-icon {
   font-size: 18px;
+}
+
+/* Mobile Styles */
+@media (max-width: 768px) {
+  .profile-inventory-section {
+    padding: 16px;
+    border-radius: 8px;
+    background-color: var(--roblox-bg-secondary);
+    border: 1px solid var(--roblox-border);
+  }
+
+  .inventory-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+  }
+
+  .inventory-item {
+    padding: 10px;
+  }
+
+  .inventory-item-name {
+    font-size: 12px;
+  }
+
+  .inventory-item-price {
+    font-size: 13px;
+  }
+}
+
+/* Ensure inventory handles layout naturally */
+.profile-inventory-section {
+  width: 100%;
 }

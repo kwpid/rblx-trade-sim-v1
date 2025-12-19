@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useNotifications } from '../contexts/NotificationContext'
+import { formatLocalDate } from '../utils/dateUtils'
 import axios from 'axios'
 import ItemTooltipGraph from '../components/ItemTooltipGraph'
 import './TradeWindow.css'
@@ -560,7 +561,7 @@ const TradeWindow = () => {
                     </span>
                     {tradeDetails?.created_at && (
                         <span style={{ fontSize: '14px', color: '#8c8c8c', fontWeight: 'normal' }}>
-                            {new Date(tradeDetails.created_at).toLocaleString()}
+                            {formatLocalDate(tradeDetails.created_at)}
                         </span>
                     )}
                 </div>

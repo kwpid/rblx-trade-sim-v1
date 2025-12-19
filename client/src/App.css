@@ -1,11 +1,11 @@
 .app {
-  min-height: 100vh;
+  height: auto;
   background-color: var(--roblox-bg-primary);
 }
 
 .main-content {
   padding-top: 48px;
-  min-height: calc(100vh - 56px);
+  height: auto;
   background-color: var(--roblox-bg-primary);
 }
 

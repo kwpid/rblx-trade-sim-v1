@@ -20,6 +20,7 @@ app.use((req, res, next) => {
 // Initialize jobs
 require('./jobs/paycheck'); // Auto-starts via cron.schedule
 require('./jobs/playerSnapshots'); // Auto-starts via cron.schedule
+require('./jobs/scheduledReleases'); // Auto-starts via setInterval
 const { startCleanupJob } = require('./jobs/cleanup');
 
 // Start AI service and cleanup job

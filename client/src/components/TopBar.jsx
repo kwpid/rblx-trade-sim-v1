@@ -66,8 +66,7 @@ const TopBar = () => {
 
     { path: '/transactions', label: 'Transactions' },
     { path: '/value-changes', label: 'Value Changes' },
-    { path: '/leaderboard', label: 'Leaderboard' },
-    { path: '/settings', label: 'Settings' }
+    { path: '/leaderboard', label: 'Leaderboard' }
   ]
 
   if (user?.is_admin) {

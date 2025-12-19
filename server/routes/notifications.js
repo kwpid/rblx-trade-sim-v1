@@ -15,6 +15,12 @@ router.get('/', authenticate, async (req, res) => {
 
     if (error) throw error;
 
+    console.log(`[Notifications] Fetched ${notifications?.length || 0} notifications for user ${req.user.id}`);
+    if (notifications && notifications.length > 0) {
+      const itemReleaseCount = notifications.filter(n => n.type === 'item_release').length;
+      console.log(`[Notifications] Including ${itemReleaseCount} item_release notifications`);
+    }
+
     res.json(notifications);
   } catch (error) {
     console.error('Error fetching notifications:', error);

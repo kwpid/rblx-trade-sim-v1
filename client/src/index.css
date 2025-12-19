@@ -22,6 +22,8 @@ body {
     background-color: var(--roblox-bg-primary);
     color: var(--roblox-text-primary);
     line-height: 1.6;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .container {
