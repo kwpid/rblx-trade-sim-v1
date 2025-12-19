@@ -638,6 +638,12 @@ router.post('/:id/value-request', authenticate, async (req, res) => {
 
     if (insertError) throw insertError;
 
+    // Auto-decline the trade when value request is submitted
+    await supabase
+      .from('trades')
+      .update({ status: 'declined', updated_at: new Date().toISOString() })
+      .eq('id', req.params.id);
+
     // Send Discord webhook
     const sender = fullTrade.sender;
     const receiver = fullTrade.receiver;
@@ -680,14 +686,18 @@ router.post('/:id/value-request', authenticate, async (req, res) => {
       embed2.fields.push({ name: "Notes", value: req.body.notes, inline: false });
     }
 
-    // Use the REQUEST webhook URL (you'll need to add this to .env)
-    const webhookUrl = process.env.DISCORD_WEBHOOK_URL_REQUESTS || 'https://discord.com/api/webhooks/1448110420106809366/wK44HjiU2NBDvoYwQWq5GgwyyWefmr536hNaJMX9fe_LHuJQ_CGw_Fidiv38FfFDo2qS';
+    // Use the REQUEST webhook URL from environment variable
+    const webhookUrl = process.env.DISCORD_WEBHOOK_URL_REQUEST;
 
-    // Send to Discord
-    const axios = require('axios');
-    await axios.post(webhookUrl, {
-      embeds: [embed1, embed2]
-    });
+    if (webhookUrl) {
+      // Send to Discord
+      const axios = require('axios');
+      await axios.post(webhookUrl, {
+        embeds: [embed1, embed2]
+      });
+    } else {
+      console.warn('[Value Request] DISCORD_WEBHOOK_URL_REQUEST not configured');
+    }
 
     res.json({ success: true, valueRequest });
 

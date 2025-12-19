@@ -55,6 +55,8 @@
     flex: 1;
     /* Take up half height each */
     overflow: hidden;
+    max-height: 50vh;
+    /* Fixed height - half of viewport */
 }
 
 .inv-header {

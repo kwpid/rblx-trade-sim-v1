@@ -126,20 +126,26 @@ const ItemDetail = () => {
       setItem(itemResponse.data)
       // Format RAP history data with proper dates and sales volume
       const formattedRapHistory = rapResponse.data.map(snapshot => ({
-        date: new Date(snapshot.snapshot_date || snapshot.timestamp).toLocaleDateString(),
+        date: new Date(snapshot.snapshot_date || snapshot.timestamp).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric'
+        }),
         rap: snapshot.rap_value || 0,
         volume: snapshot.sales_volume || 0,
         sales: snapshot.sales_count || 0
-      }))
+      })).reverse(); // Reverse to show oldest first (left to right)
       setRapHistory(formattedRapHistory)
 
       // Format value history data
       // Format value history data
       const formattedValueHistory = (valueResponse.data.data || []).map(change => ({
-        date: new Date(change.created_at).toLocaleDateString(),
+        date: new Date(change.changed_at).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric'
+        }),
         value: change.new_value || 0,
         oldValue: change.old_value || 0
-      }))
+      })).reverse(); // Reverse to show oldest first (left to right)
       setValueHistory(formattedValueHistory)
 
       const sortedResellers = resellersResponse.data.sort((a, b) =>

@@ -18,8 +18,16 @@ app.use((req, res, next) => {
 });
 
 // Initialize jobs
-require('./jobs/paycheck');
-require('./jobs/playerSnapshots');
+const { startAiService } = require('./services/aiService');
+const { startPaycheckJob } = require('./jobs/paycheck');
+const { startPlayerSnapshotJob } = require('./jobs/playerSnapshots');
+const { startCleanupJob } = require('./jobs/cleanup');
+
+// Start background jobs
+startAiService();
+startPaycheckJob();
+startPlayerSnapshotJob();
+startCleanupJob(); // Start database cleanup job
 
 // Routes
 const authRoutes = require('./routes/auth');
@@ -54,14 +62,4 @@ if (process.env.NODE_ENV === 'production') {
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-
-  // Start AI Service
-  try {
-    const aiService = require('./services/aiService');
-    aiService.start();
-    console.log('AI System Started');
-  } catch (err) {
-    console.error('Failed to start AI System:', err);
-  }
 });
-
