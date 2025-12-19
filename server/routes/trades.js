@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const supabase = require('../config/supabase');
 const { authenticate } = require('../middleware/auth');
+const { sendDiscordWebhook } = require('../utils/discord');
 const { updateChallengeProgress, CHALLENGE_TYPES } = require('../utils/eventHelper');
 const { checkAndAwardBadges } = require('../services/badgeService');
 
@@ -695,11 +696,8 @@ router.post('/:id/value-request', authenticate, async (req, res) => {
     const webhookUrl = process.env.DISCORD_WEBHOOK_URL_REQUEST;
 
     if (webhookUrl) {
-      // Send to Discord
-      const axios = require('axios');
-      await axios.post(webhookUrl, {
-        embeds: [embed1, embed2]
-      });
+      console.log('[Trades] Sending value request webhook...');
+      await sendDiscordWebhook(webhookUrl, [embed1, embed2]);
     } else {
       console.warn('[Value Request] DISCORD_WEBHOOK_URL_REQUEST not configured');
     }

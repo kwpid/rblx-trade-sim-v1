@@ -3,6 +3,7 @@ const router = express.Router();
 const supabase = require('../config/supabase');
 const { authenticate, requireAdmin } = require('../middleware/auth');
 const { getItemDetails } = require('../utils/rolimons');
+const { sendDiscordWebhook } = require('../utils/discord');
 
 // All admin routes require authentication and admin role
 router.use(authenticate);
@@ -165,11 +166,8 @@ router.post('/items', async (req, res) => {
     // Send Webhook (Item Release) & In-Game Notifications
     try {
       if (!item.is_off_sale) {
-        const axios = require('axios');
         // Discord Webhook
         const webhookUrl = process.env.DISCORD_WEBHOOK_URL_ITEMS;
-        console.log('Webhook URL exists:', !!webhookUrl);
-        console.log('Webhook URL:', webhookUrl ? webhookUrl.substring(0, 50) + '...' : 'NOT SET');
 
         if (webhookUrl) {
           const embed = {
@@ -189,15 +187,8 @@ router.post('/items', async (req, res) => {
             embed.fields.push({ name: "Type", value: "Regular", inline: true });
           }
 
-          console.log('Sending webhook for item:', item.name);
-          try {
-            const response = await axios.post(webhookUrl, { embeds: [embed] });
-            console.log('Webhook response status:', response.status);
-          } catch (webhookError) {
-            console.error("Discord webhook failed:", webhookError.response?.status, webhookError.response?.data || webhookError.message);
-          }
-        } else {
-          console.log('No webhook URL configured');
+          console.log('[Admin] Sending release webhook for:', item.name);
+          await sendDiscordWebhook(webhookUrl, embed);
         }
 
         // GLOBAL NOTIFICATION
@@ -207,8 +198,6 @@ router.post('/items', async (req, res) => {
         if (usersError) {
           console.error('Error fetching users for notifications:', usersError);
         } else if (allUsers && allUsers.length > 0) {
-          console.log(`Found ${allUsers.length} users to notify about new item: ${item.name}`);
-
           const notifPayload = allUsers.map(u => ({
             user_id: u.id,
             type: 'item_release',
@@ -217,18 +206,9 @@ router.post('/items', async (req, res) => {
             created_at: new Date().toISOString()
           }));
 
-          console.log('Notification payload sample:', notifPayload[0]);
-
           // Batch insert (supabase handles batch well)
-          const { data: insertResult, error: insertError } = await supabase.from('notifications').insert(notifPayload);
-
-          if (insertError) {
-            console.error('Error inserting notifications:', insertError);
-          } else {
-            console.log(`[Admin] Successfully broadcasted new item notification to ${allUsers.length} users. Insert result:`, insertResult);
-          }
-        } else {
-          console.log('No users found to notify about new item');
+          await supabase.from('notifications').insert(notifPayload);
+          console.log(`[Admin] Successfully broadcasted new item notification to ${allUsers.length} users.`);
         }
       } else {
         console.log(`Skipping webhook and notifications for OFF-SALE item: ${item.name}`);
@@ -334,11 +314,8 @@ router.put('/items/:id', async (req, res) => {
 
         // Send Discord Webhook
         try {
-          const axios = require('axios');
           const webhookUrl = process.env.DISCORD_WEBHOOK_URL_VALUES;
           const itemLink = `https://rblxtradesim.com/items/${currentItem.id}`; // Example base URL
-
-          console.log(`[Value-Webhook] Attempting for ${currentItem.name}. URL exists: ${!!webhookUrl}`);
 
           if (webhookUrl) {
             const currentTrend = currentItem.trend || 'stable';
@@ -349,18 +326,14 @@ router.put('/items/:id', async (req, res) => {
             const oldDemand = currentDemand;
 
             // --- COLOR & DIRECTION LOGIC ---
-            // Rankings for comparison
             const trendRank = { 'falling': 0, 'unstable': 1, 'fluctuating': 2, 'stable': 3, 'raising': 4 };
             const demandRank = { 'none': 0, 'low': 1, 'normal': 2, 'high': 3, 'amazing': 4 };
 
             let israise = false;
             let isdrop = false;
 
-            // Check Value
             if (newValue > oldValue) israise = true;
             else if (newValue < oldValue) isdrop = true;
-
-            // Check others if value is flat
             else {
               if (trendRank[newTrend] > (trendRank[oldTrend] || 0)) israise = true;
               else if (trendRank[newTrend] < (trendRank[oldTrend] || 0)) isdrop = true;
@@ -369,42 +342,28 @@ router.put('/items/:id', async (req, res) => {
               else if (demandRank[newDemand] < (demandRank[oldDemand] || 0)) isdrop = true;
             }
 
-            // Green (Raise) / Red (Drop) / Blue (Neutral/Mixed)
             let color = 3447003; // Default Blue
             if (israise && !isdrop) color = 65280; // Green
             if (isdrop && !israise) color = 16711680; // Red
             if (israise && isdrop) color = 16776960; // Yellow (Mixed)
 
-            // --- FIELD CONSTRUCTION ---
             const fields = [];
-
-            // Value Field
             if (hasValueChange) {
               fields.push({ name: "Value", value: `R$${oldValue.toLocaleString()} -> R$${newValue.toLocaleString()}`, inline: true });
             }
-
-            // Trend Field
             if (hasTrendChange) {
               fields.push({ name: "Trend", value: `${oldTrend.toUpperCase()} -> ${newTrend.toUpperCase()}`, inline: true });
             }
-
-            // Demand Field
             if (hasDemandChange) {
               fields.push({ name: "Demand", value: `${oldDemand.toUpperCase().replace('_', ' ')} -> ${newDemand.toUpperCase().replace('_', ' ')}`, inline: true });
             }
-
-            // Limited Check
             if (hasLimitedChange) {
               fields.push({ name: "Limited Status", value: `${currentItem.is_limited ? 'YES' : 'NO'} -> ${req.body.is_limited ? 'YES' : 'NO'}`, inline: true });
             }
-
-            // Projected Status
             if (wasProjected !== isProjected) {
               const pStatus = isProjected ? "Became Projected" : "No Longer Projected";
               fields.push({ name: "Status Update", value: `**${pStatus}**`, inline: false });
             }
-
-            // Explanation
             if (systemExplanation || req.body.value_update_explanation) {
               fields.push({ name: "Explanation", value: systemExplanation || req.body.value_update_explanation || "No explanation", inline: false });
             }
@@ -419,14 +378,11 @@ router.put('/items/:id', async (req, res) => {
               timestamp: new Date().toISOString()
             };
 
-            console.log(`[Value-Webhook] Sending payload for ${currentItem.name}...`);
-            const response = await axios.post(webhookUrl, { embeds: [embed] });
-            console.log(`[Value-Webhook] Success! Status: ${response.status}`);
-          } else {
-            console.log(`[Value-Webhook] SKIPPED: DISCORD_WEBHOOK_URL_VALUES is not set in environment.`);
+            console.log('[Admin] Sending value update webhook for:', currentItem.name);
+            await sendDiscordWebhook(webhookUrl, embed);
           }
         } catch (err) {
-          console.error("[Value-Webhook] FAILED:", err.response?.status, err.response?.data || err.message);
+          console.error("[Admin] Value webhook failed:", err.message);
         }
       }
     }

@@ -1,21 +1,34 @@
 const axios = require('axios');
 
 /**
- * Send a Discord webhook message with embed
+ * Send a Discord webhook message with embeds
+ * Automatically proxies through hooks.hyra.io to avoid Discord rate limits on shared hosting (Render)
  * @param {string} webhookUrl - Discord webhook URL
- * @param {Object} embed - Discord embed object
+ * @param {Object|Object[]} embeds - Single embed object or array of embeds
  */
-async function sendDiscordWebhook(webhookUrl, embed) {
+async function sendDiscordWebhook(webhookUrl, embeds) {
   if (!webhookUrl || !webhookUrl.trim()) {
-    return; // No webhook configured, silently skip
+    console.log('[Discord-Util] Webhook skipped: No URL provided.');
+    return;
   }
 
+  // Ensure embeds is an array
+  const embedArray = Array.isArray(embeds) ? embeds : [embeds];
+  if (embedArray.length === 0) return;
+
+  // PROXY LOGIC: Replace discord.com with hooks.hyra.io
+  // This is a common practice to avoid 429 Errors (Too Many Requests / 1015 Cloudflare)
+  const proxiedUrl = webhookUrl.replace('discord.com', 'hooks.hyra.io');
+
   try {
-    await axios.post(webhookUrl, {
-      embeds: [embed]
+    const response = await axios.post(proxiedUrl, {
+      embeds: embedArray
     });
+    console.log(`[Discord-Util] Sent to ${proxiedUrl}. Status: ${response.status}`);
+    return response;
   } catch (error) {
-    console.error('Error sending Discord webhook:', error.message);
+    // If it's a 429 via proxy, we really are hitting it hard, but usually hyra handles this beautifully.
+    console.error('[Discord-Util] FAILED:', error.response?.status, error.response?.data || error.message);
     // Don't throw - webhook failures shouldn't break the app
   }
 }
@@ -24,8 +37,8 @@ async function sendDiscordWebhook(webhookUrl, embed) {
  * Create embed for item release
  */
 function createItemReleaseEmbed(item) {
-  const stockInfo = item.sale_type === 'stock' 
-    ? `Stock: ${item.stock_count || 0}` 
+  const stockInfo = item.sale_type === 'stock'
+    ? `Stock: ${item.stock_count || 0}`
     : `Timer: ${item.timer_duration || 0} minutes`;
 
   return {
@@ -64,10 +77,10 @@ function createItemReleaseEmbed(item) {
  */
 function createValueUpdateEmbed(item, oldValue, newValue, trend, demand, explanation, changedBy) {
   const valueChange = newValue - oldValue;
-  const valueChangePercent = oldValue > 0 
+  const valueChangePercent = oldValue > 0
     ? ((valueChange / oldValue) * 100).toFixed(1)
     : 0;
-  
+
   const color = valueChange > 0 ? 0x00b06f : valueChange < 0 ? 0xff4d4d : 0xbdbebe;
 
   const fields = [
@@ -125,7 +138,7 @@ function createValueUpdateEmbed(item, oldValue, newValue, trend, demand, explana
  */
 function createBigSaleEmbed(item, salePrice, seller, buyer, oldRap, newRap) {
   const rapChange = newRap - oldRap;
-  const rapChangePercent = oldRap > 0 
+  const rapChangePercent = oldRap > 0
     ? ((rapChange / oldRap) * 100).toFixed(1)
     : 0;
 

@@ -1,5 +1,6 @@
 const supabase = require('../config/supabase');
 const { getItemDetails } = require('../utils/rolimons');
+const { sendDiscordWebhook } = require('../utils/discord');
 
 // Check for pending items ready to be released
 const checkPendingReleases = async () => {
@@ -79,10 +80,8 @@ const checkPendingReleases = async () => {
         // Send Webhook (Item Release) & In-Game Notifications
         try {
           if (!item.is_off_sale) {
-            const axios = require('axios');
             // Discord Webhook
             const webhookUrl = process.env.DISCORD_WEBHOOK_URL_ITEMS;
-            console.log('Webhook URL exists:', !!webhookUrl);
 
             if (webhookUrl) {
               const embed = {
@@ -102,13 +101,8 @@ const checkPendingReleases = async () => {
                 embed.fields.push({ name: "Type", value: "Regular", inline: true });
               }
 
-              console.log('Sending webhook for scheduled item:', item.name);
-              try {
-                const response = await axios.post(webhookUrl, { embeds: [embed] });
-                console.log('Webhook response status:', response.status);
-              } catch (webhookError) {
-                console.error("Discord webhook failed:", webhookError.response?.status, webhookError.response?.data || webhookError.message);
-              }
+              console.log('[Scheduled Release] Sending webhook for:', item.name);
+              await sendDiscordWebhook(webhookUrl, embed);
             }
 
             // GLOBAL NOTIFICATION
@@ -126,8 +120,8 @@ const checkPendingReleases = async () => {
               }));
 
               // Batch insert (supabase handles batch well)
-              const result = await supabase.from('notifications').insert(notifPayload);
-              console.log(`[Scheduled Release] Broadcasted new item notification to ${allUsers.length} users. Insert result:`, result);
+              await supabase.from('notifications').insert(notifPayload);
+              console.log(`[Scheduled Release] Broadcasted new item notification to ${allUsers.length} users.`);
             }
           } else {
             console.log(`Skipping webhook and notifications for OFF-SALE scheduled item: ${item.name}`);
