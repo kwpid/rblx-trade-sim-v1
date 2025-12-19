@@ -11,7 +11,8 @@ const Catalog = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [sortBy, setSortBy] = useState('newest')
   const [currentPage, setCurrentPage] = useState(1)
-  const itemsPerPage = 32
+  // 60 is divisible by 2, 3, 4, 5, 6, 10, 12, 15, 20 etc. minimizing empty slots in rows
+  const itemsPerPage = 60
 
   useEffect(() => {
     fetchItems()

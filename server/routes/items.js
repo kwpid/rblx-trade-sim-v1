@@ -7,7 +7,8 @@ const { getItemDetails } = require('../utils/rolimons');
 // Get all items (catalog)
 router.get('/', async (req, res) => {
   try {
-    const { limit = 50, offset = 0, sort = 'newest' } = req.query;
+    // Default limit increased to 2000 to return 'all items' for client-side pagination/search
+    const { limit = 2000, offset = 0, sort = 'newest' } = req.query;
 
     let query = supabase
       .from('items')
