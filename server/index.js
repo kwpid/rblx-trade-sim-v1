@@ -18,13 +18,13 @@ app.use((req, res, next) => {
 });
 
 // Initialize jobs
-const { startAiService } = require('./services/aiService');
+const aiService = require('./services/aiService');
 const { startPaycheckJob } = require('./jobs/paycheck');
 const { startPlayerSnapshotJob } = require('./jobs/playerSnapshots');
 const { startCleanupJob } = require('./jobs/cleanup');
 
 // Start background jobs
-startAiService();
+aiService.start(); // Use .start() instead of startAiService()
 startPaycheckJob();
 startPlayerSnapshotJob();
 startCleanupJob(); // Start database cleanup job

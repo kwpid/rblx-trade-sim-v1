@@ -275,8 +275,6 @@ const AdminPanel = () => {
         timer_unit: 'hours',
         is_off_sale: false,
         image_url: '',
-        is_off_sale: false,
-        image_url: '',
         buy_limit: '',
         initial_value: ''
       })
