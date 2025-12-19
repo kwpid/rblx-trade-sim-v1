@@ -15,17 +15,12 @@ router.get('/badges', (req, res) => {
 
 router.get('/version', (req, res) => {
     try {
-        // Try to get git tag
-        let version = 'v1.0.0';
-        try {
-            version = execSync('git describe --tags --abbrev=0').toString().trim();
-        } catch (e) {
-            console.log('Git describe failed, using fallback');
-            version = getVersion();
-        }
+        // User requested version check based on most recent commit
+        const version = getVersion(); // Returns short commit hash (e.g. 'a1b2c3d')
         res.json({ version });
     } catch (error) {
-        res.json({ version: getVersion() });
+        console.error('Error getting version:', error);
+        res.json({ version: 'unknown' });
     }
 });
 
