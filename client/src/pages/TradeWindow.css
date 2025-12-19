@@ -14,18 +14,41 @@
     align-items: center;
 }
 
-.trade-layout-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    /* 50/50 split */
-    gap: 20px;
-    height: calc(100vh - 100px);
-    /* Fill most of screen */
-    overflow: hidden;
-    /* Manage scrolling inside cols */
+/* NEW ROBLOX-STYLE LAYOUT */
+.trade-layout-roblox {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    height: calc(100vh - 120px);
 }
 
-/* Columns */
+/* OFFERS ROW (TOP) */
+.offers-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    min-height: 300px;
+}
+
+/* INVENTORIES ROW (BOTTOM) */
+.inventories-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* ACTIONS AT BOTTOM */
+.trade-actions-bottom {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    padding: 10px 0;
+}
+
+/* Columns (deprecated - kept for view mode) */
 .inventories-column {
     display: flex;
     flex-direction: column;
@@ -420,15 +443,27 @@
         margin-bottom: 15px;
     }
 
-    /* Stack columns vertically on mobile */
-    .trade-layout-grid {
-        grid-template-columns: 1fr;
-        gap: 15px;
+    /* Stack new Roblox layout vertically on mobile */
+    .trade-layout-roblox {
         height: auto;
+        gap: 12px;
+    }
+
+    /* Stack offers vertically */
+    .offers-row {
+        grid-template-columns: 1fr;
+        gap: 12px;
+        min-height: auto;
+    }
+
+    /* Stack inventories vertically */
+    .inventories-row {
+        grid-template-columns: 1fr;
+        gap: 12px;
         overflow: visible;
     }
 
-    /* Inventories column adjustments */
+    /* Inventories column adjustments (for view mode) */
     .inventories-column {
         gap: 15px;
         height: auto;
@@ -476,7 +511,7 @@
         font-size: 10px;
     }
 
-    /* Offers column */
+    /* Offers column (for view mode) */
     .offers-column {
         padding: 15px;
         gap: 15px;
@@ -560,6 +595,15 @@
     .cancel-btn-styled {
         padding: 12px;
         font-size: 13px;
+    }
+
+    .trade-actions-bottom {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .trade-actions-bottom button {
+        width: 100%;
     }
 
     /* View mode adjustments */
