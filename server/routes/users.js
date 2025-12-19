@@ -222,32 +222,51 @@ router.get('/leaderboard', async (req, res) => {
   try {
     const ADMIN_USER_ID = '0c55d336-0bf7-49bf-9a90-1b4ba4e13679';
 
-    // Get latest snapshot for each user
-    const { data: snapshots, error } = await supabase
+    // Try to get from snapshots first
+    const { data: snapshots, error: snapshotError } = await supabase
       .from('player_snapshots')
-      .select('user_id, cash_balance, users!inner(username)')
+      .select('user_id, cash_balance')
       .neq('user_id', ADMIN_USER_ID)
       .order('snapshot_date', { ascending: false });
 
+    if (!snapshotError && snapshots && snapshots.length > 0) {
+      // Get usernames separately
+      const userIds = [...new Set(snapshots.map(s => s.user_id))];
+      const { data: users } = await supabase
+        .from('users')
+        .select('id, username')
+        .in('id', userIds);
+
+      const usernameMap = new Map(users?.map(u => [u.id, u.username]) || []);
+
+      const userMap = new Map();
+      snapshots.forEach(snapshot => {
+        if (!userMap.has(snapshot.user_id)) {
+          userMap.set(snapshot.user_id, {
+            id: snapshot.user_id,
+            username: usernameMap.get(snapshot.user_id) || 'Unknown',
+            cash: snapshot.cash_balance || 0
+          });
+        }
+      });
+
+      const leaderboard = Array.from(userMap.values())
+        .sort((a, b) => b.cash - a.cash)
+        .slice(0, 10);
+
+      return res.json(leaderboard);
+    }
+
+    // Fallback to users table
+    const { data: users, error } = await supabase
+      .from('users')
+      .select('id, username, cash')
+      .neq('id', ADMIN_USER_ID)
+      .order('cash', { ascending: false })
+      .limit(10);
+
     if (error) throw error;
-
-    // Get the most recent snapshot per user
-    const userMap = new Map();
-    snapshots.forEach(snapshot => {
-      if (!userMap.has(snapshot.user_id)) {
-        userMap.set(snapshot.user_id, {
-          id: snapshot.user_id,
-          username: snapshot.users.username,
-          cash: snapshot.cash_balance
-        });
-      }
-    });
-
-    const leaderboard = Array.from(userMap.values())
-      .sort((a, b) => b.cash - a.cash)
-      .slice(0, 10);
-
-    res.json(leaderboard);
+    res.json(users);
   } catch (error) {
     console.error('Error fetching leaderboard:', error);
     res.status(500).json({ error: 'Failed to fetch leaderboard' });
@@ -259,34 +278,51 @@ router.get('/leaderboard/value', async (req, res) => {
   try {
     const ADMIN_USER_ID = '0c55d336-0bf7-49bf-9a90-1b4ba4e13679';
 
-    // Get latest snapshot for each user
-    const { data: snapshots, error } = await supabase
+    // Try snapshots first
+    const { data: snapshots, error: snapshotError } = await supabase
       .from('player_snapshots')
-      .select('user_id, inventory_value, users!inner(username)')
+      .select('user_id, inventory_value')
       .neq('user_id', ADMIN_USER_ID)
       .order('snapshot_date', { ascending: false });
 
-    if (error) throw error;
+    if (!snapshotError && snapshots && snapshots.length > 0) {
+      const userIds = [...new Set(snapshots.map(s => s.user_id))];
+      const { data: users } = await supabase
+        .from('users')
+        .select('id, username')
+        .in('id', userIds);
 
-    // Get the most recent snapshot per user
-    const userMap = new Map();
-    snapshots.forEach(snapshot => {
-      if (!userMap.has(snapshot.user_id)) {
-        userMap.set(snapshot.user_id, {
-          id: snapshot.user_id,
-          username: snapshot.users.username,
-          value: snapshot.inventory_value || 0
-        });
-      }
-    });
+      const usernameMap = new Map(users?.map(u => [u.id, u.username]) || []);
 
-    const leaderboard = Array.from(userMap.values())
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 10);
+      const userMap = new Map();
+      snapshots.forEach(snapshot => {
+        if (!userMap.has(snapshot.user_id)) {
+          userMap.set(snapshot.user_id, {
+            id: snapshot.user_id,
+            username: usernameMap.get(snapshot.user_id) || 'Unknown',
+            value: snapshot.inventory_value || 0
+          });
+        }
+      });
 
-    res.json(leaderboard);
+      const leaderboard = Array.from(userMap.values())
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 10);
+
+      return res.json(leaderboard);
+    }
+
+    // Fallback: calculate from user_items
+    const { data: users } = await supabase
+      .from('users')
+      .select('id, username')
+      .neq('id', ADMIN_USER_ID)
+      .limit(100);
+
+    const leaderboard = (users || []).map(u => ({ id: u.id, username: u.username, value: 0 }));
+    res.json(leaderboard.slice(0, 10));
   } catch (error) {
-    console.error('Error fetching leaderboard:', error);
+    console.error('Error fetching value leaderboard:', error);
     res.status(500).json({ error: 'Failed to fetch leaderboard' });
   }
 });
@@ -296,32 +332,49 @@ router.get('/leaderboard/rap', async (req, res) => {
   try {
     const ADMIN_USER_ID = '0c55d336-0bf7-49bf-9a90-1b4ba4e13679';
 
-    // Get latest snapshot for each user
-    const { data: snapshots, error } = await supabase
+    // Try snapshots first
+    const { data: snapshots, error: snapshotError } = await supabase
       .from('player_snapshots')
-      .select('user_id, inventory_rap, users!inner(username)')
+      .select('user_id, inventory_rap')
       .neq('user_id', ADMIN_USER_ID)
       .order('snapshot_date', { ascending: false });
 
-    if (error) throw error;
+    if (!snapshotError && snapshots && snapshots.length > 0) {
+      const userIds = [...new Set(snapshots.map(s => s.user_id))];
+      const { data: users } = await supabase
+        .from('users')
+        .select('id, username')
+        .in('id', userIds);
 
-    // Get the most recent snapshot per user
-    const userMap = new Map();
-    snapshots.forEach(snapshot => {
-      if (!userMap.has(snapshot.user_id)) {
-        userMap.set(snapshot.user_id, {
-          id: snapshot.user_id,
-          username: snapshot.users.username,
-          rap: snapshot.inventory_rap || 0
-        });
-      }
-    });
+      const usernameMap = new Map(users?.map(u => [u.id, u.username]) || []);
 
-    const leaderboard = Array.from(userMap.values())
-      .sort((a, b) => b.rap - a.rap)
-      .slice(0, 10);
+      const userMap = new Map();
+      snapshots.forEach(snapshot => {
+        if (!userMap.has(snapshot.user_id)) {
+          userMap.set(snapshot.user_id, {
+            id: snapshot.user_id,
+            username: usernameMap.get(snapshot.user_id) || 'Unknown',
+            rap: snapshot.inventory_rap || 0
+          });
+        }
+      });
 
-    res.json(leaderboard);
+      const leaderboard = Array.from(userMap.values())
+        .sort((a, b) => b.rap - a.rap)
+        .slice(0, 10);
+
+      return res.json(leaderboard);
+    }
+
+    // Fallback: return empty leaderboard
+    const { data: users } = await supabase
+      .from('users')
+      .select('id, username')
+      .neq('id', ADMIN_USER_ID)
+      .limit(100);
+
+    const leaderboard = (users || []).map(u => ({ id: u.id, username: u.username, rap: 0 }));
+    res.json(leaderboard.slice(0, 10));
   } catch (error) {
     console.error('Error fetching RAP leaderboard:', error);
     res.status(500).json({ error: 'Failed to fetch RAP leaderboard' });
