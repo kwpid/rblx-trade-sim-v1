@@ -259,7 +259,7 @@ const TradeWindow = () => {
                     {/* Left Column: Inventories */}
                     <div className="inventories-column">
                         {/* My Inventory */}
-                        <div className="inventory-section">
+                        <div className="inventory-section trade-window-inventory">
                             <div className="inv-header">
                                 <h3>Your Inventory</h3>
                                 <input
@@ -291,7 +291,10 @@ const TradeWindow = () => {
                                                 {item.isRare && <div className="rare-badge" title="Rare">💎</div>}
                                             </div>
 
-                                            <img src={item.items?.image_url} alt={item.items?.name} />
+                                            <img
+                                                src={item.items?.image_url || `https://www.roblox.com/asset-thumbnail/image?assetId=${item.items?.roblox_item_id}&width=420&height=420&format=png`}
+                                                alt={item.items?.name}
+                                            />
                                         </div>
                                         <div className="inv-card-details">
                                             <div className="inv-card-name">{item.items?.name}</div>
@@ -304,7 +307,7 @@ const TradeWindow = () => {
                         </div>
 
                         {/* Partner Inventory */}
-                        <div className="inventory-section">
+                        <div className="inventory-section trade-window-inventory">
                             <div className="inv-header">
                                 <h3>{partner?.username}'s Inventory</h3>
                                 <input
@@ -344,7 +347,10 @@ const TradeWindow = () => {
                                                 </div>
                                             )}
 
-                                            <img src={item.items?.image_url} alt={item.items?.name} />
+                                            <img
+                                                src={item.items?.image_url || `https://www.roblox.com/asset-thumbnail/image?assetId=${item.items?.roblox_item_id}&width=420&height=420&format=png`}
+                                                alt={item.items?.name}
+                                            />
                                         </div>
                                         <div className="inv-card-details">
                                             <div className="inv-card-name">{item.items?.name}</div>

@@ -55,8 +55,11 @@
     flex: 1;
     /* Take up half height each */
     overflow: hidden;
+}
+
+/* Trade window specific - fixed height with scrolling */
+.trade-window-inventory {
     max-height: 50vh;
-    /* Fixed height - half of viewport */
 }
 
 .inv-header {
