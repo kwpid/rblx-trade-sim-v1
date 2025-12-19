@@ -176,28 +176,33 @@
 .badge-group {
     position: absolute;
     display: flex;
-    gap: 2px;
+    gap: 4px;
     z-index: 10;
 }
 
 .badge-group.bottom-right {
-    bottom: 2px;
-    right: 2px;
+    bottom: 5px;
+    right: 5px;
     flex-direction: row-reverse;
 }
 
 .badge-group.top-right {
-    top: 2px;
-    right: 2px;
+    top: 5px;
+    right: 5px;
     flex-direction: row-reverse;
 }
 
 .projected-badge,
 .rare-badge,
 .trending-badge {
-    font-size: 14px;
+    position: relative;
+    font-size: 18px;
     filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.8));
     cursor: help;
+    top: auto;
+    bottom: auto;
+    right: auto;
+    left: auto;
 }
 
 /* Limited Overlay */
