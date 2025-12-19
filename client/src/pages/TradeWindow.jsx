@@ -260,17 +260,17 @@ const TradeWindow = () => {
                     <div className="inventories-column">
                         {/* My Inventory */}
                         <div className="inventory-section">
-                            <div className="inventory-header-row">
+                            <div className="inv-header">
                                 <h3>Your Inventory</h3>
                                 <input
                                     type="text"
-                                    className="inventory-search-bar"
+                                    className="inv-dropdown"
                                     placeholder="Search"
                                     value={mySearch}
                                     onChange={(e) => setMySearch(e.target.value)}
                                 />
                             </div>
-                            <div className="inventory-items-grid">
+                            <div className="inv-items-grid">
                                 {filteredMyInv.map(item => ( // Show ALL items
                                     <div
                                         key={item.id}
@@ -305,17 +305,17 @@ const TradeWindow = () => {
 
                         {/* Partner Inventory */}
                         <div className="inventory-section">
-                            <div className="inventory-header-row">
+                            <div className="inv-header">
                                 <h3>{partner?.username}'s Inventory</h3>
                                 <input
                                     type="text"
-                                    className="inventory-search-bar"
+                                    className="inv-dropdown"
                                     placeholder="Search"
                                     value={theirSearch}
                                     onChange={(e) => setTheirSearch(e.target.value)}
                                 />
                             </div>
-                            <div className="inventory-items-grid">
+                            <div className="inv-items-grid">
                                 {filteredTheirInv.map(item => (
                                     <div
                                         key={item.id}
