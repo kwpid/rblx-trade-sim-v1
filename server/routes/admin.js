@@ -281,14 +281,23 @@ router.put('/items/:id', async (req, res) => {
 
     // Check if trying to update value (Always allowed now, to support "Initial Value" editing)
     // Also allow is_limited update
-    if (req.body.is_limited !== undefined || req.body.value !== undefined) {
-      // Track value change history if value, trend, or demand is being updated
-      const hasValueChange = req.body.value !== undefined && req.body.value !== currentItem.value;
-      const hasTrendChange = req.body.trend !== undefined && req.body.trend !== currentItem.trend;
-      const hasDemandChange = req.body.demand !== undefined && req.body.demand !== currentItem.demand;
+    const hasValueProvided = req.body.value !== undefined;
+    const hasTrendProvided = req.body.trend !== undefined;
+    const hasDemandProvided = req.body.demand !== undefined;
+    const hasLimitedProvided = req.body.is_limited !== undefined;
 
-      if (hasValueChange || hasTrendChange || hasDemandChange) {
-        const newValue = req.body.value !== undefined ? req.body.value : currentItem.value || 0;
+    if (hasValueProvided || hasTrendProvided || hasDemandProvided || hasLimitedProvided) {
+      // Normalize value to number if provided
+      const newValueRaw = hasValueProvided ? parseInt(req.body.value) : currentItem.value || 0;
+      const newValue = isNaN(newValueRaw) ? 0 : newValueRaw;
+
+      // Track value change history if value, trend, or demand is being updated
+      const hasValueChange = hasValueProvided && newValue !== currentItem.value;
+      const hasTrendChange = hasTrendProvided && req.body.trend !== currentItem.trend;
+      const hasDemandChange = hasDemandProvided && req.body.demand !== currentItem.demand;
+      const hasLimitedChange = hasLimitedProvided && req.body.is_limited !== currentItem.is_limited;
+
+      if (hasValueChange || hasTrendChange || hasDemandChange || hasLimitedChange) {
         const oldValue = currentItem.value || 0;
 
         // PROJECTED CHECK
@@ -327,11 +336,6 @@ router.put('/items/:id', async (req, res) => {
         try {
           const axios = require('axios');
           const webhookUrl = process.env.DISCORD_WEBHOOK_URL_VALUES;
-          // URL for Value Changes embedded inside (User request: "send an embed with the same URL as the value webhook")
-          // Not clear if they want the ITEM url or the WEBHOOK url. 
-          // Re-reading: "doesnt send an embed with the same URL as the value webhook"
-          // Likely means "use the same webhook URL as other value logs" (which we are: DISCORD_WEBHOOK_URL_VALUES)
-          // OR means "link the title to the item". Let's link title to item.
           const itemLink = `https://rblxtradesim.com/items/${currentItem.id}`; // Example base URL
 
           if (webhookUrl) {
@@ -383,6 +387,11 @@ router.put('/items/:id', async (req, res) => {
             // Demand Field
             if (hasDemandChange) {
               fields.push({ name: "Demand", value: `${oldDemand.toUpperCase().replace('_', ' ')} -> ${newDemand.toUpperCase().replace('_', ' ')}`, inline: true });
+            }
+
+            // Limited Check
+            if (hasLimitedChange) {
+              fields.push({ name: "Limited Status", value: `${currentItem.is_limited ? 'YES' : 'NO'} -> ${req.body.is_limited ? 'YES' : 'NO'}`, inline: true });
             }
 
             // Projected Status
