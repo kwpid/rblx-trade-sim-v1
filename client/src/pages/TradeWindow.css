@@ -94,22 +94,30 @@
 }
 
 /* Item Card - Copied from Catalog */
+/* Item Card - Copied from Profile/Catalog for exact match */
 .inv-card {
-    background-color: #393b3d;
-    border-radius: 6px;
-    overflow: hidden;
-    cursor: pointer;
-    transition: all 0.1s;
-    text-decoration: none;
-    color: inherit;
+    background-color: #2b2d31;
+    /* var(--roblox-bg-secondary) */
+    border: 1px solid #4a4a4a;
+    /* var(--roblox-border) */
+    border-radius: 8px;
+    padding: 12px;
+    position: relative;
     display: flex;
     flex-direction: column;
-    border: 2px solid transparent;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-decoration: none;
+    color: inherit;
 }
 
 .inv-card:hover {
     transform: translateY(-2px);
-    background-color: #454749;
+    background-color: #36383c;
+    /* var(--roblox-bg-hover) */
+    border-color: #00b06f;
+    /* var(--roblox-green) */
 }
 
 .inv-card.selected {
@@ -117,15 +125,25 @@
     background-color: #2a3844;
 }
 
+.inv-card.disabled-item {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+
 .inv-card-img {
     position: relative;
     width: 100%;
     aspect-ratio: 1;
-    background-color: #2a2a2a;
+    background-color: #1a1c1e;
+    /* var(--roblox-bg-primary) */
+    border-radius: 6px;
+    overflow: hidden;
+    margin-top: 0;
+    /* Profile has 12px but uses Gap */
     display: flex;
     align-items: center;
     justify-content: center;
-    overflow: hidden;
 }
 
 .inv-card-img img {
@@ -136,27 +154,30 @@
 }
 
 .inv-card-details {
-    padding: 10px;
+    padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 0;
 }
 
 .inv-card-name {
     color: #fff;
+    /* var(--roblox-text-primary) */
     font-size: 13px;
-    font-weight: 600;
-    margin: 0;
+    font-weight: 500;
+    padding: 4px 2px 0 2px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-style: italic;
+    font-style: normal;
 }
 
 .inv-card-value {
-    color: #00ff88;
-    font-size: 13px;
+    color: #00a366;
+    /* Match profile green */
+    font-size: 14px;
     font-weight: 700;
+    padding: 0 2px;
 }
 
 /* Badges (Copied/Adapted from Catalog) */

@@ -2,13 +2,14 @@ const express = require('express');
 const router = express.Router();
 const supabase = require('../config/supabase');
 const { authenticate, getOnlineUsers } = require('../middleware/auth');
+const { checkAndAwardBadges } = require('../services/badgeService');
 
 // Get user profile
 router.get('/:id', async (req, res) => {
   try {
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, username, email, cash, is_admin, created_at, is_online, banned_until')
+      .select('id, username, email, cash, is_admin, created_at, is_online, banned_until, badges')
       .eq('id', req.params.id)
       .single();
 
@@ -57,7 +58,7 @@ router.get('/me/profile', authenticate, async (req, res) => {
   try {
     const { data: user, error } = await supabase
       .from('users')
-      .select('id, username, email, cash, is_admin, created_at, banned_until, min_trade_value, trade_privacy, inventory_privacy, message_privacy')
+      .select('id, username, email, cash, is_admin, created_at, banned_until, min_trade_value, trade_privacy, inventory_privacy, message_privacy, badges')
       .eq('id', req.user.id)
       .single();
 
@@ -144,6 +145,26 @@ router.get('/me/owns/:itemId', authenticate, async (req, res) => {
   }
 });
 
+
+// Manual Badge Scan Endpoint
+router.post('/me/badges/scan', authenticate, async (req, res) => {
+  try {
+    await checkAndAwardBadges(req.user.id);
+
+    // Fetch updated user to return latest badges
+    const { data: user } = await supabase
+      .from('users')
+      .select('badges')
+      .eq('id', req.user.id)
+      .single();
+
+    res.json({ success: true, badges: user?.badges || [] });
+  } catch (error) {
+    console.error('Error scanning badges:', error);
+    res.status(500).json({ error: 'Failed to scan badges' });
+  }
+});
+
 // Get current user inventory
 router.get('/me/inventory', authenticate, async (req, res) => {
   try {
@@ -205,10 +226,10 @@ router.get('/me/inventory', authenticate, async (req, res) => {
     console.error('Error fetching inventory:', error);
     res.status(500).json({
       error: 'Failed to fetch inventory',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
+
 
 // Leaderboard Cache
 const leaderboardCache = {
@@ -313,13 +334,38 @@ router.get('/leaderboard/value', async (req, res) => {
     }
 
     // Fallback: calculate from user_items
-    const { data: users } = await supabase
+    // Fetch top 100 users (using cash as a heuristic for potential richness, or just generally active users)
+    const { data: users, error: userError } = await supabase
       .from('users')
       .select('id, username')
       .neq('id', ADMIN_USER_ID)
-      .limit(100);
+      .limit(100); // Analyze top 100 candidates
 
-    const leaderboard = (users || []).map(u => ({ id: u.id, username: u.username, value: 0 }));
+    if (userError) throw userError;
+
+    // Parallel calculation for these candidates
+    const leaderboard = await Promise.all((users || []).map(async (u) => {
+      // Calculate inventory value
+      const { data: inventory } = await supabase
+        .from('user_items')
+        .select('items:item_id (value, rap, is_limited)')
+        .eq('user_id', u.id);
+
+      let totalValue = 0;
+      if (inventory) {
+        inventory.forEach(item => {
+          const i = item.items;
+          if (i && i.is_limited) {
+            // Use Value if present, else RAP
+            totalValue += (i.value || i.rap || 0);
+          }
+        });
+      }
+      return { id: u.id, username: u.username, value: totalValue };
+    }));
+
+    // Sort and slice
+    leaderboard.sort((a, b) => b.value - a.value);
     res.json(leaderboard.slice(0, 10));
   } catch (error) {
     console.error('Error fetching value leaderboard:', error);
@@ -366,14 +412,36 @@ router.get('/leaderboard/rap', async (req, res) => {
       return res.json(leaderboard);
     }
 
-    // Fallback: return empty leaderboard
-    const { data: users } = await supabase
+    // Fallback: real calculation
+    // Fetch top 100 users
+    const { data: users, error: userError } = await supabase
       .from('users')
       .select('id, username')
       .neq('id', ADMIN_USER_ID)
       .limit(100);
 
-    const leaderboard = (users || []).map(u => ({ id: u.id, username: u.username, rap: 0 }));
+    if (userError) throw userError;
+
+    // Parallel calculation
+    const leaderboard = await Promise.all((users || []).map(async (u) => {
+      const { data: inventory } = await supabase
+        .from('user_items')
+        .select('items:item_id (rap, is_limited)')
+        .eq('user_id', u.id);
+
+      let totalRap = 0;
+      if (inventory) {
+        inventory.forEach(item => {
+          const i = item.items;
+          if (i && i.is_limited) {
+            totalRap += (i.rap || 0);
+          }
+        });
+      }
+      return { id: u.id, username: u.username, rap: totalRap };
+    }));
+
+    leaderboard.sort((a, b) => b.rap - a.rap);
     res.json(leaderboard.slice(0, 10));
   } catch (error) {
     console.error('Error fetching RAP leaderboard:', error);

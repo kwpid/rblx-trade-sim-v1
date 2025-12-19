@@ -1,6 +1,7 @@
 const supabase = require('../config/supabase');
 const { execSync } = require('child_process');
 const EVENT_ITEMS = require('../config/eventItems');
+const { checkAndAwardBadges } = require('./badgeService');
 
 let isDevBranch = false;
 
@@ -51,7 +52,19 @@ const NAMES = [
     "CloudHopper", "WindWalker", "FireMage", "IceQueen", "StormBringer", "ThunderGod", "EarthQuake", "TornadoAlly",
     "SunChaser", "MoonWalker", "StarGazer", "PlanetHopper", "CometRider", "MeteorMan", "AsteroidAce", "NebulaNinja",
     "CosmicKing", "GalacticHero", "UniverseUser", "DimensionDiver", "TimeTraveler", "SpaceCadet", "RocketMan",
-    "AlienHunter", "UFOSpotter", "MartianMan", "VenusVisitor", "JupiterJumper"
+    "AlienHunter", "UFOSpotter", "MartianMan", "VenusVisitor", "JupiterJumper",
+    // User requested names
+    "jayleng", "weweewew", "prot", "hunt", "kif", "Moxxy", "dark", "yumi", "drali", "wez", "brickbybrick", "mawykzy",
+    "Speed", "koto", "dani", "drk", "Void", "moon", "Lru", "rising", "dynamo", "Hawk", "newpo", "zen", "sieko", "Mino",
+    "dyinq", "toxin", "Bez", "velocity", "Chronic", "Flinch", "vatsi", "Xyzle", "Darkmode", "VAWQK", "wizz", "Sczribbles",
+    "unkown", "Jynx", "Zapz", "Knight", "Cliqz", "Pyro", "dash", "ven", "flow", "zenith", "volty", "Aqua", "Styx", "cheeseboi",
+    "Heat", "Slyde", "Otto", "jetz", "Crisp", "snailracer", "Flickz", "tempo", "Blaze", "skyfall", "steam", "storm",
+    "deltairlines", "trace", "avidic", "tekk", "fluwo", "zark", "diza", "Snooze", "gode", "cola", "vvv", "critt", "ryft",
+    "Lyric", "dryft", "horiz", "zeno", "octane", "wavetidess", "loster", "mamba", "Jack", "innadeze", "offtenlost", "bivo",
+    "Trace", "Talon", "rraze", "zenhj", "Cipher", "nova", "juzz", "vortexx", "officer", "strike", "Titan", "comp", "pahnton",
+    "Mirage", "space", "boltt", "reeper", "piza", "cheese", "frostbite", "warthunderisbest", "eecipe", "Echo", "wisp", "Raptor",
+    "Phantom", "nox", "Spookz", "frost", "Rogue", "horizon", "Orbit", "vega", "shade", "drift", "ember", "static", "Flare",
+    "Lunar", "ignite", "terra", "Zypher", "Oblivion", "Nebula", "chrono"
 ];
 
 // Service State
@@ -146,6 +159,7 @@ const runAiLoop = async () => {
 
     setTimeout(runAiLoop, TICK_RATE);
 };
+
 
 const manageAiSessions = async () => {
     const { data: allAis } = await supabase.from('users').select('id, username, is_online, banned_until').eq('is_ai', true);
@@ -479,6 +493,7 @@ const actionBuyNew = async (ai) => {
     }
 
     console.log(`[AI] ${ai.username} finished buying loop for ${item.name}`);
+    await checkAndAwardBadges(ai.id);
 };
 
 const actionBuyResale = async (ai, personalityProfile) => {
@@ -629,6 +644,8 @@ const actionBuyResale = async (ai, personalityProfile) => {
     }]);
 
     console.log(`[AI] ${ai.username} bought resale: ${target.items.name} for R$${price}`);
+    await checkAndAwardBadges(ai.id);
+    await checkAndAwardBadges(sellerId);
 };
 
 // Helper function to update daily RAP snapshot
@@ -1125,6 +1142,10 @@ const acceptTrade = async (trade, ai) => {
 
         console.log(`[AI] ${ai.username} ACCEPTED trade from user ${trade.sender_id}`);
 
+        // Award badges to both parties
+        await checkAndAwardBadges(trade.sender_id);
+        await checkAndAwardBadges(trade.receiver_id);
+
         // 3. AI TRADE PROOFING
         // Check if trade meets proof requirements (10k+ value on both sides)
         const senderValue = senderItems.reduce((sum, item) => {
@@ -1190,8 +1211,8 @@ const acceptTrade = async (trade, ai) => {
                     title: "Items Exchanged",
                     color: 3066993,
                     fields: [
-                        { name: `${sender?.username || 'Sender'} Gave`, value: formatItems(senderItems), inline: false },
-                        { name: `${receiver?.username || 'Receiver'} Gave`, value: formatItems(receiverItems), inline: false }
+                        { name: `${sender?.username || 'Sender'} Gave:`, value: formatItems(senderItems), inline: false },
+                        { name: `For ${receiver?.username || 'Receiver'}s:`, value: formatItems(receiverItems), inline: false }
                     ]
                 };
 
@@ -1219,70 +1240,30 @@ const declineTrade = async (trade, ai) => {
 
 const actionInitiateTrade = async (ai, p) => {
     // 1. Target Selection Strategy
-    // INCREASED: 60% chance to specifically target REAL PLAYERS (is_ai = false) to ensure they get activity
-    const targetRealPlayers = Math.random() < 0.6;
+    const targetRealPlayers = Math.random() < 0.6; // 60% prefer real players
 
     let query = supabase
         .from('user_items')
         .select(`
             *, 
-            items:item_id(*), 
+            items!inner(*), 
             users!inner(id, is_ai, username)
         `)
         .not('user_id', 'eq', ai.id)
-        .eq('is_for_sale', false) // Target unlisted items (stash)
+        .eq('is_for_sale', false)
         .eq('items.is_limited', true);
 
     if (targetRealPlayers) {
         query = query.eq('users.is_ai', false);
     }
 
-    // Fetch a batch to choose from (Increased to 200 for variety)
-    const { data: candidates, error } = await query.limit(200);
-
-    if (error || !candidates || candidates.length === 0) return;
-
-    // Filter Candidates: Remove bad items (Projected)
-    const validCandidates = candidates.filter(c => {
-        if (!c.items) return false;
-        const rap = c.items.rap || 0;
-        const val = c.items.value || rap;
-        // Avoid projected items unless we are a sniper (looking for victims) or it's just a great deal
-        // Safe bet: Don't buy if RAP > 1.3x Value
-        if (p.description !== 'sniper' && val > 0 && rap > val * 1.3) return false;
-        return true;
-    });
-
-    if (validCandidates.length === 0) return;
-
-    // IMPROVED: Pick a Target Item with preference for higher value items
-    let targetItem;
-
-    // 80% chance to specifically target High Value Items (10k+)
-    if (Math.random() < 0.8) {
-        // Filter for high value
-        const highValueCandidates = validCandidates.filter(c => (c.items?.value || c.items?.rap || 0) >= 10000);
-
-        if (highValueCandidates.length > 0) {
-            targetItem = highValueCandidates[Math.floor(Math.random() * highValueCandidates.length)];
-        } else {
-            // Fallback to > 2000 if no 10k items found
-            const midValueCandidates = validCandidates.filter(c => (c.items?.value || c.items?.rap || 0) >= 2000);
-            if (midValueCandidates.length > 0) {
-                targetItem = midValueCandidates[Math.floor(Math.random() * midValueCandidates.length)];
-            }
-        }
+    const { data: candidates, error } = await query.limit(100);
+    if (error || !candidates || candidates.length === 0) {
+        console.log(`[AI-Trade] ${ai.username} found NO potential candidates for trade.`);
+        return;
     }
 
-    // If still no target (or 20% random low tier), pick random valid one
-    if (!targetItem) {
-        targetItem = validCandidates[Math.floor(Math.random() * validCandidates.length)];
-    }
-
-    const targetUser = targetItem.users;
-
-    // 2. Valuation & Strategy
-    // Helper to get effective valuation (handling projected items)
+    // Helper to get effective valuation
     const getEffectiveValue = (item) => {
         if (!item) return 0;
         const rap = item.rap || 0;
@@ -1291,181 +1272,221 @@ const actionInitiateTrade = async (ai, p) => {
         return val;
     };
 
-    const targetVal = getEffectiveValue(targetItem.items);
-    if (targetVal < 1500) return; // INCREASED THRESHOLD: Don't trade for small items (User request: "bigger trades")
-
-    // 3. Select Our Offer Items
-    const { data: myItems } = await supabase
+    // My Items
+    const { data: myItemsRaw } = await supabase
         .from('user_items')
         .select('*, items:item_id(*)')
         .eq('user_id', ai.id)
         .eq('is_for_sale', false)
         .eq('items.is_limited', true);
 
-    if (!myItems || myItems.length === 0) return;
+    if (!myItemsRaw || myItemsRaw.length === 0) {
+        console.log(`[AI-Trade] ${ai.username} has no items to trade.`);
+        return;
+    }
 
-    // Strategy: Build a smart offer
-    // Smarter AI: Don't just dump random items.
+    const mySortedItems = myItemsRaw
+        .filter(i => i.items)
+        .map(i => ({ ...i, effVal: getEffectiveValue(i.items) }))
+        .sort((a, b) => b.effVal - a.effVal); // High to Low
 
+    // DECISION: UPGRADE or DOWNGRADE?
+    // Upgrade: I give multiple smalls, I get 1 big. (I might overpay)
+    // Downgrade: I give 1 big, I get multiple smalls. (I request overpay)
+
+    // Rich AIs prefer Upgrading (consolidating value) or high-tier trading
+    // Poor AIs prefer "just trading" 
+
+    const myRefVal = mySortedItems.reduce((acc, i) => acc + i.effVal, 0);
+    const mode = Math.random() < 0.5 ? 'upgrade' : 'downgrade';
+
+    // Filter valid candidates
+    const validCandidates = candidates.filter(c => {
+        if (!c.items) return false;
+        const v = getEffectiveValue(c.items);
+        // Clean out garbage
+        if (v < 1000) return false;
+        return true;
+    });
+
+    if (validCandidates.length === 0) {
+        console.log(`[AI-Trade] ${ai.username} found no valid item candidates (>1000 val).`);
+        return;
+    }
+
+    let targetItem = null;
+    let targetUser = null;
     let offerItems = [];
     let offerVal = 0;
 
-    // Sort my items by value desc
-    const mySortedItems = myItems
-        .filter(i => i.items)
-        .map(i => ({ ...i, effVal: getEffectiveValue(i.items) }))
-        .sort((a, b) => b.effVal - a.effVal);
+    // LOGIC 1: UPGRADE (Buy their Big with my Smalls)
+    // Goal: Find an item worth more than my individual items, but affordable with a package
+    if (mode === 'upgrade') {
+        // Find a target item that is roughly 30-50% of my total wealth OR just bigger than my biggest item
+        // But ensures I can afford it.
+        const maxAffordable = myRefVal * 1.1; // Theoretically can trade everything
+        const myBiggest = mySortedItems[0].effVal;
 
-    // Determine Logic based on items available
-    // Humanize: Try to match value cleanly first (1:1 or 2:1), then fill with smalls.
+        // Valid Targets: Items worth more than my biggest, but less than total
+        const upgradeTargets = validCandidates.filter(c => {
+            const v = getEffectiveValue(c.items);
+            return v > myBiggest * 1.1 && v <= maxAffordable;
+        });
 
-    let targetRatio = 1.0;
-
-    // Base Willingness by personality
-    // User Request: "AI shouldn't OP too much"
-    // Tuned Limits:
-    let maxOverpayTolerance = 1.1; // Default tight cap
-    let minOverpay = 0.95;
-
-    if (ai.personality === 'sniper') {
-        targetRatio = 0.9; // Tries to underpay
-        maxOverpayTolerance = 1.0; // Never overpays
-        minOverpay = 0.8;
-    } else if (ai.personality === 'whale') {
-        targetRatio = 1.1; // Generous
-        maxOverpayTolerance = 1.25; // Still caps at 25% OP (reduced from 30%+)
-        minOverpay = 1.0;
-    } else if (ai.personality === 'trader') {
-        targetRatio = 1.0; // Fair
-        maxOverpayTolerance = 1.05; // Very strict, max 5% loss
-        minOverpay = 0.95;
-    } else {
-        // Casual / Hoarder
-        maxOverpayTolerance = 1.1;
-    }
-
-    // High Value targets warrant slightly more flexibility? No, stricter.
-    if (targetVal > 50000) {
-        maxOverpayTolerance = Math.min(maxOverpayTolerance, 1.1); // Cap OP on expensive items
-    }
-
-    let goalValue = targetVal * targetRatio;
-
-    // RARE ITEM BOOST: If item is rare (low stock) or High Demand, AI is willing to pay MORE.
-    // User Request: "ensure AI will still overpay for rares and stuff"
-    const stock = targetItem.items.stock_count || 1000;
-    const demand = targetItem.items.demand || 'medium';
-    const isRare = (stock < 100) || (demand === 'very_high' || demand === 'high');
-
-    if (isRare) {
-        maxOverpayTolerance = 1.5; // Up to 50% Overpay for Rares
-        if (stock < 50) maxOverpayTolerance = 2.0; // Up to 2x for Super Rares
-
-        // Also boost goal value slightly to ensure we make a tempting offer
-        goalValue = goalValue * 1.1;
-    }
-
-    // TRADING INTELLIGENCE: Adjust offer based on item's trading history
-    // If item typically gets overpays, AI should offer around that amount
-    // If item typically gets lowballs, AI can lowball too
-    const avgOverpay = targetItem.items.avg_overpay || 0;
-    const avgLowball = targetItem.items.avg_lowball || 0;
-    const tradeFrequency = targetItem.items.trade_frequency || 'normal';
-
-    if (avgOverpay > 0) {
-        // Item typically gets overpays - AI should offer similar amounts
-        // Apply 80-120% of the typical overpay to add variance
-        const overpayVariance = 0.8 + Math.random() * 0.4;
-        const adjustedOverpay = avgOverpay * overpayVariance;
-
-        // Add the overpay to goal value
-        goalValue += adjustedOverpay;
-
-        // Increase tolerance to accommodate the overpay
-        maxOverpayTolerance = Math.max(maxOverpayTolerance, 1 + (adjustedOverpay / targetVal));
-
-        console.log(`[AI] ${ai.username} adjusting offer for ${targetItem.items.name} - typical OP: ${avgOverpay}, adding: ${Math.floor(adjustedOverpay)}`);
-    } else if (avgLowball > 0 && ai.personality === 'sniper') {
-        // Item typically gets lowballs - snipers can lowball too
-        const lowballVariance = 0.8 + Math.random() * 0.4;
-        const adjustedLowball = avgLowball * lowballVariance;
-
-        // Reduce goal value by the lowball amount
-        goalValue = Math.max(goalValue - adjustedLowball, targetVal * 0.7); // Don't go below 70%
-
-        console.log(`[AI] ${ai.username} lowballing ${targetItem.items.name} - typical LB: ${avgLowball}, reducing by: ${Math.floor(adjustedLowball)}`);
-    }
-
-    // Adjust behavior based on trade frequency
-    if (tradeFrequency === 'frequent') {
-        // Frequently traded items - AI is more willing to trade
-        // Slightly increase tolerance
-        maxOverpayTolerance *= 1.05;
-    } else if (tradeFrequency === 'rare') {
-        // Rarely traded items - AI is more cautious
-        // Reduce tolerance slightly
-        maxOverpayTolerance *= 0.95;
-    }
-
-    // Logic: 
-    // 1. Try to find a single item close to value (1:1 trade)
-    const perfectMatch = mySortedItems.find(i =>
-        i.effVal >= targetVal * minOverpay &&
-        i.effVal <= targetVal * maxOverpayTolerance &&
-        i.items.id !== targetItem.items.id // Not same item
-    );
-
-    if (perfectMatch) {
-        offerItems.push(perfectMatch);
-        offerVal = perfectMatch.effVal;
-    } else {
-        // 2. Build a package
-        // Filter out same item as target to avoid "Item A for Item A" silliness
-        const candidates = mySortedItems.filter(i => i.items.id !== targetItem.items.id);
-
-        // Try to find a "Base" item (50-90% of value)
-        for (const item of candidates) {
-            // Avoid adding duplicate items to the offer if we want "clean" trades (unless hoarder/whale)
-            // User Request: "ai shjouldnt send the same items for one item" -> assume implies "don't stack duplicates in offer"
-            const alreadyHasOriginal = offerItems.some(o => o.items.id === item.items.id);
-            if (alreadyHasOriginal && ai.personality !== 'hoarder') continue;
-
-            if (offerVal + item.effVal <= goalValue * maxOverpayTolerance) {
-                offerItems.push(item);
-                offerVal += item.effVal;
-            }
-
-            if (offerVal >= goalValue * 0.98) break;
+        if (upgradeTargets.length > 0) {
+            targetItem = upgradeTargets[Math.floor(Math.random() * upgradeTargets.length)];
+        } else {
+            // Fallback: Just pick a decent item
+            targetItem = validCandidates[Math.floor(Math.random() * validCandidates.length)];
         }
+    } else {
+        // LOGIC 2: DOWNGRADE (Sell my Big for their Smalls)
+        // I pick my best item (or a good one) and find someone who has enough smalls
+        // Actually, this function is "initiate trade", so I must select THEIR items.
+        // So I see who has enough small items to afford my big item? 
+        // THIS IS HARD via simple query.
 
-        // 3. If nearly there but need a "small" to bridge gap
-        // Try to find a small item specifically
-        if (offerVal < goalValue && offerVal > goalValue * 0.8) {
-            const difference = goalValue - offerVal;
-            // Look for item close to difference
-            const small = candidates.find(i =>
-                !offerItems.includes(i) &&
-                i.effVal <= difference * 1.5 && // Can go a bit over
-                i.effVal >= difference * 0.5    // But meaningful
-            );
-            if (small && (offerVal + small.effVal <= goalValue * maxOverpayTolerance)) {
-                offerItems.push(small);
-                offerVal += small.effVal;
+        // Alternative Downgrade: I pick a target user's "Medium" item that I want, 
+        // and I offer a "Small" item + "Small" item? No that's upgrade.
+
+        // "Downgrade" from AI perspective means "I give 1 Big Item".
+        // Construction: I select Target User first? 
+        // Let's stick to "I select Target Item". 
+        // If I want to downgrade, implies I am buying 3-4 small items from them?
+        // That's legally a "Split" or "Downgrade" for THEM.
+
+        // User said: "ensure ai can send trades like 1 on 3-4 ... and they request an overpay for a rare item of theirs"
+        // This implies AI IS SELLING.
+        // So AI puts 1 item in window, and asks for 3-4 items from user.
+
+        // To do this: I need to scan users who have a bunch of items.
+        // Let's flip the logic.
+
+        // Pick one of MY High Value items.
+        const myBigs = mySortedItems.filter(i => i.effVal > 10000);
+        if (myBigs.length > 0) {
+            const myItemToSell = myBigs[Math.floor(Math.random() * myBigs.length)];
+
+            // Find a user who can afford this (has total value > myItemVal * 1.1)
+            // We need to fetch inventories of candidates. The 'candidates' array is actually flattened items.
+            // We can group candidates by user.
+            const userInventories = {};
+            validCandidates.forEach(c => {
+                if (!userInventories[c.user_id]) userInventories[c.user_id] = [];
+                userInventories[c.user_id].push(c);
+            });
+
+            // Find a user with enough items
+            const capableUsers = Object.values(userInventories).filter(inv => {
+                const total = inv.reduce((sum, item) => sum + getEffectiveValue(item.items), 0);
+                return total >= myItemToSell.effVal * 1.05; // Can afford with slight OP
+            });
+
+            if (capableUsers.length > 0) {
+                // Select a victim
+                const victimInv = capableUsers[Math.floor(Math.random() * capableUsers.length)];
+                targetUser = victimInv[0].users;
+
+                // Construct "Request": I give 1 (myItemToSell), I want 3-4 items.
+                // Request Overpay usually. 
+                const myVal = myItemToSell.effVal;
+                let requestValGoal = myVal * 1.05; // Ask for 5% overpay baseline
+
+                // Adjust for rarity
+                const stock = myItemToSell.items.remaining_stock || 1000;
+                if (stock < 100) requestValGoal = myVal * 1.2; // 20% OP for rare
+                if (stock < 50) requestValGoal = myVal * 1.5; // 50% OP for super rare
+
+                // Pick items from Victim to satisfy requestValGoal
+                // Sort victim items high to low
+                const victimSorted = victimInv.map(i => ({ ...i, effVal: getEffectiveValue(i.items) })).sort((a, b) => b.effVal - a.effVal);
+
+                let currentRequestVal = 0;
+                let requestedItems = [];
+
+                for (const item of victimSorted) {
+                    if (currentRequestVal + item.effVal <= requestValGoal * 1.1) {
+                        requestedItems.push(item);
+                        currentRequestVal += item.effVal;
+                    }
+                    if (currentRequestVal >= requestValGoal * 0.95) break;
+                }
+
+                // If valid trade constructed
+                if (requestedItems.length >= 1 && currentRequestVal >= myVal) {
+                    // EXECUTE SELL TRADE
+                    // 4. Send Trade
+                    const { count: existing } = await supabase
+                        .from('trades')
+                        .select('id', { count: 'exact', head: true })
+                        .eq('sender_id', ai.id)
+                        .eq('receiver_id', targetUser.id)
+                        .eq('status', 'pending');
+
+                    if (existing === 0) {
+                        const { data: trade } = await supabase
+                            .from('trades')
+                            .insert([{ sender_id: ai.id, receiver_id: targetUser.id, status: 'pending' }])
+                            .select()
+                            .single();
+
+                        if (trade) {
+                            const tradeItemsPayload = [];
+                            // My Item (Sender)
+                            tradeItemsPayload.push({ trade_id: trade.id, user_item_id: myItemToSell.id, side: 'sender' });
+                            // Their Items (Receiver)
+                            requestedItems.forEach(i => {
+                                tradeItemsPayload.push({ trade_id: trade.id, user_item_id: i.id, side: 'receiver' });
+                            });
+                            await supabase.from('trade_items').insert(tradeItemsPayload);
+                            console.log(`[AI] ${ai.username} SENDING DOWNGRADE (Selling). Giving: ${myItemToSell.items.name} (${myVal}), Requesting: ${requestedItems.length} items (${currentRequestVal}). Exp OP: ${(currentRequestVal / myVal).toFixed(2)}x`);
+                        }
+                    }
+                    return; // Done
+                }
             }
         }
+
+        // If Logic 2 failed, fall through to standard "Upgrade/Buy" logic
+        targetItem = validCandidates[Math.floor(Math.random() * validCandidates.length)];
+    }
+
+    if (!targetItem) {
+        console.log(`[AI-Trade] ${ai.username} failed to select a targetItem in ${mode} mode.`);
+        return;
+    }
+    targetUser = targetItem.users;
+    const targetVal = getEffectiveValue(targetItem.items);
+
+    // LOGIC 1 CONTINUED: Build Offer for targetItem (Upgrade/Buy)
+    let myOfferItems = [];
+    let myCurrentVal = 0;
+
+    // Limits
+    let maxOverpay = 1.1;
+    if (ai.personality === 'sniper') maxOverpay = 0.95; // Snipers don't OP
+    if (ai.personality === 'whale') maxOverpay = 1.3;
+
+    // Rare Check
+    if (targetItem.items.remaining_stock < 100) maxOverpay = 1.5;
+
+    // Try to satisfy value
+    for (const item of mySortedItems) {
+        if (item.items.id === targetItem.items.id) continue; // Skip same
+        if (myCurrentVal + item.effVal <= targetVal * maxOverpay) {
+            myOfferItems.push(item);
+            myCurrentVal += item.effVal;
+        }
+        if (myCurrentVal >= targetVal * 0.95) break; // Close enough?
     }
 
     // Validation
-    if (offerItems.length === 0) return;
+    if (myOfferItems.length === 0) {
+        console.log(`[AI-Trade] ${ai.username} failed to construct an offer for ${targetItem.items.name}.`);
+        return;
+    }
 
-    // Check Ratios
-    if (offerVal < targetVal * minOverpay) return; // Too low
-    if (offerVal > targetVal * maxOverpayTolerance) return; // Too high
-
-    // DOUBLE CHECK: Don't send 1:1 same item
-    if (offerItems.length === 1 && offerItems[0].items.id === targetItem.items.id) return;
-
-    // 4. Send Trade
+    // Send Trade
     const { count: existing } = await supabase
         .from('trades')
         .select('id', { count: 'exact', head: true })
@@ -1473,35 +1494,24 @@ const actionInitiateTrade = async (ai, p) => {
         .eq('receiver_id', targetUser.id)
         .eq('status', 'pending');
 
-    if (existing > 0) return;
+    if (existing === 0) {
+        const { data: trade } = await supabase
+            .from('trades')
+            .insert([{ sender_id: ai.id, receiver_id: targetUser.id, status: 'pending' }])
+            .select()
+            .single();
 
-    const { data: trade, error: tradeError } = await supabase
-        .from('trades')
-        .insert([{
-            sender_id: ai.id,
-            receiver_id: targetUser.id,
-            status: 'pending'
-        }])
-        .select()
-        .single();
+        if (trade) {
+            const tradeItemsPayload = [];
+            myOfferItems.forEach(i => {
+                tradeItemsPayload.push({ trade_id: trade.id, user_item_id: i.id, side: 'sender' });
+            });
+            tradeItemsPayload.push({ trade_id: trade.id, user_item_id: targetItem.id, side: 'receiver' });
 
-    if (tradeError) return;
-
-    // Insert Trade Items
-    const tradeItemsPayload = [];
-    offerItems.forEach(i => {
-        tradeItemsPayload.push({ trade_id: trade.id, user_item_id: i.id, side: 'sender' });
-    });
-    tradeItemsPayload.push({ trade_id: trade.id, user_item_id: targetItem.id, side: 'receiver' });
-
-    const { error: itemsError } = await supabase.from('trade_items').insert(tradeItemsPayload);
-    if (itemsError) {
-        // Rollback? AI service doesn't really care, but good to know errors.
-        console.error("AI Trade Item Error", itemsError);
-        return;
+            await supabase.from('trade_items').insert(tradeItemsPayload);
+            console.log(`[AI] ${ai.username} SENDING UPGRADE (Buying). Want: ${targetItem.items.name} (${targetVal}), Offering: ${myOfferItems.length} items (${myCurrentVal}). Ratio: ${(myCurrentVal / targetVal).toFixed(2)}x`);
+        }
     }
-
-    console.log(`[AI] ${ai.username} SENT trade to ${targetUser.username}. Offer: ${offerVal} (x${offerItems.length}) vs Ask: ${targetVal} (Item: ${targetItem.items.name}) Ratio: ${(offerVal / targetVal).toFixed(2)}`);
 };
 
 

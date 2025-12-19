@@ -85,32 +85,54 @@ router.post('/items', async (req, res) => {
 
     // Don't create initial RAP entry - RAP is only for reseller purchases
 
-    // Send Webhook (Item Release)
+    // Send Webhook (Item Release) & In-Game Notifications
     try {
       const axios = require('axios');
-      // TODO: User to provide specific webhook URL for item releases
+      // Discord Webhook
       const webhookUrl = process.env.DISCORD_WEBHOOK_URL_ITEMS;
+      if (webhookUrl) {
+        // ... (Embed construction same as before) ...
+        const embed = {
+          title: item.name,
+          thumbnail: { url: item.image_url },
+          color: 16766720, // Gold
+          fields: [
+            { name: "Price", value: `R$${item.initial_price.toLocaleString()}`, inline: true }
+          ]
+        };
 
-      const embed = {
-        title: item.name,
-        thumbnail: { url: item.image_url },
-        color: 16766720, // Gold
-        fields: [
-          { name: "Price", value: `R$${item.initial_price.toLocaleString()}`, inline: true }
-        ]
-      };
+        if (item.sale_type === 'stock') {
+          embed.fields.push({ name: "Stock", value: item.stock_count.toLocaleString(), inline: true });
+        } else if (item.sale_type === 'timer') {
+          embed.fields.push({ name: "Available Until", value: new Date(item.sale_end_time).toLocaleString(), inline: true });
+        } else {
+          embed.fields.push({ name: "Type", value: "Regular", inline: true });
+        }
 
-      if (item.sale_type === 'stock') {
-        embed.fields.push({ name: "Stock", value: item.stock_count.toLocaleString(), inline: true });
-      } else if (item.sale_type === 'timer') {
-        embed.fields.push({ name: "Available Until", value: new Date(item.sale_end_time).toLocaleString(), inline: true });
-      } else {
-        embed.fields.push({ name: "Type", value: "Regular", inline: true });
+        await axios.post(webhookUrl, { embeds: [embed] }).catch(err => console.error("Discord webhook failed", err.message));
       }
 
-      await axios.post(webhookUrl, { embeds: [embed] });
+      // GLOBAL NOTIFICATION
+      // 1. Get all user IDs (Real + AI)
+      const { data: allUsers } = await supabase.from('users').select('id');
+
+      if (allUsers && allUsers.length > 0) {
+        const notifPayload = allUsers.map(u => ({
+          user_id: u.id,
+          type: 'item_release',
+          message: `New Item Dropped: ${item.name}!`,
+          link: `/catalog/${item.id}`,
+          is_read: false,
+          created_at: new Date().toISOString()
+        }));
+
+        // Batch insert (supabase handles batch well)
+        await supabase.from('notifications').insert(notifPayload);
+        console.log(`[Admin] Broadcasted new item notification to ${allUsers.length} users.`);
+      }
+
     } catch (err) {
-      console.error("Failed to send item release webhook:", err);
+      console.error("Failed to send item release notifications:", err);
     }
 
     res.json(item);
@@ -612,6 +634,138 @@ router.get('/moderation-logs/:userId', async (req, res) => {
   } catch (error) {
     console.error('Error fetching logs:', error);
     res.status(500).json({ error: 'Failed to fetch logs' });
+  }
+});
+
+// Search users
+router.get('/users/search', async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q || q.length < 2) return res.json([]);
+
+    const { data: users, error } = await supabase
+      .from('users')
+      .select('id, username, created_at, is_online')
+      .ilike('username', `%${q}%`)
+      .limit(10);
+
+    if (error) throw error;
+    res.json(users);
+  } catch (error) {
+    console.error('Error searching users:', error);
+    res.status(500).json({ error: 'Failed to search users' });
+  }
+});
+
+// Get specific user inventory (Admin view)
+router.get('/users/:userId/inventory', async (req, res) => {
+  try {
+    const { data: items, error } = await supabase
+      .from('user_items')
+      .select(`
+        *,
+        items:item_id (*)
+      `)
+      .eq('user_id', req.params.userId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    res.json(items);
+  } catch (error) {
+    console.error('Error fetching user inventory:', error);
+    res.status(500).json({ error: 'Failed to fetch inventory' });
+  }
+});
+
+
+// Delete specific user item (Serial #)
+router.delete('/user-items/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    // Delete trade artifacts first if any
+    await supabase.from('trade_items').delete().eq('user_item_id', id);
+
+    // Delete item
+    const { error } = await supabase.from('user_items').delete().eq('id', id);
+    if (error) throw error;
+
+    // Log
+    await supabase.from('moderation_logs').insert([{
+      user_id: req.user.id, // Admin doing it
+      action: 'delete_item',
+      reason: `Deleted user_item ${id}`,
+      moderator_id: req.user.id
+    }]);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting user item:', error);
+    res.status(500).json({ error: 'Failed to delete item' });
+  }
+});
+
+// Transfer item
+router.post('/user-items/:id/transfer', async (req, res) => {
+  try {
+    const { target_user_id, target_username } = req.body;
+    let finalTargetId = target_user_id;
+
+    if (!finalTargetId && target_username) {
+      const { data: u } = await supabase.from('users').select('id').eq('username', target_username).single();
+      if (u) finalTargetId = u.id;
+    }
+
+    if (!finalTargetId) return res.status(400).json({ error: 'Target user not found' });
+
+    // Update owner
+    const { error } = await supabase
+      .from('user_items')
+      .update({ user_id: finalTargetId, is_for_sale: false, price: null })
+      .eq('id', req.params.id);
+
+    if (error) throw error;
+
+    // Remove from active trades
+    await supabase.from('trade_items').delete().eq('user_item_id', req.params.id);
+
+    // Log
+    await supabase.from('moderation_logs').insert([{
+      user_id: finalTargetId,
+      action: 'transfer_item_receive',
+      reason: `Transferred user_item ${req.params.id} to user`,
+      moderator_id: req.user.id
+    }]);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error transferring item:', error);
+    res.status(500).json({ error: 'Failed to transfer item' });
+  }
+});
+
+// NEW: Search item by serial number
+router.get('/serial-search', async (req, res) => {
+  try {
+    const { itemId, serialNumber } = req.query;
+    if (!itemId || !serialNumber) {
+      return res.status(400).json({ error: 'Item ID and Serial Number are required' });
+    }
+
+    const { data: results, error } = await supabase
+      .from('user_items')
+      .select(`
+        *,
+        users (id, username),
+        items:item_id (id, name, image_url)
+      `)
+      .eq('item_id', itemId)
+      .eq('serial_number', parseInt(serialNumber));
+
+    if (error) throw error;
+    res.json(results || []);
+  } catch (error) {
+    console.error('Error searching serial:', error);
+    res.status(500).json({ error: 'Failed to search serial' });
   }
 });
 

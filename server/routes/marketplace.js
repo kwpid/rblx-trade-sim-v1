@@ -3,6 +3,7 @@ const { authenticate, requireAdmin } = require('../middleware/auth');
 const router = express.Router();
 const supabase = require('../config/supabase');
 const { updateChallengeProgress, CHALLENGE_TYPES } = require('../utils/eventHelper');
+const { checkAndAwardBadges } = require('../services/badgeService');
 
 // Helper function to update daily RAP snapshot
 const updateItemRAPSnapshot = async (itemId, salePrice) => {
@@ -298,6 +299,9 @@ router.post('/purchase', authenticate, async (req, res) => {
     // Track Event: Buy Value
     updateChallengeProgress(req.user.id, CHALLENGE_TYPES.BUY_VALUE, item.current_price); // Using price paid
 
+    // Check for Badges
+    checkAndAwardBadges(req.user.id);
+
     res.json({ success: true, userItem });
   } catch (error) {
     console.error('Error purchasing item:', error);
@@ -543,6 +547,11 @@ router.post('/purchase-from-player', authenticate, async (req, res) => {
     // I'll add a trigger call anyway if the backend supported it, but it doesn't seem to track list time.
     // Manually:
     updateChallengeProgress(seller.id, CHALLENGE_TYPES.SELL_FAST, 1); // Generously award fast sale for any sale for now to keep it fun/simple
+
+    // Check for Badges (Buyer gets item, Seller gets cash)
+    // Seller might lose value based badges, but we check anyway
+    checkAndAwardBadges(req.user.id);
+    checkAndAwardBadges(seller.id);
 
     res.json({ success: true });
   } catch (error) {

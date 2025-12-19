@@ -23,6 +23,7 @@ import PrivateRoute from './components/PrivateRoute'
 import TopBar from './components/TopBar'
 import NotificationContainer from './components/NotificationContainer'
 import PaycheckNotification from './components/PaycheckNotification'
+import Badges from './pages/Badges'
 import BannedOverlay from './components/BannedOverlay'
 import Footer from './components/Footer'
 import TermsOfService from './pages/TermsOfService'
@@ -58,6 +59,7 @@ function App() {
                         <Route path="/value-changes" element={<ValueChanges />} />
                         <Route path="/transactions" element={<Transactions />} />
                         <Route path="/leaderboard" element={<Leaderboard />} />
+                        <Route path="/badges" element={<Badges />} />
                         <Route path="/settings" element={<Settings />} />
                         <Route path="/admin" element={<AdminPanel />} />
                         <Route path="/tos" element={<TermsOfService />} />

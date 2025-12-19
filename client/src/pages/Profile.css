@@ -347,3 +347,27 @@
   font-size: 16px;
   opacity: 0.9;
 }
+
+/* Badge Styles */
+.mini-badge-square {
+  width: 32px;
+  height: 32px;
+  background-color: #2b2d31;
+  border: 1px solid #444;
+  border-radius: 4px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: transform 0.2s, background-color 0.2s;
+  cursor: help;
+}
+
+.mini-badge-square:hover {
+  transform: translateY(-2px);
+  background-color: #383a40;
+  border-color: #666;
+}
+
+.mini-badge-icon {
+  font-size: 18px;
+}

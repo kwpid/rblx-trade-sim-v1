@@ -3,6 +3,7 @@ const router = express.Router();
 const supabase = require('../config/supabase');
 const { authenticate } = require('../middleware/auth');
 const { updateChallengeProgress, CHALLENGE_TYPES } = require('../utils/eventHelper');
+const { checkAndAwardBadges } = require('../services/badgeService');
 
 // Helper to get trade details
 async function getTradeWithItems(tradeId) {
@@ -388,6 +389,10 @@ router.post('/:id/accept', authenticate, async (req, res) => {
       updateChallengeProgress(trade.receiver_id, CHALLENGE_TYPES.TRADE_PROFIT, receiverProfit);
     }
 
+    // Check for Badges
+    checkAndAwardBadges(trade.sender_id);
+    checkAndAwardBadges(trade.receiver_id);
+
     res.json({ success: true, trade: updatedTrade });
 
   } catch (error) {
@@ -554,8 +559,8 @@ router.post('/:id/proof', authenticate, async (req, res) => {
       title: "Items Exchanged",
       color: 3066993,
       fields: [
-        { name: `${sender.username} Gave`, value: formatItems(senderItems), inline: false },
-        { name: `${receiver.username} Gave`, value: formatItems(receiverItems), inline: false }
+        { name: `${sender.username} Gave:`, value: formatItems(senderItems), inline: false },
+        { name: `For ${receiver.username}s:`, value: formatItems(receiverItems), inline: false }
       ]
     };
 

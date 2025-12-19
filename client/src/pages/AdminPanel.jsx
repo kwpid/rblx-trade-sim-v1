@@ -185,6 +185,21 @@ const AdminPanel = () => {
   })
   const [itemSearchQuery, setItemSearchQuery] = useState('')
 
+  // Inventory Tab State
+  const [userSearchQuery, setUserSearchQuery] = useState('')
+  const [userSearchResults, setUserSearchResults] = useState([])
+  const [selectedUserInventory, setSelectedUserInventory] = useState(null)
+  const [loadingInventory, setLoadingInventory] = useState(false)
+  const [transferModalOpen, setTransferModalOpen] = useState(false)
+  const [itemToTransfer, setItemToTransfer] = useState(null)
+  const [transferTargetUsername, setTransferTargetUsername] = useState('')
+
+  // Serial Search State
+  const [serialSearchItemId, setSerialSearchItemId] = useState('')
+  const [serialSearchNumber, setSerialSearchNumber] = useState('')
+  const [serialSearchResults, setSerialSearchResults] = useState([])
+  const [isSearchingSerial, setIsSearchingSerial] = useState(false)
+
   const [formData, setFormData] = useState({
     roblox_item_id: '',
     initial_price: '',
@@ -257,6 +272,88 @@ const AdminPanel = () => {
     }
   }
 
+  // Inventory Management Logic
+  const searchUsers = async (query) => {
+    if (!query || query.length < 2) {
+      setUserSearchResults([]);
+      return;
+    }
+    try {
+      const { data } = await axios.get(`/api/admin/users/search?q=${query}`);
+      setUserSearchResults(data);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  const fetchUserInventory = async (userId, username) => {
+    setLoadingInventory(true);
+    try {
+      const { data } = await axios.get(`/api/admin/users/${userId}/inventory`);
+      setSelectedUserInventory({ userId, username, items: data });
+      setUserSearchResults([]);
+      setUserSearchQuery('');
+    } catch (err) {
+      showPopup('Failed to fetch inventory', 'error');
+    } finally {
+      setLoadingInventory(false);
+    }
+  }
+
+  const handleDeleteUserItem = async (itemId) => {
+    if (!window.confirm("Are you sure you want to DELETE this specific item (Serial #)? Operations is irreversible.")) return;
+    try {
+      await axios.delete(`/api/admin/user-items/${itemId}`);
+      showPopup('Item deleted from user inventory', 'success');
+      if (selectedUserInventory) {
+        fetchUserInventory(selectedUserInventory.userId, selectedUserInventory.username);
+      }
+    } catch (err) {
+      showPopup('Failed to delete item', 'error');
+    }
+  }
+
+  const handleTransferItem = async () => {
+    if (!itemToTransfer || !transferTargetUsername) return;
+    try {
+      await axios.post(`/api/admin/user-items/${itemToTransfer.id}/transfer`, { target_username: transferTargetUsername });
+      showPopup(`Item transferred to ${transferTargetUsername}`, 'success');
+      setTransferModalOpen(false);
+      setTransferTargetUsername('');
+      setItemToTransfer(null);
+      if (selectedUserInventory) {
+        fetchUserInventory(selectedUserInventory.userId, selectedUserInventory.username);
+      }
+    } catch (err) {
+      showPopup(err.response?.data?.error || 'Transfer failed', 'error');
+    }
+  }
+
+  const handleSerialSearch = async () => {
+    if (!serialSearchItemId || !serialSearchNumber) {
+      showPopup('Please select an item and enter a serial number', 'error')
+      return
+    }
+    setIsSearchingSerial(true)
+    try {
+      const { data } = await axios.get('/api/admin/serial-search', {
+        params: {
+          itemId: serialSearchItemId,
+          serialNumber: serialSearchNumber
+        }
+      })
+      setSerialSearchResults(data)
+      if (data.length === 0) {
+        showPopup('No owner found for this serial', 'error')
+      }
+    } catch (err) {
+      console.error(err)
+      showPopup('Failed to search serial', 'error')
+    } finally {
+      setIsSearchingSerial(false)
+    }
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     try {
@@ -321,6 +418,18 @@ const AdminPanel = () => {
             onClick={() => setActiveTab('values')}
           >
             Value Updates
+          </button>
+          <button
+            className={`admin-tab ${activeTab === 'inventory' ? 'active' : ''}`}
+            onClick={() => setActiveTab('inventory')}
+          >
+            Inventory (Mod)
+          </button>
+          <button
+            className={`admin-tab ${activeTab === 'serial' ? 'active' : ''}`}
+            onClick={() => setActiveTab('serial')}
+          >
+            Serial Tracking
           </button>
         </div>
 
@@ -641,6 +750,110 @@ const AdminPanel = () => {
           </>
         )}
 
+        {/* --- INVENTORY TAB --- */}
+        {activeTab === 'inventory' && (
+          <div className="inventory-mod-section">
+            <h2>User Inventory Management</h2>
+
+            {/* Search */}
+            <div className="form-group">
+              <label>Search User to Moderate</label>
+              <input
+                type="text"
+                className="input"
+                value={userSearchQuery}
+                onChange={(e) => {
+                  setUserSearchQuery(e.target.value);
+                  searchUsers(e.target.value);
+                }}
+                placeholder="Search by username..."
+              />
+              {userSearchResults.length > 0 && (
+                <div className="user-search-results">
+                  {userSearchResults.map(u => (
+                    <div key={u.id} className="user-result-item" onClick={() => fetchUserInventory(u.id, u.username)}>
+                      <div className="user-name">{u.username}</div>
+                      <div className="user-meta">{u.is_online ? 'Online' : 'Offline'}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Selected Inventory */}
+            {selectedUserInventory && (
+              <div className="inventory-view">
+                <div className="admin-header">
+                  <h3>Inventory: {selectedUserInventory.username}</h3>
+                  <button className="btn btn-secondary" onClick={() => setSelectedUserInventory(null)}>Close</button>
+                </div>
+
+                {loadingInventory ? (
+                  <div className="spinner"></div>
+                ) : selectedUserInventory.items.length === 0 ? (
+                  <p>No items found in this user's inventory.</p>
+                ) : (
+                  <div className="items-table">
+                    <div className="table-header">
+                      <div>Item</div>
+                      <div>Serial</div>
+                      <div>RAP</div>
+                      <div>Status</div>
+                      <div>Actions</div>
+                    </div>
+                    {selectedUserInventory.items.map(ui => (
+                      <div key={ui.id} className="table-row">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <img src={ui.items.image_url} style={{ width: '32px', borderRadius: '4px' }} alt="" />
+                          {ui.items.name}
+                        </div>
+                        <div>#{ui.serial_number}</div>
+                        <div>{ui.items.rap?.toLocaleString() || '-'}</div>
+                        <div>
+                          {ui.is_for_sale ? <span className="badge active">Selling: {ui.sale_price}</span> : 'In Inventory'}
+                        </div>
+                        <div className="admin-actions">
+                          <button className="btn btn-secondary btn-small" onClick={() => {
+                            setItemToTransfer(ui);
+                            setTransferModalOpen(true);
+                          }}>Transfer</button>
+                          <button className="btn btn-danger btn-small" onClick={() => handleDeleteUserItem(ui.id)}>Delete</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Transfer Modal */}
+            {transferModalOpen && itemToTransfer && (
+              <div className="modal-overlay" onClick={() => setTransferModalOpen(false)}>
+                <div className="modal" onClick={(e) => e.stopPropagation()}>
+                  <h3>Transfer Item: {itemToTransfer.items.name} (#{itemToTransfer.serial_number})</h3>
+                  <p>Current Owner: {selectedUserInventory.username}</p>
+
+                  <div className="form-group">
+                    <label>Target Username</label>
+                    <input
+                      type="text"
+                      className="input"
+                      value={transferTargetUsername}
+                      onChange={(e) => setTransferTargetUsername(e.target.value)}
+                      placeholder="Enter username to receive item"
+                    />
+                  </div>
+
+                  <div className="modal-actions">
+                    <button className="btn" onClick={handleTransferItem}>Confirm Transfer</button>
+                    <button className="btn btn-secondary" onClick={() => setTransferModalOpen(false)}>Cancel</button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {activeTab === 'values' && (
           <div className="value-update-section">
             <h2>Update Item Values</h2>
@@ -837,11 +1050,104 @@ const AdminPanel = () => {
                       <div>R${(item.value || 0).toLocaleString()}</div>
                       <div style={{ textTransform: 'capitalize' }}>{item.trend || 'stable'}</div>
                       <div style={{ textTransform: 'capitalize' }}>{(item.demand || 'unknown').replace('_', ' ')}</div>
-                      <div>{item.value_updated_at ? new Date(item.value_updated_at).toLocaleDateString() : 'Never'}</div>
+                      <div>{item.value_updated_at ? new Date(item.value_updated_at).toLocaleString() : 'Never'}</div>
                     </div>
                   ))}
               </div>
             </div>
+          </div>
+        )}
+
+        {activeTab === 'serial' && (
+          <div className="serial-search-container">
+            <h3>Serial Number Tracking</h3>
+            <p className="tab-description">Find the current owner of a specific item by its serial number.</p>
+
+            <div className="serial-search-box card">
+              <div className="form-group">
+                <label>Select Item</label>
+                <div className="item-search-wrapper">
+                  <input
+                    type="text"
+                    className="input"
+                    placeholder="Search item to track..."
+                    value={itemSearchQuery}
+                    onChange={(e) => setItemSearchQuery(e.target.value)}
+                  />
+                  <div className="item-selection-grid miniature">
+                    {items
+                      .filter(item => item.is_limited || item.is_off_sale || (item.sale_type === 'stock' && item.remaining_stock <= 0))
+                      .filter(item => itemSearchQuery === '' || item.name.toLowerCase().includes(itemSearchQuery.toLowerCase()))
+                      .slice(0, 10)
+                      .map(item => (
+                        <div
+                          key={item.id}
+                          className={`mini-item-card ${serialSearchItemId === item.id ? 'active' : ''}`}
+                          onClick={() => setSerialSearchItemId(item.id)}
+                        >
+                          <img src={item.image_url} alt={item.name} />
+                          <span>{item.name}</span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="form-group" style={{ marginTop: '20px' }}>
+                <label>Serial Number</label>
+                <input
+                  type="number"
+                  className="input"
+                  placeholder="Enter serial number (e.g. 1)"
+                  value={serialSearchNumber}
+                  onChange={(e) => setSerialSearchNumber(e.target.value)}
+                  min="1"
+                />
+              </div>
+
+              <button
+                className="btn"
+                style={{ marginTop: '20px', width: '100%' }}
+                onClick={handleSerialSearch}
+                disabled={isSearchingSerial}
+              >
+                {isSearchingSerial ? 'Searching...' : 'Search Owner'}
+              </button>
+            </div>
+
+            {serialSearchResults.length > 0 && (
+              <div className="serial-results card" style={{ marginTop: '24px' }}>
+                <h4>Search Results</h4>
+                {serialSearchResults.map(result => (
+                  <div key={result.id} className="serial-result-row">
+                    <div className="result-item-info">
+                      <img src={result.items.image_url} alt={result.items.name} />
+                      <div>
+                        <strong>{result.items.name}</strong>
+                        <div>Serial #{result.serial_number}</div>
+                      </div>
+                    </div>
+                    <div className="result-owner-info">
+                      <div className="label">Current Owner:</div>
+                      <div className="owner-name">{result.users.username}</div>
+                      <button
+                        className="btn btn-small btn-secondary"
+                        onClick={() => {
+                          setActiveTab('inventory');
+                          fetchUserInventory(result.users.id, result.users.username);
+                        }}
+                      >
+                        Manage Inv
+                      </button>
+                    </div>
+                    <div className="result-meta">
+                      <div>Acquired: {new Date(result.created_at).toLocaleString()}</div>
+                      <div>Purchase Price: R${(result.purchase_price || 0).toLocaleString()}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

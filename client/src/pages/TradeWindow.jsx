@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useNotifications } from '../contexts/NotificationContext'
 import axios from 'axios'
+import ItemTooltipGraph from '../components/ItemTooltipGraph'
 import './TradeWindow.css'
 
 const TradeWindow = () => {
@@ -11,6 +12,34 @@ const TradeWindow = () => {
     const location = useLocation()
     const { user } = useAuth()
     const { showPopup } = useNotifications()
+
+    // Tooltip State
+    const [hoveredItemId, setHoveredItemId] = useState(null)
+    const [mousePos, setMousePos] = useState({ x: 0, y: 0 })
+
+    const handleMouseEnter = (e, itemId) => {
+        setHoveredItemId(itemId)
+        setMousePos({ x: e.clientX, y: e.clientY })
+    }
+
+    const handleMouseMove = (e) => {
+        setMousePos({ x: e.clientX, y: e.clientY })
+    }
+
+    const handleMouseLeave = () => {
+        setHoveredItemId(null)
+    }
+
+    // Clear tooltip on scroll/click to prevent "stuck" charts
+    useEffect(() => {
+        const handleClear = () => setHoveredItemId(null)
+        window.addEventListener('scroll', handleClear)
+        window.addEventListener('click', handleClear)
+        return () => {
+            window.removeEventListener('scroll', handleClear)
+            window.removeEventListener('click', handleClear)
+        }
+    }, [])
 
     const [loading, setLoading] = useState(true)
     const [partner, setPartner] = useState(null)
@@ -124,10 +153,10 @@ const TradeWindow = () => {
         const value = item.value || 0
         const rap = item.rap || 0
 
-        // Status Logic
-        const isProjected = value > 0 && rap > (value * 1.25 + 50)
+        // Status Logic - Match Catalog.jsx 1:1
+        const isProjected = item.is_projected || (value > 0 && rap > (value * 1.25 + 50))
         const isTrending = item.demand === 'high' || item.demand === 'very_high'
-        const isRare = item.rarity === 'rare' || item.rarity === 'insane'
+        const isRare = item.is_limited && (item.stock_count <= 50 || item.rarity === 'rare' || item.rarity === 'insane')
 
         return {
             ...userItem,
@@ -136,7 +165,11 @@ const TradeWindow = () => {
             serialNumber: serialNumber || userItem.serialNumber,
             isProjected,
             isTrending,
-            isRare
+            isRare,
+            // Carry over catalog specific flags for 1:1 rendering
+            saleType: item.sale_type,
+            isLimited: item.is_limited,
+            tag: userItem.tag // Pass tag through
         }
     }
 
@@ -144,16 +177,28 @@ const TradeWindow = () => {
         if (!isNewTrade) return
 
         if (side === 'mine') {
+            // Cannot trade NFT items (self-imposed restriction? Maybe allow user to ignore their own tag? 
+            // User request: "Not For Trade logic: if an item is tagged as NFT, then that item cant be traded (for that player ofc)"
+            // Usually NFT means *I* don't want to trade it. So if I click it, maybe I should be warned or blocked?
+            // "if a player opens a trade menu with that user, they will see the items, but their card will be disabled"
+            // So if I trade with YOU, YOUR NFT items are disabled. MY NFT items? I should be able to add them (it's my choice).
+            // But let's follow the "card will be disabled" rule for the PARTNER.
+
             if (myOffer.find(i => i.id === item.id)) {
                 setMyOffer(myOffer.filter(i => i.id !== item.id))
             } else {
+                if (item.tag === 'nft') return showPopup('This item is marked Not For Trade', 'error');
+
                 if (myOffer.length >= 7) return showPopup('Max 7 items', 'error')
                 setMyOffer([...myOffer, item])
             }
         } else {
+            // Partner's side
             if (theirOffer.find(i => i.id === item.id)) {
                 setTheirOffer(theirOffer.filter(i => i.id !== item.id))
             } else {
+                if (item.tag === 'nft') return showPopup('This item is marked Not For Trade', 'error');
+
                 if (theirOffer.length >= 7) return showPopup('Max 7 items', 'error')
                 setTheirOffer([...theirOffer, item])
             }
@@ -251,6 +296,11 @@ const TradeWindow = () => {
     if (isNewTrade) {
         return (
             <div className="trade-window-container">
+                {hoveredItemId && (
+                    <div style={{ position: 'fixed', left: mousePos.x + 15, top: mousePos.y + 15, zIndex: 9999, pointerEvents: 'none' }}>
+                        <ItemTooltipGraph itemId={hoveredItemId} />
+                    </div>
+                )}
                 <div className="trade-header-title">Trade with {partner?.username}</div>
 
                 <div className="trade-layout-grid">
@@ -269,37 +319,63 @@ const TradeWindow = () => {
                                 />
                             </div>
                             <div className="inv-items-grid">
-                                {filteredMyInv.map(item => ( // Show ALL items
-                                    <div
-                                        key={item.id}
-                                        className={`inv-card ${myOffer.find(i => i.id === item.id) ? 'selected' : ''}`}
-                                        onClick={() => toggleItem(item, 'mine')}
-                                    >
-                                        <div className="inv-card-img">
-                                            <div className="serial-badge">#{item.serialNumber || '?'}</div>
+                                {filteredMyInv.map(item => {
+                                    const isSelected = myOffer.find(i => i.id === item.id)
+                                    const itm = item.items || {}
+                                    const wasStock = itm.sale_type === 'stock'
 
-                                            {/* Top Right Badges */}
-                                            <div className="badge-group top-right">
-                                                {item.isTrending && <div className="trending-badge" title="Trending">🔥</div>}
+                                    return (
+                                        <div
+                                            key={item.id}
+                                            className={`inv-card ${isSelected ? 'selected' : ''} ${item.tag === 'nft' ? 'disabled-item' : ''}`}
+                                            onClick={() => toggleItem(item, 'mine')}
+                                            onMouseEnter={(e) => handleMouseEnter(e, itm.id)}
+                                            onMouseMove={handleMouseMove}
+                                            onMouseLeave={handleMouseLeave}
+                                            style={item.tag === 'nft' ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                                        >
+                                            <div className="inv-card-img">
+                                                <div className="serial-badge">#{item.serialNumber || '?'}</div>
+
+                                                {/* Item Tag */}
+                                                {item.tag && (
+                                                    <div className="item-tag-overlay" style={{ top: '40px' }}>
+                                                        {item.tag === 'nft' && <span className="tag-icon nft-icon">🚫</span>}
+                                                        {item.tag === 'op' && <span className="tag-icon op-icon">OP</span>}
+                                                        {item.tag === 'upgrade' && <span className="tag-icon upgrade-icon">↗️</span>}
+                                                        {item.tag === 'downgrade' && <span className="tag-icon downgrade-icon">↘️</span>}
+                                                    </div>
+                                                )}
+
+                                                {/* Status Badges - Match Catalog */}
+                                                <div className="badge-group top-right">
+                                                    {item.isTrending && <div className="trending-badge" title="Trending / High Demand">🔥</div>}
+                                                </div>
+
+                                                <div className="badge-group bottom-right">
+                                                    {item.isProjected && <div className="projected-badge" title="Projected: Artificial Price Inflation">⚠️</div>}
+                                                    {item.isRare && <div className="rare-badge" title="Rare Item">💎</div>}
+                                                </div>
+
+                                                {itm.is_limited && (
+                                                    <div className="limited-badge-overlay">
+                                                        <span className="limited-tag">LIMITED</span>
+                                                        {wasStock && <span className="limited-u-tag">U</span>}
+                                                    </div>
+                                                )}
+
+                                                <img
+                                                    src={itm.image_url}
+                                                    alt={itm.name}
+                                                />
                                             </div>
-
-                                            {/* Bottom Right Badges */}
-                                            <div className="badge-group bottom-right">
-                                                {item.isProjected && <div className="projected-badge" title="Projected">⚠️</div>}
-                                                {item.isRare && <div className="rare-badge" title="Rare">💎</div>}
+                                            <div className="inv-card-details">
+                                                <div className="inv-card-name">{itm.name}</div>
+                                                <div className="inv-card-value">${item.calculatedValue.toLocaleString()}</div>
                                             </div>
-
-                                            <img
-                                                src={item.items?.image_url || `https://www.roblox.com/asset-thumbnail/image?assetId=${item.items?.roblox_item_id}&width=420&height=420&format=png`}
-                                                alt={item.items?.name}
-                                            />
                                         </div>
-                                        <div className="inv-card-details">
-                                            <div className="inv-card-name">{item.items?.name}</div>
-                                            <div className="inv-card-value">${item.calculatedValue.toLocaleString()}</div>
-                                        </div>
-                                    </div>
-                                ))}
+                                    )
+                                })}
                                 {filteredMyInv.length === 0 && <div className="no-items">No items found</div>}
                             </div>
                         </div>
@@ -317,45 +393,55 @@ const TradeWindow = () => {
                                 />
                             </div>
                             <div className="inv-items-grid">
-                                {filteredTheirInv.map(item => (
-                                    <div
-                                        key={item.id}
-                                        className={`inv-card ${theirOffer.find(i => i.id === item.id) ? 'selected' : ''}`}
-                                        onClick={() => toggleItem(item, 'theirs')}
-                                    >
-                                        <div className="inv-card-img">
-                                            <div className="serial-badge">#{item.serialNumber || '?'}</div>
+                                {filteredTheirInv.map(item => {
+                                    const isSelected = theirOffer.find(i => i.id === item.id)
+                                    const itm = item.items || {}
+                                    const wasStock = itm.sale_type === 'stock'
+                                    return (
+                                        <div
+                                            key={item.id}
+                                            className={`inv-card ${isSelected ? 'selected' : ''} ${item.tag === 'nft' ? 'disabled-item' : ''}`}
+                                            onClick={() => toggleItem(item, 'theirs')}
+                                            onMouseEnter={(e) => handleMouseEnter(e, itm.id)}
+                                            onMouseMove={handleMouseMove}
+                                            onMouseLeave={handleMouseLeave}
+                                            style={item.tag === 'nft' ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                                        >
+                                            <div className="inv-card-img">
+                                                <div className="serial-badge">#{item.serialNumber || '?'}</div>
 
-                                            {/* Top Right Badges */}
-                                            <div className="badge-group top-right">
-                                                {item.isTrending && <div className="trending-badge" title="Trending">🔥</div>}
-                                            </div>
+                                                {/* Item Tag */}
+                                                {item.tag && (
+                                                    <div className="item-tag-overlay" style={{ top: '40px' }}>
+                                                        {item.tag === 'nft' && <span className="tag-icon nft-icon">🚫</span>}
+                                                        {item.tag === 'op' && <span className="tag-icon op-icon">OP</span>}
+                                                        {item.tag === 'upgrade' && <span className="tag-icon upgrade-icon">↗️</span>}
+                                                        {item.tag === 'downgrade' && <span className="tag-icon downgrade-icon">↘️</span>}
+                                                    </div>
+                                                )}
 
-                                            {/* Bottom Right Badges */}
-                                            <div className="badge-group bottom-right">
-                                                {item.isProjected && <div className="projected-badge" title="Projected">⚠️</div>}
-                                                {item.isRare && <div className="rare-badge" title="Rare">💎</div>}
-                                            </div>
-
-                                            {/* Limited Overlay */}
-                                            {item.isLimited && (
-                                                <div className="limited-badge-overlay">
-                                                    <span className="limited-tag">LIMITED</span>
-                                                    {item.saleType === 'stock' && <span className="limited-u-tag">U</span>}
+                                                <div className="badge-group top-right">
+                                                    {item.isTrending && <div className="trending-badge" title="Trending">🔥</div>}
                                                 </div>
-                                            )}
-
-                                            <img
-                                                src={item.items?.image_url || `https://www.roblox.com/asset-thumbnail/image?assetId=${item.items?.roblox_item_id}&width=420&height=420&format=png`}
-                                                alt={item.items?.name}
-                                            />
+                                                <div className="badge-group bottom-right">
+                                                    {item.isProjected && <div className="projected-badge" title="Projected">⚠️</div>}
+                                                    {item.isRare && <div className="rare-badge" title="Rare">💎</div>}
+                                                </div>
+                                                {itm.is_limited && (
+                                                    <div className="limited-badge-overlay">
+                                                        <span className="limited-tag">LIMITED</span>
+                                                        {wasStock && <span className="limited-u-tag">U</span>}
+                                                    </div>
+                                                )}
+                                                <img src={itm.image_url} alt={itm.name} />
+                                            </div>
+                                            <div className="inv-card-details">
+                                                <div className="inv-card-name">{itm.name}</div>
+                                                <div className="inv-card-value">${item.calculatedValue.toLocaleString()}</div>
+                                            </div>
                                         </div>
-                                        <div className="inv-card-details">
-                                            <div className="inv-card-name">{item.items?.name}</div>
-                                            <div className="inv-card-value">${item.calculatedValue.toLocaleString()}</div>
-                                        </div>
-                                    </div>
-                                ))}
+                                    )
+                                })}
                                 {filteredTheirInv.length === 0 && <div className="no-items">No items found</div>}
                             </div>
                         </div>
@@ -368,7 +454,10 @@ const TradeWindow = () => {
                             <div className="offer-header">Your Offer</div>
                             <div className="offer-slots">
                                 {myOffer.map(item => (
-                                    <div key={item.id} className="offer-slot-item">
+                                    <div
+                                        key={item.id}
+                                        className="offer-slot-item"
+                                    >
                                         <div className="slot-img"><img src={item.items?.image_url} alt="" /></div>
                                         <div className="slot-info">
                                             <div className="slot-name">{item.items?.name}</div>
@@ -392,7 +481,10 @@ const TradeWindow = () => {
                             <div className="offer-header">Your Request</div>
                             <div className="offer-slots">
                                 {theirOffer.map(item => (
-                                    <div key={item.id} className="offer-slot-item">
+                                    <div
+                                        key={item.id}
+                                        className="offer-slot-item"
+                                    >
                                         <div className="slot-img"><img src={item.items?.image_url} alt="" /></div>
                                         <div className="slot-info">
                                             <div className="slot-name">{item.items?.name}</div>
@@ -411,39 +503,24 @@ const TradeWindow = () => {
                             </div>
                         </div>
 
-                        {/* Value Comparison */}
-                        {(() => {
-                            const myValue = calculateTotal(myOffer)
-                            const theirValue = calculateTotal(theirOffer)
-                            const diff = theirValue - myValue
-                            const diffPercent = myValue > 0 ? (diff / myValue) * 100 : 0
-
-                            // Determine color: green if profit, yellow if similar, red if loss
-                            let bgColor
-                            if (Math.abs(diffPercent) <= 5) {
-                                bgColor = 'rgba(255, 193, 7, 0.15)' // Yellow for fair trade
-                            } else if (diff > 0) {
-                                bgColor = 'rgba(0, 176, 111, 0.15)' // Green for profit
-                            } else {
-                                bgColor = 'rgba(255, 107, 107, 0.15)' // Red for loss
-                            }
-
-                            return (
-                                <div className="value-comparison" style={{ backgroundColor: bgColor }}>
-                                    <div className="value-comparison-label">Value Comparison</div>
-                                    <div className="value-comparison-values">
-                                        <span className="value-send">${myValue.toLocaleString()}</span>
-                                        <span className="value-separator">/</span>
-                                        <span className="value-receive">${theirValue.toLocaleString()}</span>
-                                    </div>
-                                    <div className="value-comparison-sublabel">
-                                        You'll Send / You'll Receive
-                                    </div>
+                        <div className="offer-section">
+                            <div className="value-comparison" style={{ backgroundColor: (calculateTotal(theirOffer) - calculateTotal(myOffer)) >= 0 ? 'rgba(0, 176, 111, 0.1)' : 'rgba(255, 107, 107, 0.1)' }}>
+                                <div className="value-comparison-label">VALUE COMPARISON</div>
+                                <div className="value-comparison-values">
+                                    <span style={{ color: '#aaa' }}>${calculateTotal(myOffer).toLocaleString()}</span>
+                                    <span style={{ margin: '0 10px' }}>→</span>
+                                    <span style={{ color: '#00ff88' }}>${calculateTotal(theirOffer).toLocaleString()}</span>
                                 </div>
-                            )
-                        })()}
+                            </div>
+                        </div>
 
-                        <button className="make-offer-btn" onClick={handleSendTrade}>Make Offer</button>
+                        <button
+                            className="make-offer-btn"
+                            disabled={myOffer.length === 0 && theirOffer.length === 0}
+                            onClick={handleSendTrade}
+                        >
+                            Send Trade
+                        </button>
                         <button className="cancel-btn-styled" onClick={() => navigate(-1)}>Cancel</button>
                     </div>
                 </div>
@@ -458,16 +535,30 @@ const TradeWindow = () => {
 
     return (
         <div className="trade-window-container">
+            {hoveredItemId && (
+                <div style={{ position: 'fixed', left: mousePos.x + 15, top: mousePos.y + 15, zIndex: 9999, pointerEvents: 'none' }}>
+                    <ItemTooltipGraph itemId={hoveredItemId} />
+                </div>
+            )}
+
             <div className="trade-header-title">
                 Trade with {partner?.username}
-                <span className={`view-status-badge ${status}`} style={{
-                    backgroundColor: status === 'accepted' ? '#00b06f' : status === 'declined' ? '#ff6b6b' : '#00a2ff',
-                    color: '#fff',
-                    marginLeft: '20px',
-                    fontSize: '16px'
-                }}>
-                    {status.toUpperCase()}
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginTop: '5px' }}>
+                    <span className={`view-status-badge ${status}`} style={{
+                        backgroundColor: status === 'accepted' ? '#00b06f' : status === 'declined' ? '#ff6b6b' : '#00a2ff',
+                        color: '#fff',
+                        fontSize: '14px',
+                        padding: '4px 12px',
+                        borderRadius: '4px'
+                    }}>
+                        {status.toUpperCase()}
+                    </span>
+                    {tradeDetails?.created_at && (
+                        <span style={{ fontSize: '14px', color: '#8c8c8c', fontWeight: 'normal' }}>
+                            {new Date(tradeDetails.created_at).toLocaleString()}
+                        </span>
+                    )}
+                </div>
             </div>
 
             <div className="trade-layout-grid">
@@ -476,38 +567,43 @@ const TradeWindow = () => {
                         <div className="offer-section" style={{ background: '#232527', padding: '20px', borderRadius: '8px' }}>
                             <div className="view-section-header">{getMyLabel()}</div>
                             <div className="view-items-row">
-                                {myOffer.map(item => (
-                                    <Link to={`/catalog/${item.items?.id}`} key={item.id} className="inv-card" style={{ width: '120px' }}>
-                                        <div className="inv-card-img">
-                                            <div className="serial-badge">#{item.serialNumber || '?'}</div>
-
-                                            {/* Top Right Badges */}
-                                            <div className="badge-group top-right">
-                                                {item.isTrending && <div className="trending-badge" title="Trending">🔥</div>}
-                                            </div>
-
-                                            {/* Bottom Right Badges */}
-                                            <div className="badge-group bottom-right">
-                                                {item.isProjected && <div className="projected-badge" title="Projected">⚠️</div>}
-                                                {item.isRare && <div className="rare-badge" title="Rare">💎</div>}
-                                            </div>
-
-                                            {/* Limited Overlay */}
-                                            {item.isLimited && (
-                                                <div className="limited-badge-overlay">
-                                                    <span className="limited-tag">LIMITED</span>
-                                                    {item.saleType === 'stock' && <span className="limited-u-tag">U</span>}
+                                {myOffer.map(item => {
+                                    const itm = item.items || {}
+                                    const wasStock = itm.sale_type === 'stock'
+                                    return (
+                                        <Link
+                                            to={`/catalog/${itm.id}`}
+                                            key={item.id}
+                                            className="inv-card"
+                                            style={{ width: '120px' }}
+                                            onMouseEnter={(e) => handleMouseEnter(e, itm.id)}
+                                            onMouseMove={handleMouseMove}
+                                            onMouseLeave={handleMouseLeave}
+                                        >
+                                            <div className="inv-card-img">
+                                                <div className="serial-badge">#{item.serialNumber || '?'}</div>
+                                                <div className="badge-group top-right">
+                                                    {item.isTrending && <div className="trending-badge" title="Trending">🔥</div>}
                                                 </div>
-                                            )}
-
-                                            <img src={item.items?.image_url} alt={item.items?.name} />
-                                        </div>
-                                        <div className="inv-card-details">
-                                            <div className="inv-card-name">{item.items?.name}</div>
-                                            <div className="inv-card-value">${item.calculatedValue.toLocaleString()}</div>
-                                        </div>
-                                    </Link>
-                                ))}
+                                                <div className="badge-group bottom-right">
+                                                    {item.isProjected && <div className="projected-badge" title="Projected">⚠️</div>}
+                                                    {item.isRare && <div className="rare-badge" title="Rare">💎</div>}
+                                                </div>
+                                                {itm.is_limited && (
+                                                    <div className="limited-badge-overlay">
+                                                        <span className="limited-tag">LIMITED</span>
+                                                        {wasStock && <span className="limited-u-tag">U</span>}
+                                                    </div>
+                                                )}
+                                                <img src={itm.image_url} alt={itm.name} />
+                                            </div>
+                                            <div className="inv-card-details">
+                                                <div className="inv-card-name">{itm.name}</div>
+                                                <div className="inv-card-value">${item.calculatedValue.toLocaleString()}</div>
+                                            </div>
+                                        </Link>
+                                    )
+                                })}
                             </div>
                             <div className="offer-total" style={{ marginTop: '20px' }}>
                                 <span>Total: ${calculateTotal(myOffer).toLocaleString()}</span>
@@ -517,38 +613,48 @@ const TradeWindow = () => {
                         <div className="offer-section" style={{ background: '#232527', padding: '20px', borderRadius: '8px' }}>
                             <div className="view-section-header">{getTheirLabel()}</div>
                             <div className="view-items-row">
-                                {theirOffer.map(item => (
-                                    <Link to={`/catalog/${item.items?.id}`} key={item.id} className="inv-card" style={{ width: '120px' }}>
-                                        <div className="inv-card-img">
-                                            <div className="serial-badge">#{item.serialNumber || '?'}</div>
+                                {theirOffer.map(item => {
+                                    const itm = item.items || {}
+                                    const wasStock = itm.sale_type === 'stock'
 
-                                            {/* Top Right Badges */}
-                                            <div className="badge-group top-right">
-                                                {item.isTrending && <div className="trending-badge" title="Trending">🔥</div>}
-                                            </div>
+                                    return (
+                                        <Link
+                                            to={`/catalog/${itm.id}`}
+                                            key={item.id}
+                                            className="inv-card"
+                                            style={{ width: '120px' }}
+                                            onMouseEnter={(e) => handleMouseEnter(e, itm.id)}
+                                            onMouseMove={handleMouseMove}
+                                            onMouseLeave={handleMouseLeave}
+                                        >
+                                            <div className="inv-card-img">
+                                                <div className="serial-badge">#{item.serialNumber || '?'}</div>
 
-                                            {/* Bottom Right Badges */}
-                                            <div className="badge-group bottom-right">
-                                                {item.isProjected && <div className="projected-badge" title="Projected">⚠️</div>}
-                                                {item.isRare && <div className="rare-badge" title="Rare">💎</div>}
-                                            </div>
-
-                                            {/* Limited Overlay */}
-                                            {item.isLimited && (
-                                                <div className="limited-badge-overlay">
-                                                    <span className="limited-tag">LIMITED</span>
-                                                    {item.saleType === 'stock' && <span className="limited-u-tag">U</span>}
+                                                <div className="badge-group top-right">
+                                                    {item.isTrending && <div className="trending-badge" title="Trending">🔥</div>}
                                                 </div>
-                                            )}
 
-                                            <img src={item.items?.image_url} alt={item.items?.name} />
-                                        </div>
-                                        <div className="inv-card-details">
-                                            <div className="inv-card-name">{item.items?.name}</div>
-                                            <div className="inv-card-value">${item.calculatedValue.toLocaleString()}</div>
-                                        </div>
-                                    </Link>
-                                ))}
+                                                <div className="badge-group bottom-right">
+                                                    {item.isProjected && <div className="projected-badge" title="Projected">⚠️</div>}
+                                                    {item.isRare && <div className="rare-badge" title="Rare">💎</div>}
+                                                </div>
+
+                                                {itm.is_limited && (
+                                                    <div className="limited-badge-overlay">
+                                                        <span className="limited-tag">LIMITED</span>
+                                                        {wasStock && <span className="limited-u-tag">U</span>}
+                                                    </div>
+                                                )}
+
+                                                <img src={itm.image_url} alt={itm.name} />
+                                            </div>
+                                            <div className="inv-card-details">
+                                                <div className="inv-card-name">{itm.name}</div>
+                                                <div className="inv-card-value">${item.calculatedValue.toLocaleString()}</div>
+                                            </div>
+                                        </Link>
+                                    )
+                                })}
                             </div>
                             <div className="offer-total" style={{ marginTop: '20px' }}>
                                 <span>Total: ${calculateTotal(theirOffer).toLocaleString()}</span>

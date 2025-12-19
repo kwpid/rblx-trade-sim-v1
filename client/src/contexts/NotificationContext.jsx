@@ -35,7 +35,36 @@ export const NotificationProvider = ({ children }) => {
   const fetchNotifications = async () => {
     try {
       const response = await axios.get('/api/notifications')
-      setNotifications(response.data)
+      const latest = response.data
+
+      // Check for new notifications since last fetch to play sound
+      // We compare latest ID or count
+      setNotifications(prev => {
+        const prevIds = new Set(prev.map(n => n.id))
+        const newNotifs = latest.filter(n => !prevIds.has(n.id))
+
+        if (newNotifs.length > 0) {
+          // Check if any is item_release
+          const hasItemRelease = newNotifs.some(n => n.type === 'item_release')
+
+          if (hasItemRelease) {
+            // Play Sound
+            try {
+              const audio = new Audio('https://assets.mixkit.co/sfx/preview/mixkit-positive-notification-951.mp3');
+              audio.volume = 0.5;
+              audio.play().catch(e => console.log('Audio play failed (interaction required)', e));
+
+              // Also show popup if not already shown
+              newNotifs.filter(n => n.type === 'item_release').forEach(n => {
+                showPopup(n.message, 'success');
+              });
+            } catch (e) {
+              console.error("Sound Error", e);
+            }
+          }
+        }
+        return latest
+      })
     } catch (error) {
       console.error('Error fetching notifications:', error)
     }

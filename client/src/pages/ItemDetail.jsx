@@ -126,7 +126,7 @@ const ItemDetail = () => {
       setItem(itemResponse.data)
       // Format RAP history data with proper dates and sales volume
       const formattedRapHistory = rapResponse.data.map(snapshot => ({
-        date: new Date(snapshot.snapshot_date || snapshot.timestamp).toLocaleDateString('en-US', {
+        date: new Date(snapshot.snapshot_date || snapshot.timestamp).toLocaleDateString(undefined, {
           month: 'short',
           day: 'numeric'
         }),
@@ -139,7 +139,7 @@ const ItemDetail = () => {
       // Format value history data
       // Format value history data
       const formattedValueHistory = (valueResponse.data.data || []).map(change => ({
-        date: new Date(change.changed_at).toLocaleDateString('en-US', {
+        date: new Date(change.created_at).toLocaleDateString(undefined, {
           month: 'short',
           day: 'numeric'
         }),
@@ -314,7 +314,7 @@ const ItemDetail = () => {
   const imageUrl = item.image_url || `https://www.roblox.com/asset-thumbnail/image?assetId=${item.roblox_item_id}&width=420&height=420&format=png`
 
   const chartData = rapHistory.map(h => ({
-    date: new Date(h.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    date: new Date(h.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
     value: h.rap_value
   }))
 

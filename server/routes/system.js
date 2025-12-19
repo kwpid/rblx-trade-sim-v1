@@ -7,6 +7,11 @@ const { execSync } = require('child_process');
 
 const supabase = require('../config/supabase');
 const { authenticate } = require('../middleware/auth');
+const BADGES = require('../config/badges');
+
+router.get('/badges', (req, res) => {
+    res.json(BADGES);
+});
 
 router.get('/version', (req, res) => {
     try {

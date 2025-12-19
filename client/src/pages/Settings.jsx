@@ -5,7 +5,7 @@ import './Settings.css'
 
 const Settings = () => {
   const { user } = useAuth()
-  const [activeTab, setActiveTab] = useState('account')
+  const [activeTab, setActiveTab] = useState('privacy')
   const [showEmail, setShowEmail] = useState(false)
 
   // Settings State
@@ -87,12 +87,6 @@ const Settings = () => {
             <h2>Settings</h2>
             <nav className="settings-nav">
               <button
-                className={`settings-tab ${activeTab === 'account' ? 'active' : ''}`}
-                onClick={() => setActiveTab('account')}
-              >
-                Account Info
-              </button>
-              <button
                 className={`settings-tab ${activeTab === 'privacy' ? 'active' : ''}`}
                 onClick={() => setActiveTab('privacy')}
               >
@@ -115,49 +109,6 @@ const Settings = () => {
 
           {/* Content */}
           <div className="settings-content">
-            {activeTab === 'account' && (
-              <div className="settings-section">
-                <h3 className="section-title">Account Info</h3>
-                <div className="setting-group">
-                  <label>Display Name</label>
-                  <div className="setting-control disabled">
-                    <input type="text" value={user?.username || ''} disabled />
-                    <span className="setting-note">Username changes are not available yet.</span>
-                  </div>
-                </div>
-                <div className="setting-group">
-                  <label>Email Address</label>
-                  <div className="setting-control">
-                    <div className="email-display">
-                      <input
-                        type="text"
-                        value={showEmail ? (user?.email || '') : maskEmail(user?.email)}
-                        disabled
-                      />
-                      <button
-                        className="visibility-toggle"
-                        onClick={() => setShowEmail(!showEmail)}
-                      >
-                        {showEmail ? 'Hide' : 'Show'}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                <div className="setting-group">
-                  <label>Account Type</label>
-                  <div className="fake-input">
-                    {user?.is_admin ? 'Administrator' : 'Standard User'}
-                  </div>
-                </div>
-                <div className="setting-group">
-                  <label>Personal Blurb</label>
-                  <textarea placeholder="Write something about yourself..." rows="3"></textarea>
-                  <div className="save-btn-container">
-                    <button className="save-btn">Save</button>
-                  </div>
-                </div>
-              </div>
-            )}
 
             {activeTab === 'privacy' && (
               <div className="settings-section">

@@ -16,8 +16,18 @@ const Profile = () => {
   const [portfolioData, setPortfolioData] = useState([])
   const [portfolioLoading, setPortfolioLoading] = useState(true)
   const [showModerationModal, setShowModerationModal] = useState(false)
+  const [badgeDefinitions, setBadgeDefinitions] = useState({})
 
   const targetUserId = id || user?.id
+
+  useEffect(() => {
+    // Fetch badge definitions
+    axios.get('/api/system/badges').then(res => {
+      const defs = {};
+      res.data.forEach(b => defs[b.id] = b);
+      setBadgeDefinitions(defs);
+    }).catch(err => console.error('Failed to load badge defs', err));
+  }, [])
 
   useEffect(() => {
     if (targetUserId) {
@@ -94,6 +104,20 @@ const Profile = () => {
     return <div className="loading"><div className="spinner"></div></div>
   }
 
+  // Simple icon mapping since we don't have full params here yet
+  const getBadgeIcon = (id) => {
+    if (id.includes('wealth')) return '💰';
+    if (id.includes('serial')) return '🔢';
+    if (id.includes('dominator')) return '👑';
+    if (id.includes('sparkly')) return '✨';
+    if (id.includes('federated')) return '🏛️';
+    if (id.includes('enduring')) return '⚔️';
+    if (id.includes('rare')) return '🌟';
+    if (id.includes('hoarder')) return '📦';
+    if (id.includes('collector')) return '🏆';
+    return '🏅';
+  };
+
   return (
     <div className="profile">
       <div className="container">
@@ -161,6 +185,37 @@ const Profile = () => {
                   </button>
                 )}
               </>
+            )}
+          </div>
+        </div>
+
+        {/* Badges Section */}
+        <div className="card profile-badges-section" style={{ marginBottom: '1.5rem', padding: '1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <h2 style={{ margin: 0, fontSize: '1.5rem', color: '#fff' }}>Badges</h2>
+            <Link to="/badges" style={{ color: '#00a2ff', textDecoration: 'none', fontSize: '0.9rem' }}>
+              View All Badges
+            </Link>
+          </div>
+
+          <div className="profile-badges-list" style={{ display: 'flex', gap: '0.8rem', flexWrap: 'wrap' }}>
+            {profileUser?.badges && profileUser.badges.length > 0 ? (
+              profileUser.badges.map(badge => {
+                const def = badgeDefinitions[badge.id] || { name: badge.id.replace(/_/g, ' '), description: 'Loading...', icon: getBadgeIcon(badge.id) };
+                const icon = def.icon || getBadgeIcon(badge.id); // fallback
+
+                return (
+                  <div
+                    key={badge.id}
+                    className="mini-badge-square"
+                    title={`${def.name}\n${def.description}`}
+                  >
+                    <span className="mini-badge-icon">{icon}</span>
+                  </div>
+                );
+              })
+            ) : (
+              <div style={{ color: '#888', fontStyle: 'italic' }}>No badges earned yet.</div>
             )}
           </div>
         </div>
@@ -251,6 +306,7 @@ const Profile = () => {
                       className="inventory-item"
                     >
                       <div className="inventory-item-serial">Serial #{serialNumber}</div>
+
                       <div className="inventory-item-image">
                         <img src={item.image_url} alt={item.name} />
                         {item.is_limited && (
@@ -286,17 +342,19 @@ const Profile = () => {
         </div>
       </div>
 
-      {showModerationModal && (
-        <ModerationModal
-          userId={profileUser?.id || id}
-          username={profileUser?.username}
-          onClose={() => setShowModerationModal(false)}
-          onSuccess={() => {
-            fetchProfile();
-          }}
-        />
-      )}
-    </div>
+      {
+        showModerationModal && (
+          <ModerationModal
+            userId={profileUser?.id || id}
+            username={profileUser?.username}
+            onClose={() => setShowModerationModal(false)}
+            onSuccess={() => {
+              fetchProfile();
+            }}
+          />
+        )
+      }
+    </div >
   )
 }
 
