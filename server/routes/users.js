@@ -531,4 +531,3 @@ router.get('/:id/snapshots', async (req, res) => {
 });
 
 module.exports = router;
-
