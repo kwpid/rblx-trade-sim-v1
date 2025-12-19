@@ -18,16 +18,14 @@ app.use((req, res, next) => {
 });
 
 // Initialize jobs
-const aiService = require('./services/aiService');
-const { startPaycheckJob } = require('./jobs/paycheck');
-const { startPlayerSnapshotJob } = require('./jobs/playerSnapshots');
+require('./jobs/paycheck'); // Auto-starts via cron.schedule
+require('./jobs/playerSnapshots'); // Auto-starts via cron.schedule
 const { startCleanupJob } = require('./jobs/cleanup');
 
-// Start background jobs
-aiService.start(); // Use .start() instead of startAiService()
-startPaycheckJob();
-startPlayerSnapshotJob();
-startCleanupJob(); // Start database cleanup job
+// Start AI service and cleanup job
+const aiService = require('./services/aiService');
+aiService.start();
+startCleanupJob();
 
 // Routes
 const authRoutes = require('./routes/auth');
