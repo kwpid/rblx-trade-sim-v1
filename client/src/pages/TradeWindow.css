@@ -1,17 +1,27 @@
 /* TradeWindow.css */
 .trade-window-container {
-    padding: 20px;
+    padding: 20px 20px 0 20px;
+    /* Remove bottom padding to let footer sit flush */
     background-color: #1e2022;
-    min-height: 100vh;
+    height: calc(100vh - 50px);
+    /* Match main-content constraints roughly, but better to use 100% of parent */
+    height: 100%;
+    /* Fill parent main-content */
+    display: flex;
+    flex-direction: column;
     color: #fff;
+    box-sizing: border-box;
+    overflow: hidden;
+    /* Prevent page scroll */
 }
 
 .trade-header-title {
     font-size: 24px;
     font-weight: 700;
-    margin-bottom: 20px;
+    margin-bottom: 15px;
     display: flex;
     align-items: center;
+    flex: 0 0 auto;
 }
 
 .trade-layout-grid {
@@ -19,8 +29,11 @@
     grid-template-columns: 1fr 1fr;
     /* 50/50 split */
     gap: 20px;
-    height: calc(100vh - 100px);
-    /* Fill most of screen */
+    flex: 1;
+    /* Grow to fill remaining space */
+    height: 100%;
+    min-height: 0;
+    /* Critical for nested flex scrolling */
     overflow: hidden;
     /* Manage scrolling inside cols */
 }
@@ -31,17 +44,60 @@
     flex-direction: column;
     gap: 20px;
     height: 100%;
+    min-height: 0;
 }
 
 .offers-column {
     background-color: #232527;
-    border-radius: 8px;
-    padding: 20px;
+    border-radius: 8px 8px 0 0;
+    /* Attach to bottom if possible */
+    padding: 0;
+    /* Padding handling by inner containers */
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    /* Critical */
+    overflow: hidden;
+    /* Important for inner scroll */
+}
+
+.offers-scroll-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 20px 0 20px;
     display: flex;
     flex-direction: column;
     gap: 20px;
-    height: 100%;
+}
+
+.offers-actions-sticky {
+    padding: 20px;
+    background: #232527;
+    border-top: 1px solid #333;
+    display: flex;
+    flex-direction: column;
+    z-index: 10;
+    flex: 0 0 auto;
+    /* Don't shrink */
+}
+
+.offers-scroll-area {
+    flex: 1;
     overflow-y: auto;
+    padding: 20px 20px 0 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.offers-actions-sticky {
+    padding: 20px;
+    background: #232527;
+    border-top: 1px solid #333;
+    display: flex;
+    flex-direction: column;
+    z-index: 10;
 }
 
 /* Inventory Section */
@@ -299,70 +355,103 @@
 }
 
 .offer-slots {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
     gap: 8px;
-    flex: 1;
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
 }
 
 .offer-slot-item {
     display: flex;
+    flex-direction: column;
     align-items: center;
     background: #393b3d;
     padding: 8px;
     border-radius: 6px;
-    gap: 10px;
+    gap: 5px;
     position: relative;
+    aspect-ratio: 1;
+    /* Make it square */
+    justify-content: center;
+    border: 1px solid transparent;
+}
+
+.offer-slot-item:hover {
+    background: #4a4c50;
+    border-color: #555;
 }
 
 .slot-img {
-    width: 40px;
-    height: 40px;
-    background: #2a2a2a;
-    border-radius: 4px;
+    width: 60%;
+    height: 60%;
+    background: transparent;
+    /* Remove bg box for cleaner look */
+    border-radius: 0;
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
 .slot-img img {
-    width: 32px;
-    height: 32px;
+    width: 100%;
+    height: 100%;
     object-fit: contain;
 }
 
 .slot-info {
-    flex: 1;
-    overflow: hidden;
+    width: 100%;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
 }
 
 .slot-name {
-    font-size: 13px;
+    font-size: 10px;
     font-weight: 600;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    width: 100%;
+    color: #ccc;
 }
 
 .slot-val {
     font-size: 11px;
     color: #00ff88;
+    font-weight: 700;
 }
 
 .slot-remove-btn {
-    background: transparent;
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     border: none;
     color: #ff6b6b;
-    font-size: 20px;
+    font-size: 14px;
     cursor: pointer;
     line-height: 1;
+    z-index: 10;
+}
+
+.slot-remove-btn:hover {
+    background: #fff;
 }
 
 .empty-slot {
-    height: 56px;
-    /* Approx height of filled slot */
+    aspect-ratio: 1;
     border: 2px dashed #393b3d;
     border-radius: 6px;
+    background: rgba(255, 255, 255, 0.02);
 }
 
 .offer-total {
@@ -373,13 +462,15 @@
     color: #fff;
     padding-top: 10px;
     border-top: 1px solid #393b3d;
+    margin-top: 5px;
 }
 
 .value-comparison {
     padding: 15px;
     border-radius: 8px;
     text-align: center;
-    margin-top: auto;
+    margin-top: 0;
+    /* Removing auto margin since it's in scroll flow */
 }
 
 .value-comparison-label {

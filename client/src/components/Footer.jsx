@@ -1,10 +1,15 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import './Footer.css'
 
 const Footer = () => {
     const [version, setVersion] = useState('')
+    const location = useLocation()
+
+    // Hide footer on Trade Window to maximize space
+    // Check if path starts with /trades/ but is not just the list /trades
+    const isTradeWindow = location.pathname.match(/^\/trades\/.+/)
 
     useEffect(() => {
         const fetchVersion = async () => {
@@ -19,6 +24,8 @@ const Footer = () => {
         }
         fetchVersion()
     }, [])
+
+    if (isTradeWindow) return null
 
     return (
         <footer className="site-footer">

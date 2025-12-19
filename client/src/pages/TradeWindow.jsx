@@ -448,80 +448,85 @@ const TradeWindow = () => {
                     </div>
 
                     {/* Right Column: Offers */}
+                    {/* Right Column: Offers */}
                     <div className="offers-column">
-                        {/* My Offer */}
-                        <div className="offer-section">
-                            <div className="offer-header">Your Offer</div>
-                            <div className="offer-slots">
-                                {myOffer.map(item => (
-                                    <div
-                                        key={item.id}
-                                        className="offer-slot-item"
-                                    >
-                                        <div className="slot-img"><img src={item.items?.image_url} alt="" /></div>
-                                        <div className="slot-info">
-                                            <div className="slot-name">{item.items?.name}</div>
-                                            <div className="slot-val">${item.calculatedValue.toLocaleString()}</div>
+                        <div className="offers-scroll-area">
+                            {/* My Offer */}
+                            <div className="offer-section">
+                                <div className="offer-header">Your Offer</div>
+                                <div className="offer-slots">
+                                    {myOffer.map(item => (
+                                        <div
+                                            key={item.id}
+                                            className="offer-slot-item"
+                                        >
+                                            <div className="slot-img"><img src={item.items?.image_url} alt="" /></div>
+                                            <div className="slot-info">
+                                                <div className="slot-name">{item.items?.name}</div>
+                                                <div className="slot-val">${item.calculatedValue.toLocaleString()}</div>
+                                            </div>
+                                            <button className="slot-remove-btn" onClick={() => toggleItem(item, 'mine')}>×</button>
                                         </div>
-                                        <button className="slot-remove-btn" onClick={() => toggleItem(item, 'mine')}>×</button>
-                                    </div>
-                                ))}
-                                {Array.from({ length: Math.max(0, 7 - myOffer.length) }).map((_, i) => (
-                                    <div key={i} className="empty-slot"></div>
-                                ))}
+                                    ))}
+                                    {Array.from({ length: Math.max(0, 7 - myOffer.length) }).map((_, i) => (
+                                        <div key={i} className="empty-slot"></div>
+                                    ))}
+                                </div>
+                                <div className="offer-total">
+                                    <span>Total Value:</span>
+                                    <span>${calculateTotal(myOffer).toLocaleString()}</span>
+                                </div>
                             </div>
-                            <div className="offer-total">
-                                <span>Total Value:</span>
-                                <span>${calculateTotal(myOffer).toLocaleString()}</span>
-                            </div>
-                        </div>
 
-                        {/* Their Offer */}
-                        <div className="offer-section">
-                            <div className="offer-header">Your Request</div>
-                            <div className="offer-slots">
-                                {theirOffer.map(item => (
-                                    <div
-                                        key={item.id}
-                                        className="offer-slot-item"
-                                    >
-                                        <div className="slot-img"><img src={item.items?.image_url} alt="" /></div>
-                                        <div className="slot-info">
-                                            <div className="slot-name">{item.items?.name}</div>
-                                            <div className="slot-val">${item.calculatedValue.toLocaleString()}</div>
+                            {/* Their Offer */}
+                            <div className="offer-section">
+                                <div className="offer-header">Your Request</div>
+                                <div className="offer-slots">
+                                    {theirOffer.map(item => (
+                                        <div
+                                            key={item.id}
+                                            className="offer-slot-item"
+                                        >
+                                            <div className="slot-img"><img src={item.items?.image_url} alt="" /></div>
+                                            <div className="slot-info">
+                                                <div className="slot-name">{item.items?.name}</div>
+                                                <div className="slot-val">${item.calculatedValue.toLocaleString()}</div>
+                                            </div>
+                                            <button className="slot-remove-btn" onClick={() => toggleItem(item, 'theirs')}>×</button>
                                         </div>
-                                        <button className="slot-remove-btn" onClick={() => toggleItem(item, 'theirs')}>×</button>
-                                    </div>
-                                ))}
-                                {Array.from({ length: Math.max(0, 7 - theirOffer.length) }).map((_, i) => (
-                                    <div key={i} className="empty-slot"></div>
-                                ))}
+                                    ))}
+                                    {Array.from({ length: Math.max(0, 7 - theirOffer.length) }).map((_, i) => (
+                                        <div key={i} className="empty-slot"></div>
+                                    ))}
+                                </div>
+                                <div className="offer-total">
+                                    <span>Total Value:</span>
+                                    <span>${calculateTotal(theirOffer).toLocaleString()}</span>
+                                </div>
                             </div>
-                            <div className="offer-total">
-                                <span>Total Value:</span>
-                                <span>${calculateTotal(theirOffer).toLocaleString()}</span>
-                            </div>
-                        </div>
 
-                        <div className="offer-section">
-                            <div className="value-comparison" style={{ backgroundColor: (calculateTotal(theirOffer) - calculateTotal(myOffer)) >= 0 ? 'rgba(0, 176, 111, 0.1)' : 'rgba(255, 107, 107, 0.1)' }}>
-                                <div className="value-comparison-label">VALUE COMPARISON</div>
-                                <div className="value-comparison-values">
-                                    <span style={{ color: '#aaa' }}>${calculateTotal(myOffer).toLocaleString()}</span>
-                                    <span style={{ margin: '0 10px' }}>→</span>
-                                    <span style={{ color: '#00ff88' }}>${calculateTotal(theirOffer).toLocaleString()}</span>
+                            <div className="offer-section">
+                                <div className="value-comparison" style={{ backgroundColor: (calculateTotal(theirOffer) - calculateTotal(myOffer)) >= 0 ? 'rgba(0, 176, 111, 0.1)' : 'rgba(255, 107, 107, 0.1)' }}>
+                                    <div className="value-comparison-label">VALUE COMPARISON</div>
+                                    <div className="value-comparison-values">
+                                        <span style={{ color: '#aaa' }}>${calculateTotal(myOffer).toLocaleString()}</span>
+                                        <span style={{ margin: '0 10px' }}>→</span>
+                                        <span style={{ color: '#00ff88' }}>${calculateTotal(theirOffer).toLocaleString()}</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        <button
-                            className="make-offer-btn"
-                            disabled={myOffer.length === 0 && theirOffer.length === 0}
-                            onClick={handleSendTrade}
-                        >
-                            Send Trade
-                        </button>
-                        <button className="cancel-btn-styled" onClick={() => navigate(-1)}>Cancel</button>
+                        <div className="offers-actions-sticky">
+                            <button
+                                className="make-offer-btn"
+                                disabled={myOffer.length === 0 && theirOffer.length === 0}
+                                onClick={handleSendTrade}
+                            >
+                                Send Trade
+                            </button>
+                            <button className="cancel-btn-styled" onClick={() => navigate(-1)}>Cancel</button>
+                        </div>
                     </div>
                 </div>
             </div>
