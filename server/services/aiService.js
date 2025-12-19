@@ -6,7 +6,7 @@ const { checkAndAwardBadges } = require('./badgeService');
 let isDevBranch = false;
 
 // Constants
-const AI_COUNT_TARGET = 100;
+const AI_COUNT_TARGET = 250;
 const ONLINE_PERCENTAGE = 1.0; // 100% target online (All bots active)
 const TICK_RATE = 5000; // 5 seconds
 const ACTION_PROBABILITY = 0.5; // 50% chance to act per tick if online
@@ -76,38 +76,59 @@ const aiSessions = {};
 const initAiUsers = async () => {
     console.log('Initializing AI Users...');
 
-    // Check current count
-    const { count, error } = await supabase
+    // Fetch existing AI users to avoid duplicates
+    const { data: existingUsers, error } = await supabase
         .from('users')
-        .select('id', { count: 'exact', head: true })
+        .select('username')
         .eq('is_ai', true);
 
     if (error) {
-        console.error('Error checking AI count:', error);
+        console.error('Error checking AI users:', error);
         return;
     }
 
-    if (count < AI_COUNT_TARGET) {
-        const needed = AI_COUNT_TARGET - count;
-        console.log(`Creating ${needed} new AI users...`);
+    const existingNames = new Set(existingUsers.map(u => u.username));
+    const pKeys = Object.keys(PERSONALITIES);
 
-        const pKeys = Object.keys(PERSONALITIES);
+    // Helper to create user
+    const createAi = async (username) => {
+        const personalityKey = pKeys[Math.floor(Math.random() * pKeys.length)];
+        const startingCash = personalityKey === 'whale' ? 1000000 : Math.floor(Math.random() * 50000) + 1000;
+
+        await supabase.from('users').insert([{
+            username: username,
+            email: `${username.toLowerCase()}@ai.local`,
+            password: 'ai_password_secure', // Placeholder, they don't log in
+            is_ai: true,
+            cash: startingCash, // Use cash column
+            personality: personalityKey,
+            is_admin: false,
+            created_at: new Date()
+        }]);
+        console.log(`[AI] Created new user: ${username}`);
+    };
+
+    // 1. Ensure all defined NAMES exist (Exact match preference)
+    for (const name of NAMES) {
+        if (!existingNames.has(name)) {
+            await createAi(name);
+            existingNames.add(name);
+        }
+    }
+
+    // 2. Fill remaining quota with random numbered names
+    if (existingNames.size < AI_COUNT_TARGET) {
+        const needed = AI_COUNT_TARGET - existingNames.size;
+        console.log(`Creating ${needed} additional random AI users...`);
 
         for (let i = 0; i < needed; i++) {
-            const name = NAMES[Math.floor(Math.random() * NAMES.length)] + Math.floor(Math.random() * 1000);
-            const personalityKey = pKeys[Math.floor(Math.random() * pKeys.length)];
-            const startingCash = personalityKey === 'whale' ? 1000000 : Math.floor(Math.random() * 50000) + 1000;
+            const baseName = NAMES[Math.floor(Math.random() * NAMES.length)];
+            const randomName = `${baseName}${Math.floor(Math.random() * 10000)}`;
 
-            await supabase.from('users').insert([{
-                username: name,
-                email: `${name.toLowerCase()}@ai.local`,
-                password: 'ai_password_secure', // Placeholder, they don't log in
-                is_ai: true,
-                cash: startingCash, // Use cash column
-                personality: personalityKey,
-                is_admin: false,
-                created_at: new Date()
-            }]);
+            if (!existingNames.has(randomName)) {
+                await createAi(randomName);
+                existingNames.add(randomName);
+            }
         }
     }
 

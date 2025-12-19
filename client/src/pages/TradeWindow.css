@@ -444,3 +444,150 @@
     color: #666;
     font-style: italic;
 }
+
+/* ========================================
+   MOBILE RESPONSIVE STYLES
+   ======================================== */
+@media (max-width: 768px) {
+    .trade-window-container {
+        padding: 10px;
+    }
+
+    .trade-header-title {
+        font-size: 18px;
+        margin-bottom: 15px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+    }
+
+    /* Stack columns vertically */
+    .trade-layout-grid {
+        display: flex;
+        flex-direction: column;
+        height: auto;
+        overflow: visible;
+        gap: 15px;
+    }
+
+    /* Inventory Section - Mobile */
+    .inventories-column {
+        height: auto;
+        gap: 15px;
+    }
+
+    .inventory-section {
+        height: auto;
+        max-height: 400px;
+        /* Limit height so page isn't huge */
+    }
+
+    .trade-window-inventory {
+        max-height: 350px;
+    }
+
+    .inv-items-grid {
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        /* Smaller cards */
+        gap: 8px;
+    }
+
+    /* Smaller Item Cards for Mobile */
+    .inv-card {
+        padding: 8px;
+        border-radius: 6px;
+    }
+
+    .inv-card-img {
+        border-radius: 4px;
+        margin-top: 0;
+    }
+
+    .inv-card-img img {
+        padding: 4px;
+    }
+
+    .inv-card-name {
+        font-size: 11px;
+        padding: 2px 0 0 0;
+    }
+
+    .inv-card-value {
+        font-size: 11px;
+    }
+
+    /* Badges Scaling for Mobile */
+    .projected-badge,
+    .rare-badge,
+    .trending-badge {
+        font-size: 14px;
+    }
+
+    .serial-badge {
+        font-size: 8px;
+        padding: 1px 3px;
+    }
+
+    .limited-tag,
+    .limited-u-tag {
+        font-size: 7px;
+        padding: 1px 3px;
+    }
+
+    /* Offers Column - Mobile */
+    .offers-column {
+        height: auto;
+        max-height: none;
+        overflow: visible;
+        padding: 15px;
+    }
+
+    .offer-section {
+        background: #232527;
+        margin-bottom: 10px;
+    }
+
+    /* Offer Slots Compact */
+    .offer-slots {
+        gap: 4px;
+    }
+
+    .offer-slot-item {
+        padding: 6px;
+        gap: 8px;
+    }
+
+    .slot-img {
+        width: 32px;
+        height: 32px;
+    }
+
+    .slot-img img {
+        width: 24px;
+        height: 24px;
+    }
+
+    .slot-name {
+        font-size: 11px;
+    }
+
+    .slot-val {
+        font-size: 10px;
+    }
+
+    .empty-slot {
+        height: 40px;
+    }
+
+    /* Actions */
+    .make-offer-btn {
+        width: 100%;
+        padding: 12px;
+        font-size: 14px;
+        margin-top: 10px;
+    }
+
+    .value-comparison-values {
+        font-size: 16px;
+    }
+}
