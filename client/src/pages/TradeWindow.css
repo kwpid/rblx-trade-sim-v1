@@ -85,25 +85,27 @@
 
 .inv-items-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: 10px;
-    padding-right: 5px;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+    padding: 10px;
     overflow-y: auto;
-    /* Scrollable grid */
     flex: 1;
-    /* Fill remaining space */
+    max-height: 100%;
 }
 
 /* Item Card */
-/* Matched to Catalog Card style but smaller */
 .inv-card {
     background-color: #393b3d;
-    border-radius: 6px;
+    border-radius: 8px;
     overflow: hidden;
     cursor: pointer;
     transition: all 0.1s;
     user-select: none;
     border: 2px solid transparent;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 180px;
 }
 
 .inv-card:hover {
@@ -119,35 +121,41 @@
 .inv-card-img {
     position: relative;
     width: 100%;
-    aspect-ratio: 1;
+    padding-top: 100%;
+    /* 1:1 aspect ratio */
     background-color: #2a2a2a;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    overflow: hidden;
 }
 
 .inv-card-img img {
-    width: 90%;
-    height: 90%;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 85%;
+    height: 85%;
     object-fit: contain;
 }
 
 .inv-card-details {
-    padding: 8px;
+    padding: 10px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
 
 .inv-card-name {
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    margin-bottom: 4px;
     color: #fff;
 }
 
 .inv-card-value {
-    font-size: 11px;
+    font-size: 12px;
     color: #00ff88;
     font-weight: 700;
 }
