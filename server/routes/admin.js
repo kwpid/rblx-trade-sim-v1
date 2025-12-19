@@ -338,11 +338,15 @@ router.put('/items/:id', async (req, res) => {
           const webhookUrl = process.env.DISCORD_WEBHOOK_URL_VALUES;
           const itemLink = `https://rblxtradesim.com/items/${currentItem.id}`; // Example base URL
 
+          console.log(`[Value-Webhook] Attempting for ${currentItem.name}. URL exists: ${!!webhookUrl}`);
+
           if (webhookUrl) {
-            const newTrend = req.body.trend !== undefined ? req.body.trend : currentItem.trend || 'stable';
-            const newDemand = req.body.demand !== undefined ? req.body.demand : currentItem.demand || 'unknown';
-            const oldTrend = currentItem.trend || 'stable';
-            const oldDemand = currentItem.demand || 'unknown';
+            const currentTrend = currentItem.trend || 'stable';
+            const currentDemand = currentItem.demand || 'unknown';
+            const newTrend = req.body.trend !== undefined ? req.body.trend : currentTrend;
+            const newDemand = req.body.demand !== undefined ? req.body.demand : currentDemand;
+            const oldTrend = currentTrend;
+            const oldDemand = currentDemand;
 
             // --- COLOR & DIRECTION LOGIC ---
             // Rankings for comparison
@@ -415,10 +419,14 @@ router.put('/items/:id', async (req, res) => {
               timestamp: new Date().toISOString()
             };
 
-            await axios.post(webhookUrl, { embeds: [embed] });
+            console.log(`[Value-Webhook] Sending payload for ${currentItem.name}...`);
+            const response = await axios.post(webhookUrl, { embeds: [embed] });
+            console.log(`[Value-Webhook] Success! Status: ${response.status}`);
+          } else {
+            console.log(`[Value-Webhook] SKIPPED: DISCORD_WEBHOOK_URL_VALUES is not set in environment.`);
           }
         } catch (err) {
-          console.error("Failed to send value update webhook:", err);
+          console.error("[Value-Webhook] FAILED:", err.response?.status, err.response?.data || err.message);
         }
       }
     }
