@@ -126,10 +126,8 @@ const TradeWindow = () => {
 
         // Status Logic
         const isProjected = value > 0 && rap > (value * 1.25 + 50)
-        const isTrending = item.trend === 'trending' || item.trend === 'hot'
-        const isRare = item.is_limited // Assuming 'Rare' tag for limiteds, or if there's a specific rarity field. Using is_limited for 'Limited' badge equivalents or just checking rarity field if exists.
-        // Checking previous files, item has 'rarity' field? "items:item_id (id, name, image_url, rap, current_price, scarcity, rarity)" in marketplace.js deals.
-        // Let's assume item.rarity exists or mapped.
+        const isTrending = item.demand === 'high' || item.demand === 'very_high'
+        const isRare = item.rarity === 'rare' || item.rarity === 'insane'
 
         return {
             ...userItem,
@@ -138,7 +136,7 @@ const TradeWindow = () => {
             serialNumber: serialNumber || userItem.serialNumber,
             isProjected,
             isTrending,
-            isRare: item.rarity === 'rare' || item.rarity === 'insane'
+            isRare
         }
     }
 

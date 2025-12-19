@@ -222,16 +222,32 @@ router.get('/leaderboard', async (req, res) => {
   try {
     const ADMIN_USER_ID = '0c55d336-0bf7-49bf-9a90-1b4ba4e13679';
 
-    const { data: users, error } = await supabase
-      .from('users')
-      .select('id, username, cash')
-      .neq('id', ADMIN_USER_ID) // Exclude admin
-      .order('cash', { ascending: false })
-      .limit(10);
+    // Get latest snapshot for each user
+    const { data: snapshots, error } = await supabase
+      .from('player_snapshots')
+      .select('user_id, cash_balance, users!inner(username)')
+      .neq('user_id', ADMIN_USER_ID)
+      .order('snapshot_date', { ascending: false });
 
     if (error) throw error;
 
-    res.json(users);
+    // Get the most recent snapshot per user
+    const userMap = new Map();
+    snapshots.forEach(snapshot => {
+      if (!userMap.has(snapshot.user_id)) {
+        userMap.set(snapshot.user_id, {
+          id: snapshot.user_id,
+          username: snapshot.users.username,
+          cash: snapshot.cash_balance
+        });
+      }
+    });
+
+    const leaderboard = Array.from(userMap.values())
+      .sort((a, b) => b.cash - a.cash)
+      .slice(0, 10);
+
+    res.json(leaderboard);
   } catch (error) {
     console.error('Error fetching leaderboard:', error);
     res.status(500).json({ error: 'Failed to fetch leaderboard' });
@@ -243,54 +259,32 @@ router.get('/leaderboard/value', async (req, res) => {
   try {
     const ADMIN_USER_ID = '0c55d336-0bf7-49bf-9a90-1b4ba4e13679';
 
-    // 1. Get All Users (excluding admin)
-    const { data: users, error: usersError } = await supabase
-      .from('users')
-      .select('id, username')
-      .neq('id', ADMIN_USER_ID); // Exclude admin
+    // Get latest snapshot for each user
+    const { data: snapshots, error } = await supabase
+      .from('player_snapshots')
+      .select('user_id, inventory_value, users!inner(username)')
+      .neq('user_id', ADMIN_USER_ID)
+      .order('snapshot_date', { ascending: false });
 
-    if (usersError) throw usersError;
+    if (error) throw error;
 
-    // 2. Fetch All User Items - each row is one item copy (excluding admin's items)
-    const { data: allItems, error: itemsError } = await supabase
-      .from('user_items')
-      .select(`
-        user_id,
-        items:item_id (value, is_limited)
-      `)
-      .neq('user_id', ADMIN_USER_ID) // Exclude admin's items
-      .not('items', 'is', null);
-
-    if (itemsError) throw itemsError;
-
-    // 3. Aggregate - count EACH item copy individually
-    const userValueMap = {};
-
-    allItems.forEach(userItem => {
-      if (!userValueMap[userItem.user_id]) userValueMap[userItem.user_id] = 0;
-
-      const itemData = userItem.items;
-      // MATCH LOGIC WITH PLAYER LIST: Only count value if limited
-      if (itemData && itemData.is_limited) {
-        const val = (itemData.value !== null && itemData.value !== undefined) ? itemData.value : 0;
-        userValueMap[userItem.user_id] += val;
+    // Get the most recent snapshot per user
+    const userMap = new Map();
+    snapshots.forEach(snapshot => {
+      if (!userMap.has(snapshot.user_id)) {
+        userMap.set(snapshot.user_id, {
+          id: snapshot.user_id,
+          username: snapshot.users.username,
+          value: snapshot.inventory_value || 0
+        });
       }
     });
 
-    // 4. Map & Sort
-    const leaderboard = users.map(u => ({
-      id: u.id,
-      username: u.username,
-      value: userValueMap[u.id] || 0
-    }));
+    const leaderboard = Array.from(userMap.values())
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 10);
 
-    leaderboard.sort((a, b) => b.value - a.value);
-
-    // 5. Limit to Top 10
-    const top10 = leaderboard.slice(0, 10);
-
-    res.json(top10);
-
+    res.json(leaderboard);
   } catch (error) {
     console.error('Error fetching leaderboard:', error);
     res.status(500).json({ error: 'Failed to fetch leaderboard' });
@@ -302,59 +296,32 @@ router.get('/leaderboard/rap', async (req, res) => {
   try {
     const ADMIN_USER_ID = '0c55d336-0bf7-49bf-9a90-1b4ba4e13679';
 
-    // 1. Get All Users (excluding admin)
-    const { data: users, error: usersError } = await supabase
-      .from('users')
-      .select('id, username')
-      .neq('id', ADMIN_USER_ID); // Exclude admin
+    // Get latest snapshot for each user
+    const { data: snapshots, error } = await supabase
+      .from('player_snapshots')
+      .select('user_id, inventory_rap, users!inner(username)')
+      .neq('user_id', ADMIN_USER_ID)
+      .order('snapshot_date', { ascending: false });
 
-    if (usersError) throw usersError;
+    if (error) throw error;
 
-    // 2. Fetch All User Items - each row is one item copy (excluding admin's items)
-    const { data: allItems, error: itemsError } = await supabase
-      .from('user_items')
-      .select(`
-        user_id,
-        items:item_id (
-            rap,
-            is_limited
-        )
-      `)
-      .neq('user_id', ADMIN_USER_ID) // Exclude admin's items
-      .not('items', 'is', null);
-
-    if (itemsError) throw itemsError;
-
-    // 3. Aggregate - count EACH item copy individually
-    const userRAPMap = {};
-
-    allItems.forEach(userItem => {
-      if (!userRAPMap[userItem.user_id]) userRAPMap[userItem.user_id] = 0;
-
-      const itemData = userItem.items;
-      // Each user_item row represents one copy
-      let val = 0;
-      if (itemData.is_limited) {
-        val = itemData.rap || 0;
+    // Get the most recent snapshot per user
+    const userMap = new Map();
+    snapshots.forEach(snapshot => {
+      if (!userMap.has(snapshot.user_id)) {
+        userMap.set(snapshot.user_id, {
+          id: snapshot.user_id,
+          username: snapshot.users.username,
+          rap: snapshot.inventory_rap || 0
+        });
       }
-
-      userRAPMap[userItem.user_id] += val;
     });
 
-    // 4. Map & Sort
-    const leaderboard = users.map(u => ({
-      id: u.id,
-      username: u.username,
-      rap: userRAPMap[u.id] || 0
-    }));
+    const leaderboard = Array.from(userMap.values())
+      .sort((a, b) => b.rap - a.rap)
+      .slice(0, 10);
 
-    leaderboard.sort((a, b) => b.rap - a.rap);
-
-    // 5. Limit to Top 10
-    const top10 = leaderboard.slice(0, 10);
-
-    res.json(top10);
-
+    res.json(leaderboard);
   } catch (error) {
     console.error('Error fetching RAP leaderboard:', error);
     res.status(500).json({ error: 'Failed to fetch RAP leaderboard' });
