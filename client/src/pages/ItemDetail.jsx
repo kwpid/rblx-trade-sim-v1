@@ -130,7 +130,7 @@ const ItemDetail = () => {
         rap: snapshot.rap_value || 0,
         volume: snapshot.sales_volume || 0,
         sales: snapshot.sales_count || 0
-      })).reverse()
+      }))
       setRapHistory(formattedRapHistory)
 
       // Format value history data
@@ -139,7 +139,7 @@ const ItemDetail = () => {
         date: new Date(change.created_at).toLocaleDateString(),
         value: change.new_value || 0,
         oldValue: change.old_value || 0
-      })).reverse()
+      }))
       setValueHistory(formattedValueHistory)
 
       const sortedResellers = resellersResponse.data.sort((a, b) =>

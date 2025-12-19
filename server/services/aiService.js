@@ -1067,24 +1067,10 @@ const checkIncomingTrades = async (ai) => {
     const getEffectiveValue = (item) => {
         const rap = item.rap || 0;
         const val = item.value || rap;
-
-        // Advanced Pricing
-        const avgOverpay = item.avg_overpay || 0;
-        const avgLowball = item.avg_lowball || 0;
-
-        let effective = val;
-
         if (val > 0 && rap > val * 1.25) {
-            effective = Math.floor(rap * 0.3); // Penalty for projected
+            return Math.floor(rap * 0.3); // Penalty for projected
         }
-
-        // When RECEIVING (Evaluating inbound trade):
-        // If item gets OP usually, it is "Good" -> Value it fully or with bonus?
-        // Standard logic: Acknowledge its premium.
-        if (avgOverpay > 0) effective += avgOverpay;
-        if (avgLowball > 0) effective -= avgLowball;
-
-        return Math.max(1, effective);
+        return val; // Prefer Value over RAP usually
     };
 
     trade.trade_items.forEach(ti => {
@@ -1243,6 +1229,7 @@ const actionInitiateTrade = async (ai, p) => {
             items:item_id(*), 
             users!inner(id, is_ai, username)
         `)
+        .not('user_id', 'eq', ai.id)
         .eq('is_for_sale', false) // Target unlisted items (stash)
         .eq('items.is_limited', true);
 
@@ -1300,34 +1287,8 @@ const actionInitiateTrade = async (ai, p) => {
         if (!item) return 0;
         const rap = item.rap || 0;
         const val = item.value || rap;
-
-        // Advanced Pricing: incorporate historical stats
-        const avgOverpay = item.avg_overpay || 0;
-        const avgLowball = item.avg_lowball || 0;
-
-        // Base
-        let effective = val;
-
-        if (effective > 0 && rap > effective * 1.25) {
-            effective = Math.floor(rap * 0.3); // Penalty for projected
-        }
-
-        // Apply Stats Influence?
-        // If an item usually gets Overpay, AI values it HIGHER when trying to ACQUIRE it (because they know they have to pay more)
-        // But here we are calculating TARGET value (what we are buying). So yes, we treat its value as higher.
-        if (avgOverpay > 0) {
-            // e.g. Value 100k, Avg OP 10k -> AI treats it as 110k target
-            effective += avgOverpay;
-        }
-
-        // If it gets Lowballed, we might treat it as lower value? 
-        // "if an item gets 10k lowball, theyll do around a 10k lowball"
-        // So target value should be LOWER.
-        if (avgLowball > 0) {
-            effective -= avgLowball;
-        }
-
-        return Math.max(1, effective);
+        if (val > 0 && rap > val * 1.25) return Math.floor(val * 0.5); // Penalty for projected
+        return val;
     };
 
     const targetVal = getEffectiveValue(targetItem.items);
